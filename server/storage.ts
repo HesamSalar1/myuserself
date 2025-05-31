@@ -50,24 +50,24 @@ export class MemStorage implements IStorage {
   private initializeBots() {
     const defaultBots: InsertBot[] = [
       {
-        name: "بات اول",
-        account: "@bot_account_1",
+        name: "بات تلگرام اول",
+        account: "API ID: 15508294",
         port: 3001,
         status: "offline",
         cpuUsage: 0,
         memoryUsage: 0,
       },
       {
-        name: "بات دوم",
-        account: "@bot_account_2",
+        name: "بات تلگرام دوم", 
+        account: "API ID: 29262538",
         port: 3002,
         status: "offline",
         cpuUsage: 0,
         memoryUsage: 0,
       },
       {
-        name: "بات سوم",
-        account: "@bot_account_3",
+        name: "بات تلگرام سوم",
+        account: "API ID: 21555907",
         port: 3003,
         status: "offline",
         cpuUsage: 0,
