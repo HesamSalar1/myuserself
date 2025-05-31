@@ -77,7 +77,15 @@ export class MemStorage implements IStorage {
 
     for (const bot of defaultBots) {
       const id = this.currentBotId++;
-      this.bots.set(id, { ...bot, id, pid: null, lastStarted: null });
+      this.bots.set(id, { 
+        ...bot, 
+        id, 
+        pid: null, 
+        lastStarted: null,
+        status: bot.status || "offline",
+        cpuUsage: bot.cpuUsage || 0,
+        memoryUsage: bot.memoryUsage || 0
+      });
     }
   }
 
@@ -95,7 +103,10 @@ export class MemStorage implements IStorage {
       ...insertBot, 
       id, 
       pid: null, 
-      lastStarted: null 
+      lastStarted: null,
+      status: insertBot.status || "offline",
+      cpuUsage: insertBot.cpuUsage || 0,
+      memoryUsage: insertBot.memoryUsage || 0
     };
     this.bots.set(id, bot);
     return bot;
@@ -141,8 +152,10 @@ export class MemStorage implements IStorage {
   async addBotLog(insertLog: InsertBotLog): Promise<BotLog> {
     const id = this.currentLogId++;
     const log: BotLog = {
-      ...insertLog,
       id,
+      botId: insertLog.botId || null,
+      level: insertLog.level,
+      message: insertLog.message,
       timestamp: new Date(),
     };
     this.botLogs.push(log);
