@@ -1,46 +1,35 @@
-const fs = require('fs');
+const { spawn } = require('child_process');
 const path = require('path');
 
 const BOT_ID = process.env.BOT_ID || '3';
 const BOT_PORT = process.env.BOT_PORT || '3003';
 
-console.log(`Bot ${BOT_ID} starting on port ${BOT_PORT}...`);
+console.log(`Bot ${BOT_ID} starting Python Telegram Bot on port ${BOT_PORT}...`);
 
-// Simulate bot initialization
-setTimeout(() => {
-  console.log(`Bot ${BOT_ID} initialized successfully`);
-  console.log(`Bot ${BOT_ID} connected to account @bot_account_${BOT_ID}`);
-}, 2000);
-
-// Simulate periodic activity
-setInterval(() => {
-  const activities = [
-    'Processing messages',
-    'Checking for updates',
-    'Sending heartbeat',
-    'Handling user requests',
-    'Performing maintenance tasks'
-  ];
-  
-  const activity = activities[Math.floor(Math.random() * activities.length)];
-  console.log(`Bot ${BOT_ID}: ${activity}`);
-}, 40000);
-
-// Keep the process running
-process.on('SIGTERM', () => {
-  console.log(`Bot ${BOT_ID} received SIGTERM, shutting down gracefully...`);
-  process.exit(0);
+// Run the Python bot
+const pythonProcess = spawn('python', ['main.py'], {
+  cwd: __dirname,
+  stdio: 'inherit',
+  env: { ...process.env, BOT_ID, BOT_PORT }
 });
 
-process.on('SIGINT', () => {
-  console.log(`Bot ${BOT_ID} received SIGINT, shutting down gracefully...`);
-  process.exit(0);
+pythonProcess.on('close', (code) => {
+  console.log(`Bot ${BOT_ID} process exited with code ${code}`);
+  process.exit(code);
 });
 
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error(`Bot ${BOT_ID} uncaught exception:`, error);
+pythonProcess.on('error', (error) => {
+  console.error(`Bot ${BOT_ID} failed to start:`, error);
   process.exit(1);
 });
 
-console.log(`Bot ${BOT_ID} is now running. PID: ${process.pid}`);
+// Handle shutdown signals
+process.on('SIGTERM', () => {
+  console.log(`Bot ${BOT_ID} received SIGTERM, shutting down...`);
+  pythonProcess.kill('SIGTERM');
+});
+
+process.on('SIGINT', () => {
+  console.log(`Bot ${BOT_ID} received SIGINT, shutting down...`);
+  pythonProcess.kill('SIGINT');
+});
