@@ -306,8 +306,8 @@ init_db()
 async def start_command(client, message: Message):
     await message.edit_text(f"🤖 **ربات 3 آماده است!**\n\n📋 برای مشاهده کامندها: `/help`\n🆔 Admin: `{admin_id}`")
 
-# کامندهای مدیریت فحش
-@app.on_message(filters.command(["addfosh", "addfoshphoto", "addfoshvideo", "addfoshgif", "addfoshsticker", "addfoshaudio"]) & filters.user(admin_id))
+# کامند اضافه کردن فحش (تمام انواع رسانه)
+@app.on_message(filters.command("addfosh") & filters.user(admin_id))
 async def add_fosh_command(client, message: Message):
     try:
         if message.reply_to_message:
@@ -545,8 +545,8 @@ async def clear_friend_command(client, message: Message):
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامندهای کلمات دوستانه
-@app.on_message(filters.command(["addword", "addwordphoto", "addwordvideo", "addwordgif", "addwordsticker", "addwordaudio"]) & filters.user(admin_id))
+# کامند اضافه کردن کلمه دوستانه (تمام انواع رسانه)
+@app.on_message(filters.command("addword") & filters.user(admin_id))
 async def add_word_command(client, message: Message):
     try:
         if message.reply_to_message:
@@ -837,11 +837,7 @@ async def help_command(client, message: Message):
 
 🔥 **مدیریت سیستم فحش‌ها:**
 • `/addfosh [متن]` - اضافه کردن فحش جدید (متن یا ریپلای رسانه)
-• `/addfoshphoto` (ریپلای) - اضافه کردن عکس به فحش‌ها
-• `/addfoshvideo` (ریپلای) - اضافه کردن ویدیو به فحش‌ها
-• `/addfoshgif` (ریپلای) - اضافه کردن گیف به فحش‌ها
-• `/addfoshsticker` (ریپلای) - اضافه کردن استیکر به فحش‌ها
-• `/addfoshaudio` (ریپلای) - اضافه کردن صوت به فحش‌ها
+  └ پشتیبانی: متن، عکس، ویدیو، گیف، استیکر، صوت
 • `/delfosh [متن]` - حذف فحش مشخص از دیتابیس
 • `/listfosh` - نمایش کامل فحش‌ها با صفحه‌بندی خودکار
 • `/clearfosh` - حذف کلی تمام فحش‌ها (غیرقابل بازگشت)
@@ -860,11 +856,7 @@ async def help_command(client, message: Message):
 
 💬 **بانک کلمات دوستانه:**
 • `/addword [متن]` - اضافه کردن پیام دوستانه (متن یا ریپلای رسانه)
-• `/addwordphoto` (ریپلای) - اضافه کردن عکس دوستانه
-• `/addwordvideo` (ریپلای) - اضافه کردن ویدیو دوستانه
-• `/addwordgif` (ریپلای) - اضافه کردن گیف دوستانه
-• `/addwordsticker` (ریپلای) - اضافه کردن استیکر دوستانه
-• `/addwordaudio` (ریپلای) - اضافه کردن صوت دوستانه
+  └ پشتیبانی: متن، عکس، ویدیو، گیف، استیکر، صوت
 • `/delword [متن]` - حذف کلمه مشخص از بانک
 • `/listword` - مشاهده تمام پیام‌های دوستانه
 • `/clearword` - حذف کامل بانک
