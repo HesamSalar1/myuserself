@@ -1,3 +1,4 @@
+
 import json
 import asyncio
 import sys
@@ -235,6 +236,32 @@ def get_stats():
 # شروع برنامه
 init_db()
 
+# کامند شروع
+@app.on_message(filters.command("start") & filters.user(admin_id))
+async def start_command(client, message: Message):
+    await message.edit_text(f"🤖 **ربات 1 آماده است!**\n\n📋 برای مشاهده کامندها: `/help`\n🆔 Admin: `{admin_id}`")
+
+# کامند وضعیت
+@app.on_message(filters.command("status") & filters.user(admin_id))
+async def status_command(client, message: Message):
+    try:
+        stats = get_stats()
+        status_text = f"""🤖 **وضعیت ربات 1:**
+
+✅ **وضعیت:** فعال و آماده
+🔄 **پاسخ خودکار:** {'فعال' if auto_reply_enabled else 'غیرفعال'}
+
+📊 **آمار:**
+• فحش‌ها: `{stats['fosh_count']}` عدد
+• دشمنان: `{stats['enemy_count']}` نفر
+• دوستان: `{stats['friend_count']}` نفر
+• کلمات دوستانه: `{stats['word_count']}` عدد
+
+🕐 **آخرین بروزرسانی:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
+        await message.edit_text(status_text)
+    except Exception as e:
+        await message.edit_text(f"❌ خطا در نمایش وضعیت: {str(e)}")
+
 # کامند اضافه کردن فحش
 @app.on_message(filters.command("addfosh") & filters.user(admin_id))
 async def add_fosh_command(client, message: Message):
@@ -336,6 +363,26 @@ async def del_enemy_command(client, message: Message):
         await message.edit_text(f"❌ خطا در حذف دشمن: {str(e)}")
         logger.error(f"خطا در del_enemy_command: {e}")
 
+# کامند لیست دشمنان
+@app.on_message(filters.command("listenemy") & filters.user(admin_id))
+async def list_enemy_command(client, message: Message):
+    try:
+        enemy_list = get_enemy_list()
+        if not enemy_list:
+            await message.edit_text("📝 لیست دشمنان خالی است.")
+            return
+
+        text = "👹 **لیست دشمنان:**\n\n"
+        for i, user_id in enumerate(enemy_list, 1):
+            text += f"`{i}.` `{user_id}`\n"
+
+        text += f"\n📊 **تعداد کل:** {len(enemy_list)} دشمن"
+        await message.edit_text(text)
+
+    except Exception as e:
+        await message.edit_text(f"❌ خطا در نمایش لیست دشمنان: {str(e)}")
+        logger.error(f"خطا در list_enemy_command: {e}")
+
 # کامند اضافه کردن دوست
 @app.on_message(filters.command("setfriend") & filters.user(admin_id) & filters.reply)
 async def set_friend_command(client, message: Message):
@@ -374,6 +421,26 @@ async def del_friend_command(client, message: Message):
     except Exception as e:
         await message.edit_text(f"❌ خطا در حذف دوست: {str(e)}")
         logger.error(f"خطا در del_friend_command: {e}")
+
+# کامند لیست دوستان
+@app.on_message(filters.command("listfriend") & filters.user(admin_id))
+async def list_friend_command(client, message: Message):
+    try:
+        friend_list = get_friend_list()
+        if not friend_list:
+            await message.edit_text("📝 لیست دوستان خالی است.")
+            return
+
+        text = "😊 **لیست دوستان:**\n\n"
+        for i, user_id in enumerate(friend_list, 1):
+            text += f"`{i}.` `{user_id}`\n"
+
+        text += f"\n📊 **تعداد کل:** {len(friend_list)} دوست"
+        await message.edit_text(text)
+
+    except Exception as e:
+        await message.edit_text(f"❌ خطا در نمایش لیست دوستان: {str(e)}")
+        logger.error(f"خطا در list_friend_command: {e}")
 
 # کامند اضافه کردن کلمه دوستانه
 @app.on_message(filters.command("addword") & filters.user(admin_id))
@@ -416,6 +483,26 @@ async def del_word_command(client, message: Message):
     except Exception as e:
         await message.edit_text(f"❌ خطا در حذف کلمه: {str(e)}")
         logger.error(f"خطا در del_word_command: {e}")
+
+# کامند لیست کلمات دوستانه
+@app.on_message(filters.command("listword") & filters.user(admin_id))
+async def list_word_command(client, message: Message):
+    try:
+        word_list = get_friend_words()
+        if not word_list:
+            await message.edit_text("📝 لیست کلمات دوستانه خالی است.\n💡 با `/addword` کلمه اضافه کنید.")
+            return
+
+        text = "💬 **لیست کلمات دوستانه:**\n\n"
+        for i, word in enumerate(word_list, 1):
+            text += f"`{i}.` {word}\n"
+
+        text += f"\n📊 **تعداد کل:** {len(word_list)} کلمه"
+        await message.edit_text(text)
+
+    except Exception as e:
+        await message.edit_text(f"❌ خطا در نمایش لیست: {str(e)}")
+        logger.error(f"خطا در list_word_command: {e}")
 
 # کامند نمایش آمار
 @app.on_message(filters.command("stats") & filters.user(admin_id))
@@ -506,6 +593,32 @@ async def broadcast_command(client, message: Message):
         await message.edit_text(f"❌ خطا در ارسال همگانی: {str(e)}")
         logger.error(f"خطا در broadcast_command: {e}")
 
+# کامند تست سیستم
+@app.on_message(filters.command("test") & filters.user(admin_id))
+async def test_command(client, message: Message):
+    try:
+        stats = get_stats()
+        import os
+        db_size = os.path.getsize('bot1_data.db') / 1024  # KB
+
+        test_report = f"""🔍 **گزارش تست سیستم بات 1:**
+
+✅ **وضعیت کلی:** سالم و فعال
+📊 **آمار داده‌ها:**
+   • فحش‌ها: `{stats['fosh_count']}` عدد
+   • دشمنان: `{stats['enemy_count']}` نفر
+   • دوستان: `{stats['friend_count']}` نفر
+   • کلمات دوستانه: `{stats['word_count']}` عدد
+
+💾 **دیتابیس:** {db_size:.1f} KB
+🤖 **Admin ID:** `{admin_id}`
+🔄 **پاسخ خودکار:** {'فعال' if auto_reply_enabled else 'غیرفعال'}
+
+⏰ **زمان تست:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
+        await message.edit_text(test_report)
+    except Exception as e:
+        await message.edit_text(f"❌ خطا در تست: {str(e)}")
+
 # پاسخگویی خودکار
 @app.on_message(~filters.me & ~filters.channel)
 async def auto_reply_handler(client, message: Message):
@@ -564,21 +677,27 @@ async def help_command(client, message: Message):
 👹 **مدیریت دشمنان:**
 • `/setenemy` - اضافه کردن دشمن (ریپلای)
 • `/delenemy` - حذف دشمن (ریپلای)
+• `/listenemy` - لیست دشمنان
 
 😊 **مدیریت دوستان:**
 • `/setfriend` - اضافه کردن دوست (ریپلای)
 • `/delfriend` - حذف دوست (ریپلای)
+• `/listfriend` - لیست دوستان
 
 💬 **مدیریت کلمات دوستانه:**
 • `/addword [متن]` - اضافه کردن کلمه
 • `/delword [متن]` - حذف کلمه
+• `/listword` - لیست کلمات دوستانه
 
 🤖 **تنظیمات:**
 • `/autoreply` - فعال/غیرفعال پاسخگویی
 • `/stats` - نمایش آمار
 • `/broadcast [پیام]` - ارسال همگانی
+• `/test` - تست سیستم
 
 ℹ️ **سایر:**
+• `/start` - شروع ربات
+• `/status` - وضعیت ربات
 • `/help` - نمایش این راهنما"""
 
         await message.edit_text(text)
@@ -592,4 +711,3 @@ logger.info("ربات 1 آماده شد!")
 
 if __name__ == "__main__":
     app.run()
-```
