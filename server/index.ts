@@ -10,16 +10,13 @@ const bots: any[] = [];
 
 function startBotSequentially(botId: number): Promise<any> {
   return new Promise((resolve, reject) => {
-    const botPath = path.join(process.cwd(), 'bots', `bot${botId}`);
+    console.log(`Starting Bot ${botId} with isolated process...`);
     
-    console.log(`Starting Bot ${botId}...`);
-    
-    const botProcess = spawn('python3', ['main.py'], {
-      cwd: botPath,
+    const botProcess = spawn('node', ['run-single-bot.cjs', botId.toString()], {
+      cwd: process.cwd(),
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { 
-        ...process.env, 
-        BOT_ID: botId.toString(),
+        ...process.env,
         PYTHONUNBUFFERED: '1'
       }
     });
@@ -30,7 +27,7 @@ function startBotSequentially(botId: number): Promise<any> {
       const output = data.toString();
       console.log(`[Bot ${botId}] ${output.trim()}`);
       
-      if ((output.includes('Started') || output.includes('Client initialized')) && !startupComplete) {
+      if ((output.includes('آماده') || output.includes('ready') || output.includes('Client initialized')) && !startupComplete) {
         startupComplete = true;
         console.log(`[Bot ${botId}] ✅ Successfully started`);
         resolve(botProcess);
@@ -50,7 +47,7 @@ function startBotSequentially(botId: number): Promise<any> {
         bots.splice(index, 1);
       }
 
-      if (!startupComplete) {
+      if (!startupComplete && code !== 0) {
         reject(new Error(`Bot ${botId} closed before complete startup. Exit code: ${code}`));
       }
     });
@@ -68,14 +65,14 @@ function startBotSequentially(botId: number): Promise<any> {
       startTime: new Date()
     });
 
-    // Timeout after 30 seconds
+    // Timeout after 45 seconds (more time for authentication)
     setTimeout(() => {
       if (!startupComplete) {
         console.log(`[Bot ${botId}] ⚠️ Startup timeout, assuming success`);
         startupComplete = true;
         resolve(botProcess);
       }
-    }, 30000);
+    }, 45000);
   });
 }
 
