@@ -1,4 +1,3 @@
-
 import json
 import asyncio
 import sys
@@ -40,14 +39,14 @@ auto_reply_enabled = True
 def init_db():
     conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
-    
+
     # ایجاد جداول
     cursor.execute('''CREATE TABLE IF NOT EXISTS fosh_list (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         fosh TEXT UNIQUE NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
-    
+
     cursor.execute('''CREATE TABLE IF NOT EXISTS enemy_list (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER UNIQUE NOT NULL,
@@ -55,7 +54,7 @@ def init_db():
         first_name TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
-    
+
     cursor.execute('''CREATE TABLE IF NOT EXISTS friend_list (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER UNIQUE NOT NULL,
@@ -63,13 +62,13 @@ def init_db():
         first_name TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
-    
+
     cursor.execute('''CREATE TABLE IF NOT EXISTS friend_words (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         word TEXT UNIQUE NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
-    
+
     cursor.execute('''CREATE TABLE IF NOT EXISTS action_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         action_type TEXT NOT NULL,
@@ -77,7 +76,7 @@ def init_db():
         details TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
-    
+
     conn.commit()
     conn.close()
 
@@ -211,21 +210,21 @@ def log_action(action_type, user_id=None, details=None):
 def get_stats():
     conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
-    
+
     cursor.execute("SELECT COUNT(*) FROM fosh_list")
     fosh_count = cursor.fetchone()[0]
-    
+
     cursor.execute("SELECT COUNT(*) FROM enemy_list")
     enemy_count = cursor.fetchone()[0]
-    
+
     cursor.execute("SELECT COUNT(*) FROM friend_list")
     friend_count = cursor.fetchone()[0]
-    
+
     cursor.execute("SELECT COUNT(*) FROM friend_words")
     word_count = cursor.fetchone()[0]
-    
+
     conn.close()
-    
+
     return {
         'fosh_count': fosh_count,
         'enemy_count': enemy_count,
@@ -245,7 +244,7 @@ async def add_fosh_command(client, message: Message):
             return
 
         fosh = " ".join(message.command[1:])
-        
+
         if add_fosh(fosh):
             await message.edit_text(f"✅ فحش جدید اضافه شد:\n`{fosh}`")
             log_action("add_fosh", admin_id, fosh[:50])
@@ -266,7 +265,7 @@ async def del_fosh_command(client, message: Message):
             return
 
         fosh = " ".join(message.command[1:])
-        
+
         if remove_fosh(fosh):
             await message.edit_text(f"✅ فحش حذف شد:\n`{fosh}`")
             log_action("del_fosh", admin_id, fosh[:50])
@@ -306,7 +305,7 @@ async def set_enemy_command(client, message: Message):
         user_id = replied.from_user.id
         username = replied.from_user.username
         first_name = replied.from_user.first_name
-        
+
         if add_enemy(user_id, username, first_name):
             await message.edit_text(f"👹 کاربر به لیست دشمنان اضافه شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
             log_action("add_enemy", user_id, f"{first_name} (@{username})")
@@ -325,7 +324,7 @@ async def del_enemy_command(client, message: Message):
         replied = message.reply_to_message
         user_id = replied.from_user.id
         first_name = replied.from_user.first_name
-        
+
         if remove_enemy(user_id):
             await message.edit_text(f"✅ کاربر از لیست دشمنان حذف شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
             log_action("del_enemy", user_id, f"{first_name}")
@@ -345,7 +344,7 @@ async def set_friend_command(client, message: Message):
         user_id = replied.from_user.id
         username = replied.from_user.username
         first_name = replied.from_user.first_name
-        
+
         if add_friend(user_id, username, first_name):
             await message.edit_text(f"😊 کاربر به لیست دوستان اضافه شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
             log_action("add_friend", user_id, f"{first_name} (@{username})")
@@ -364,7 +363,7 @@ async def del_friend_command(client, message: Message):
         replied = message.reply_to_message
         user_id = replied.from_user.id
         first_name = replied.from_user.first_name
-        
+
         if remove_friend(user_id):
             await message.edit_text(f"✅ کاربر از لیست دوستان حذف شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
             log_action("del_friend", user_id, f"{first_name}")
@@ -385,7 +384,7 @@ async def add_word_command(client, message: Message):
             return
 
         word = " ".join(message.command[1:])
-        
+
         if add_friend_word(word):
             await message.edit_text(f"✅ کلمه دوستانه اضافه شد:\n`{word}`")
             log_action("add_word", admin_id, word[:50])
@@ -406,7 +405,7 @@ async def del_word_command(client, message: Message):
             return
 
         word = " ".join(message.command[1:])
-        
+
         if remove_friend_word(word):
             await message.edit_text(f"✅ کلمه دوستانه حذف شد:\n`{word}`")
             log_action("del_word", admin_id, word[:50])
@@ -423,7 +422,7 @@ async def del_word_command(client, message: Message):
 async def stats_command(client, message: Message):
     try:
         stats = get_stats()
-        
+
         text = "📊 **آمار کامل ربات 1:**\n\n"
         text += f"🔥 فحش‌ها: `{stats['fosh_count']}` عدد\n"
         text += f"👹 دشمنان: `{stats['enemy_count']}` نفر\n"
@@ -431,7 +430,7 @@ async def stats_command(client, message: Message):
         text += f"💬 کلمات دوستانه: `{stats['word_count']}` عدد\n\n"
         text += f"🤖 **وضعیت پاسخگویی:** {'فعال ✅' if auto_reply_enabled else 'غیرفعال ❌'}\n"
         text += f"⏰ **آخرین بروزرسانی:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        
+
         await message.edit_text(text)
         log_action("stats_view", admin_id, "نمایش آمار")
 
@@ -463,21 +462,21 @@ async def broadcast_command(client, message: Message):
             return
 
         text = " ".join(message.command[1:])
-        
+
         # دریافت تمام کاربران
         friend_list = get_friend_list()
         enemy_list = get_enemy_list()
         all_users = set(friend_list + enemy_list)
-        
+
         if not all_users:
             await message.edit_text("⚠️ هیچ کاربری در لیست دوستان یا دشمنان موجود نیست!")
             return
 
         await message.edit_text(f"📤 شروع ارسال پیام به {len(all_users)} کاربر...")
-        
+
         success = 0
         fail = 0
-        
+
         for user_id in all_users:
             try:
                 await client.send_message(user_id, text)
@@ -499,7 +498,7 @@ async def broadcast_command(client, message: Message):
         result_text += f"📤 **ارسال شده:** {success} نفر\n"
         result_text += f"❌ **ناموفق:** {fail} نفر\n"
         result_text += f"📊 **کل:** {len(all_users)} نفر"
-        
+
         await message.edit_text(result_text)
         log_action("broadcast", admin_id, f"موفق:{success}, ناموفق:{fail}")
 
@@ -519,11 +518,11 @@ async def auto_reply_handler(client, message: Message):
 
         user_id = message.from_user.id
         user_name = message.from_user.first_name or "کاربر"
-        
+
         # دریافت لیست‌ها
         friend_list = get_friend_list()
         enemy_list = get_enemy_list()
-        
+
         # پاسخ به دشمنان
         if user_id in enemy_list:
             fosh_list = get_fosh_list()
@@ -593,3 +592,4 @@ logger.info("ربات 1 آماده شد!")
 
 if __name__ == "__main__":
     app.run()
+```

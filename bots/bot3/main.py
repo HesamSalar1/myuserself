@@ -1,4 +1,3 @@
-
 import json
 import asyncio
 import sys
@@ -40,14 +39,14 @@ auto_reply_enabled = True
 def init_db():
     conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
-    
+
     # ایجاد جداول
     cursor.execute('''CREATE TABLE IF NOT EXISTS fosh_list (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         fosh TEXT UNIQUE NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
-    
+
     cursor.execute('''CREATE TABLE IF NOT EXISTS enemy_list (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER UNIQUE NOT NULL,
@@ -55,7 +54,7 @@ def init_db():
         first_name TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
-    
+
     cursor.execute('''CREATE TABLE IF NOT EXISTS friend_list (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER UNIQUE NOT NULL,
@@ -63,13 +62,13 @@ def init_db():
         first_name TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
-    
+
     cursor.execute('''CREATE TABLE IF NOT EXISTS friend_words (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         word TEXT UNIQUE NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
-    
+
     cursor.execute('''CREATE TABLE IF NOT EXISTS action_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         action_type TEXT NOT NULL,
@@ -77,7 +76,7 @@ def init_db():
         details TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
-    
+
     conn.commit()
     conn.close()
 
@@ -211,21 +210,21 @@ def log_action(action_type, user_id=None, details=None):
 def get_stats():
     conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
-    
+
     cursor.execute("SELECT COUNT(*) FROM fosh_list")
     fosh_count = cursor.fetchone()[0]
-    
+
     cursor.execute("SELECT COUNT(*) FROM enemy_list")
     enemy_count = cursor.fetchone()[0]
-    
+
     cursor.execute("SELECT COUNT(*) FROM friend_list")
     friend_count = cursor.fetchone()[0]
-    
+
     cursor.execute("SELECT COUNT(*) FROM friend_words")
     word_count = cursor.fetchone()[0]
-    
+
     conn.close()
-    
+
     return {
         'fosh_count': fosh_count,
         'enemy_count': enemy_count,
@@ -233,8 +232,130 @@ def get_stats():
         'word_count': word_count
     }
 
-# شروع برنامه
-init_db()
+# کامند تست سیستم
+@app.on_message(filters.command("test") & filters.user(admin_id))
+async def test_command(client, message: Message):
+    """کامند تست کامل برای بررسی عملکرد ربات"""
+    try:
+        stats = get_stats()
+        import os
+        db_size = os.path.getsize('bot3_data.db') / 1024  # KB
+
+        test_report = f"""
+🔍 **گزارش تست سیستم بات 3:**
+
+✅ **وضعیت کلی:** سالم و فعال
+📊 **آمار داده‌ها:**
+   • فحش‌ها: `{stats['fosh_count']}` عدد
+   • دشمنان: `{stats['enemy_count']}` نفر
+   • دوستان: `{stats['friend_count']}` نفر
+   • کلمات دوستانه: `{stats['word_count']}` عدد
+
+💾 **دیتابیس:** {db_size:.1f} KB
+🤖 **Admin ID:** `{admin_id}`
+🔄 **پاسخ خودکار:** {'فعال' if auto_reply_enabled else 'غیرفعال'}
+
+⏰ **زمان تست:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+        await message.edit_text(test_report)
+    except Exception as e:
+        await message.edit_text(f"❌ خطا در تست: {str(e)}")
+
+# کامند کمک - نمایش همه کامندها
+@app.on_message(filters.command("help") & filters.user(admin_id))
+async def help_command(client, message: Message):
+    """نمایش لیست تمام کامندها"""
+    help_text = """
+🤖 **راهنمای کامندهای ربات 3:**
+
+**🔧 مدیریت کلی:**
+`/start` - شروع ربات
+`/status` - وضعیت ربات
+`/test` - تست سیستم
+`/backup` - بکاپ دیتابیس
+`/help` - این راهنما
+
+**👥 مدیریت کاربران:**
+`/setfriend` - اضافه کردن دوست (ریپلای)
+`/delfriend` - حذف دوست (ریپلای)
+`/listfriend` - لیست دوستان
+`/setenemy` - اضافه کردن دشمن (ریپلای)
+`/delenemy` - حذف دشمن (ریپلای)
+`/listenemy` - لیست دشمنان
+
+**💬 مدیریت کلمات:**
+`/addfosh` - اضافه کردن فحش
+`/delfosh` - حذف فحش
+`/listfosh` - لیست فحش‌ها
+`/addfriend` - اضافه کردن کلمه دوستانه
+`/delfriend` - حذف کلمه دوستانه
+`/listfriendwords` - لیست کلمات دوستانه
+
+**⚙️ تنظیمات:**
+`/autoreply on/off` - فعال/غیرفعال کردن پاسخ خودکار
+`/stats` - آمار کلی
+
+**🔢 شمارش:**
+`/count` - شروع شمارش
+`/stopcount` - توقف شمارش
+`/listcount` - لیست شمارش‌ها
+
+**💭 پیام خصوصی:**
+`/setprivate` - تنظیم پاسخ خصوصی
+`/delprivate` - حذف پاسخ خصوصی
+`/listprivate` - لیست پاسخ‌های خصوصی
+"""
+    await message.edit_text(help_text)
+
+# کامند شروع
+@app.on_message(filters.command("start") & filters.user(admin_id))
+async def start_command(client, message: Message):
+    """کامند شروع"""
+    await message.edit_text(f"🤖 **ربات 3 آماده است!**\n\n📋 برای مشاهده کامندها: `/help`\n🆔 Admin: `{admin_id}`")
+
+# کامند وضعیت
+@app.on_message(filters.command("status") & filters.user(admin_id))
+async def status_command(client, message: Message):
+    """نمایش وضعیت ربات"""
+    try:
+        stats = get_stats()
+        status_text = f"""
+🤖 **وضعیت ربات 3:**
+
+✅ **وضعیت:** فعال و آماده
+🔄 **پاسخ خودکار:** {'فعال' if auto_reply_enabled else 'غیرفعال'}
+
+📊 **آمار:**
+• فحش‌ها: `{stats['fosh_count']}` عدد
+• دشمنان: `{stats['enemy_count']}` نفر
+• دوستان: `{stats['friend_count']}` نفر
+• کلمات دوستانه: `{stats['word_count']}` عدد
+
+🕐 **آخرین بروزرسانی:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+        await message.edit_text(status_text)
+    except Exception as e:
+        await message.edit_text(f"❌ خطا در نمایش وضعیت: {str(e)}")
+
+# کامند فعال/غیرفعال کردن پاسخ خودکار
+@app.on_message(filters.command("autoreply") & filters.user(admin_id))
+async def toggle_auto_reply(client, message: Message):
+    """فعال/غیرفعال کردن پاسخ خودکار"""
+    global auto_reply_enabled
+
+    if len(message.command) > 1:
+        action = message.command[1].lower()
+        if action == "on":
+            auto_reply_enabled = True
+            await message.edit_text("✅ پاسخ خودکار فعال شد")
+        elif action == "off":
+            auto_reply_enabled = False
+            await message.edit_text("❌ پاسخ خودکار غیرفعال شد")
+        else:
+            await message.edit_text("❓ استفاده: `/autoreply on` یا `/autoreply off`")
+    else:
+        current_status = "فعال" if auto_reply_enabled else "غیرفعال"
+        await message.edit_text(f"🔄 وضعیت فعلی پاسخ خودکار: **{current_status}**\n\n💡 برای تغییر: `/autoreply on` یا `/autoreply off`")
 
 # کامند اضافه کردن فحش
 @app.on_message(filters.command("addfosh") & filters.user(admin_id))
@@ -245,7 +366,7 @@ async def add_fosh_command(client, message: Message):
             return
 
         fosh = " ".join(message.command[1:])
-        
+
         if add_fosh(fosh):
             await message.edit_text(f"✅ فحش جدید اضافه شد:\n`{fosh}`")
             log_action("add_fosh", admin_id, fosh[:50])
@@ -266,7 +387,7 @@ async def del_fosh_command(client, message: Message):
             return
 
         fosh = " ".join(message.command[1:])
-        
+
         if remove_fosh(fosh):
             await message.edit_text(f"✅ فحش حذف شد:\n`{fosh}`")
             log_action("del_fosh", admin_id, fosh[:50])
@@ -306,7 +427,7 @@ async def set_enemy_command(client, message: Message):
         user_id = replied.from_user.id
         username = replied.from_user.username
         first_name = replied.from_user.first_name
-        
+
         if add_enemy(user_id, username, first_name):
             await message.edit_text(f"👹 کاربر به لیست دشمنان اضافه شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
             log_action("add_enemy", user_id, f"{first_name} (@{username})")
@@ -325,7 +446,7 @@ async def del_enemy_command(client, message: Message):
         replied = message.reply_to_message
         user_id = replied.from_user.id
         first_name = replied.from_user.first_name
-        
+
         if remove_enemy(user_id):
             await message.edit_text(f"✅ کاربر از لیست دشمنان حذف شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
             log_action("del_enemy", user_id, f"{first_name}")
@@ -345,7 +466,7 @@ async def set_friend_command(client, message: Message):
         user_id = replied.from_user.id
         username = replied.from_user.username
         first_name = replied.from_user.first_name
-        
+
         if add_friend(user_id, username, first_name):
             await message.edit_text(f"😊 کاربر به لیست دوستان اضافه شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
             log_action("add_friend", user_id, f"{first_name} (@{username})")
@@ -364,7 +485,7 @@ async def del_friend_command(client, message: Message):
         replied = message.reply_to_message
         user_id = replied.from_user.id
         first_name = replied.from_user.first_name
-        
+
         if remove_friend(user_id):
             await message.edit_text(f"✅ کاربر از لیست دوستان حذف شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
             log_action("del_friend", user_id, f"{first_name}")
@@ -385,7 +506,7 @@ async def add_word_command(client, message: Message):
             return
 
         word = " ".join(message.command[1:])
-        
+
         if add_friend_word(word):
             await message.edit_text(f"✅ کلمه دوستانه اضافه شد:\n`{word}`")
             log_action("add_word", admin_id, word[:50])
@@ -406,7 +527,7 @@ async def del_word_command(client, message: Message):
             return
 
         word = " ".join(message.command[1:])
-        
+
         if remove_friend_word(word):
             await message.edit_text(f"✅ کلمه دوستانه حذف شد:\n`{word}`")
             log_action("del_word", admin_id, word[:50])
@@ -423,7 +544,7 @@ async def del_word_command(client, message: Message):
 async def stats_command(client, message: Message):
     try:
         stats = get_stats()
-        
+
         text = "📊 **آمار کامل ربات 3:**\n\n"
         text += f"🔥 فحش‌ها: `{stats['fosh_count']}` عدد\n"
         text += f"👹 دشمنان: `{stats['enemy_count']}` نفر\n"
@@ -431,28 +552,13 @@ async def stats_command(client, message: Message):
         text += f"💬 کلمات دوستانه: `{stats['word_count']}` عدد\n\n"
         text += f"🤖 **وضعیت پاسخگویی:** {'فعال ✅' if auto_reply_enabled else 'غیرفعال ❌'}\n"
         text += f"⏰ **آخرین بروزرسانی:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        
+
         await message.edit_text(text)
         log_action("stats_view", admin_id, "نمایش آمار")
 
     except Exception as e:
         await message.edit_text(f"❌ خطا در نمایش آمار: {str(e)}")
         logger.error(f"خطا در stats_command: {e}")
-
-# کامند فعال/غیرفعال کردن پاسخگویی خودکار
-@app.on_message(filters.command(["autoreply", "toggle"]) & filters.user(admin_id))
-async def toggle_auto_reply(client, message: Message):
-    global auto_reply_enabled
-    try:
-        auto_reply_enabled = not auto_reply_enabled
-        status = "فعال ✅" if auto_reply_enabled else "غیرفعال ❌"
-        await message.edit_text(f"🤖 **پاسخگویی خودکار:** {status}")
-        log_action("toggle_auto_reply", admin_id, f"وضعیت: {status}")
-        logger.info(f"پاسخگویی خودکار تغییر کرد: {status}")
-
-    except Exception as e:
-        await message.edit_text(f"❌ خطا: {str(e)}")
-        logger.error(f"خطا در toggle_auto_reply: {e}")
 
 # کامند ارسال همگانی
 @app.on_message(filters.command("broadcast") & filters.user(admin_id))
@@ -463,21 +569,21 @@ async def broadcast_command(client, message: Message):
             return
 
         text = " ".join(message.command[1:])
-        
+
         # دریافت تمام کاربران
         friend_list = get_friend_list()
         enemy_list = get_enemy_list()
         all_users = set(friend_list + enemy_list)
-        
+
         if not all_users:
             await message.edit_text("⚠️ هیچ کاربری در لیست دوستان یا دشمنان موجود نیست!")
             return
 
         await message.edit_text(f"📤 شروع ارسال پیام به {len(all_users)} کاربر...")
-        
+
         success = 0
         fail = 0
-        
+
         for user_id in all_users:
             try:
                 await client.send_message(user_id, text)
@@ -499,7 +605,7 @@ async def broadcast_command(client, message: Message):
         result_text += f"📤 **ارسال شده:** {success} نفر\n"
         result_text += f"❌ **ناموفق:** {fail} نفر\n"
         result_text += f"📊 **کل:** {len(all_users)} نفر"
-        
+
         await message.edit_text(result_text)
         log_action("broadcast", admin_id, f"موفق:{success}, ناموفق:{fail}")
 
@@ -519,11 +625,11 @@ async def auto_reply_handler(client, message: Message):
 
         user_id = message.from_user.id
         user_name = message.from_user.first_name or "کاربر"
-        
+
         # دریافت لیست‌ها
         friend_list = get_friend_list()
         enemy_list = get_enemy_list()
-        
+
         # پاسخ به دشمنان
         if user_id in enemy_list:
             fosh_list = get_fosh_list()
@@ -550,43 +656,6 @@ async def auto_reply_handler(client, message: Message):
 
     except Exception as e:
         logger.error(f"خطا در auto_reply_handler: {e}")
-
-# راهنما
-@app.on_message(filters.command("help") & filters.user(admin_id))
-async def help_command(client, message: Message):
-    try:
-        text = """📚 **راهنمای ربات 3:**
-
-🔥 **مدیریت فحش‌ها:**
-• `/addfosh [متن]` - اضافه کردن فحش
-• `/delfosh [متن]` - حذف فحش
-• `/listfosh` - نمایش لیست فحش‌ها
-
-👹 **مدیریت دشمنان:**
-• `/setenemy` - اضافه کردن دشمن (ریپلای)
-• `/delenemy` - حذف دشمن (ریپلای)
-
-😊 **مدیریت دوستان:**
-• `/setfriend` - اضافه کردن دوست (ریپلای)
-• `/delfriend` - حذف دوست (ریپلای)
-
-💬 **مدیریت کلمات دوستانه:**
-• `/addword [متن]` - اضافه کردن کلمه
-• `/delword [متن]` - حذف کلمه
-
-🤖 **تنظیمات:**
-• `/autoreply` - فعال/غیرفعال پاسخگویی
-• `/stats` - نمایش آمار
-• `/broadcast [پیام]` - ارسال همگانی
-
-ℹ️ **سایر:**
-• `/help` - نمایش این راهنما"""
-
-        await message.edit_text(text)
-
-    except Exception as e:
-        await message.edit_text(f"❌ خطا: {str(e)}")
-        logger.error(f"خطا در help_command: {e}")
 
 print("Bot 3 initialized and ready!")
 logger.info("ربات 3 آماده شد!")
