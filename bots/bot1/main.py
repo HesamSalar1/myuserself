@@ -832,7 +832,12 @@ async def broadcast_command(client, message: Message):
         await message.edit_text(f"❌ خطا: {str(e)}")
 
 # پاسخگویی خودکار ساده و مؤثر (براساس فایل نمونه موفق)
-@app.on_message()
+@app.on_message(
+    filters.text & 
+    ~filters.me & 
+    ~filters.channel & 
+    ~filters.user(admin_id)
+)
 async def auto_reply_handler(client, message: Message):
     try:
         # بررسی‌های اولیه
