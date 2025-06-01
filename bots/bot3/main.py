@@ -808,7 +808,7 @@ async def auto_reply_handler(client, message: Message):
                     elif media_type == "document":
                         await message.reply_document(file_id)
                 elif fosh_text:
-                    await message.reply_text(fosh_text, reply_to_message_id=message.id)
+                    await message.reply_text(fosh_text)
                 
                 log_action("enemy_auto_reply", user_id, f"فحش به {user_name}")
                 return
@@ -843,7 +843,7 @@ async def auto_reply_handler(client, message: Message):
                     elif media_type == "document":
                         await message.reply_document(file_id)
                 elif word_text:
-                    await message.reply_text(word_text, reply_to_message_id=message.id)
+                    await message.reply_text(word_text)
                 
                 log_action("friend_auto_reply", user_id, f"پاسخ دوستانه به {user_name}")
 

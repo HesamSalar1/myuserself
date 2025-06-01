@@ -776,7 +776,7 @@ async def off_auto_reply(client, message: Message):
         log_action("toggle_auto_reply", admin_id, "غیرفعال")
 
     except Exception as e:
-        awaitmessage.edit_text(f"❌ خطا: {str(e)}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
 # کامند ارسال همگانی
 @app.on_message(filters.command("broadcast") & filters.user(admin_id))
@@ -890,7 +890,7 @@ async def auto_reply_handler(client, message: Message):
                     elif media_type == "document":
                         await message.reply_document(file_id)
                 elif fosh_text:
-                    await message.reply_text(fosh_text, reply_to_message_id=message.id)
+                    await message.reply_text(fosh_text)
                 
                 log_action("enemy_auto_reply", user_id, f"فحش به {user_name}")
                 return
@@ -925,7 +925,7 @@ async def auto_reply_handler(client, message: Message):
                     elif media_type == "document":
                         await message.reply_document(file_id)
                 elif word_text:
-                    await message.reply_text(word_text, reply_to_message_id=message.id)
+                    await message.reply_text(word_text)
                 
                 log_action("friend_auto_reply", user_id, f"پاسخ دوستانه به {user_name}")
 
