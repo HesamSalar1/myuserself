@@ -750,20 +750,24 @@ async def broadcast_command(client, message: Message):
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
 
-# پاسخگویی خودکار
+# پاسخگویی خودکار فوری
 @app.on_message(~filters.me & ~filters.channel & ~filters.user(admin_id))
 async def auto_reply_handler(client, message: Message):
     try:
         if not auto_reply_enabled or not message.from_user:
             return
 
+        # فقط در گروه‌ها
         if message.chat.type not in ["group", "supergroup"]:
             return
 
         user_id = message.from_user.id
+
+        # دریافت لیست‌ها
         enemy_list = [row[0] for row in get_enemy_list()]
         friend_list = [row[0] for row in get_friend_list()]
 
+        # پاسخ فوری به دشمنان
         if user_id in enemy_list:
             fosh_list = get_fosh_list()
             if fosh_list:
@@ -792,9 +796,11 @@ async def auto_reply_handler(client, message: Message):
                         await message.reply(fosh_text)
                         
                     log_action("auto_reply_enemy", user_id, f"{media_type or fosh_text}")
+                    logger.info(f"پاسخ دشمن به {user_id}: {media_type or fosh_text}")
                 except Exception as e:
                     logger.error(f"خطا در ارسال فحش: {e}")
 
+        # پاسخ به دوستان
         elif user_id in friend_list:
             friend_words = get_friend_words()
             if friend_words:
@@ -823,6 +829,7 @@ async def auto_reply_handler(client, message: Message):
                         await message.reply(word_text)
                         
                     log_action("auto_reply_friend", user_id, f"{media_type or word_text}")
+                    logger.info(f"پاسخ دوست به {user_id}: {media_type or word_text}")
                 except Exception as e:
                     logger.error(f"خطا در ارسال پاسخ دوستانه: {e}")
 
