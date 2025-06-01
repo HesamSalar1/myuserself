@@ -4,7 +4,11 @@ import asyncio
 import sys
 import sqlite3
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
+import shutil
+import os
+from random import choice
+
 try:
     sys.stdout.reconfigure(encoding='utf-8')
 except AttributeError:
@@ -13,7 +17,6 @@ except AttributeError:
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMember
 from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
-from random import choice
 
 # تنظیمات اصلی بات 1
 api_id = 15508294
@@ -33,21 +36,26 @@ logger = logging.getLogger(__name__)
 
 app = Client("my_bot1", api_id, api_hash)
 
-# متغیر کنترل وضعیت پاسخگویی خودکار
+# متغیرهای کنترل
 auto_reply_enabled = True
+count_tasks = {}
+scheduled_messages = {}
 
-# تابع اتصال به دیتابیس
+# تابع اتصال به دیتابیس با جداول کامل
 def init_db():
     conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
 
-    # ایجاد جداول
+    # جدول فحش‌ها با پشتیبانی رسانه
     cursor.execute('''CREATE TABLE IF NOT EXISTS fosh_list (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        fosh TEXT UNIQUE NOT NULL,
+        fosh TEXT,
+        media_type TEXT,
+        file_id TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
+    # جدول دشمنان
     cursor.execute('''CREATE TABLE IF NOT EXISTS enemy_list (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER UNIQUE NOT NULL,
@@ -56,6 +64,7 @@ def init_db():
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
+    # جدول دوستان
     cursor.execute('''CREATE TABLE IF NOT EXISTS friend_list (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER UNIQUE NOT NULL,
@@ -64,12 +73,58 @@ def init_db():
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
+    # جدول کلمات دوستانه با پشتیبانی رسانه
     cursor.execute('''CREATE TABLE IF NOT EXISTS friend_words (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        word TEXT UNIQUE NOT NULL,
+        word TEXT,
+        media_type TEXT,
+        file_id TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
+    # جدول پیام‌های زمان‌بندی شده
+    cursor.execute('''CREATE TABLE IF NOT EXISTS scheduled_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        message TEXT,
+        media_type TEXT,
+        file_id TEXT,
+        delay_seconds INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # جدول شمارش‌ها
+    cursor.execute('''CREATE TABLE IF NOT EXISTS count_tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        current_count INTEGER,
+        target_count INTEGER,
+        delay_seconds REAL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # جدول کامندهای خصوصی
+    cursor.execute('''CREATE TABLE IF NOT EXISTS private_commands (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        keyword TEXT,
+        response TEXT,
+        media_type TEXT,
+        file_id TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # جدول پاسخ خودکار شخصی
+    cursor.execute('''CREATE TABLE IF NOT EXISTS auto_replies (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER UNIQUE,
+        response TEXT,
+        media_type TEXT,
+        file_id TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # جدول لاگ
     cursor.execute('''CREATE TABLE IF NOT EXISTS action_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         action_type TEXT NOT NULL,
@@ -81,15 +136,17 @@ def init_db():
     conn.commit()
     conn.close()
 
-# توابع مدیریت دیتابیس
-def add_fosh(fosh):
+# توابع مدیریت فحش‌ها
+def add_fosh(fosh=None, media_type=None, file_id=None):
     conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO fosh_list (fosh) VALUES (?)", (fosh,))
+        cursor.execute("INSERT INTO fosh_list (fosh, media_type, file_id) VALUES (?, ?, ?)", 
+                      (fosh, media_type, file_id))
         conn.commit()
         result = True
-    except sqlite3.IntegrityError:
+    except Exception as e:
+        logger.error(f"خطا در اضافه کردن فحش: {e}")
         result = False
     conn.close()
     return result
@@ -106,15 +163,27 @@ def remove_fosh(fosh):
 def get_fosh_list():
     conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
-    cursor.execute("SELECT fosh FROM fosh_list")
-    result = [row[0] for row in cursor.fetchall()]
+    cursor.execute("SELECT fosh, media_type, file_id FROM fosh_list")
+    result = cursor.fetchall()
     conn.close()
     return result
 
+def clear_fosh_list():
+    conn = sqlite3.connect('bot1_data.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM fosh_list")
+    count = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return count
+
+# توابع مدیریت دشمنان
 def add_enemy(user_id, username=None, first_name=None):
     conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     try:
+        # حذف از دوستان اگر وجود دارد
+        cursor.execute("DELETE FROM friend_list WHERE user_id = ?", (user_id,))
         cursor.execute("INSERT INTO enemy_list (user_id, username, first_name) VALUES (?, ?, ?)", 
                       (user_id, username, first_name))
         conn.commit()
@@ -136,15 +205,27 @@ def remove_enemy(user_id):
 def get_enemy_list():
     conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
-    cursor.execute("SELECT user_id FROM enemy_list")
-    result = [row[0] for row in cursor.fetchall()]
+    cursor.execute("SELECT user_id, username, first_name, created_at FROM enemy_list")
+    result = cursor.fetchall()
     conn.close()
     return result
 
+def clear_enemy_list():
+    conn = sqlite3.connect('bot1_data.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM enemy_list")
+    count = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return count
+
+# توابع مدیریت دوستان
 def add_friend(user_id, username=None, first_name=None):
     conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     try:
+        # حذف از دشمنان اگر وجود دارد
+        cursor.execute("DELETE FROM enemy_list WHERE user_id = ?", (user_id,))
         cursor.execute("INSERT INTO friend_list (user_id, username, first_name) VALUES (?, ?, ?)", 
                       (user_id, username, first_name))
         conn.commit()
@@ -166,19 +247,31 @@ def remove_friend(user_id):
 def get_friend_list():
     conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
-    cursor.execute("SELECT user_id FROM friend_list")
-    result = [row[0] for row in cursor.fetchall()]
+    cursor.execute("SELECT user_id, username, first_name, created_at FROM friend_list")
+    result = cursor.fetchall()
     conn.close()
     return result
 
-def add_friend_word(word):
+def clear_friend_list():
+    conn = sqlite3.connect('bot1_data.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM friend_list")
+    count = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return count
+
+# توابع مدیریت کلمات دوستانه
+def add_friend_word(word=None, media_type=None, file_id=None):
     conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO friend_words (word) VALUES (?)", (word,))
+        cursor.execute("INSERT INTO friend_words (word, media_type, file_id) VALUES (?, ?, ?)", 
+                      (word, media_type, file_id))
         conn.commit()
         result = True
-    except sqlite3.IntegrityError:
+    except Exception as e:
+        logger.error(f"خطا در اضافه کردن کلمه: {e}")
         result = False
     conn.close()
     return result
@@ -195,11 +288,21 @@ def remove_friend_word(word):
 def get_friend_words():
     conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
-    cursor.execute("SELECT word FROM friend_words")
-    result = [row[0] for row in cursor.fetchall()]
+    cursor.execute("SELECT word, media_type, file_id FROM friend_words")
+    result = cursor.fetchall()
     conn.close()
     return result
 
+def clear_friend_words():
+    conn = sqlite3.connect('bot1_data.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM friend_words")
+    count = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return count
+
+# سایر توابع پایگاه داده
 def log_action(action_type, user_id=None, details=None):
     conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
@@ -224,13 +327,21 @@ def get_stats():
     cursor.execute("SELECT COUNT(*) FROM friend_words")
     word_count = cursor.fetchone()[0]
 
+    cursor.execute("SELECT COUNT(*) FROM scheduled_messages")
+    schedule_count = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM count_tasks")
+    count_task_count = cursor.fetchone()[0]
+
     conn.close()
 
     return {
         'fosh_count': fosh_count,
         'enemy_count': enemy_count,
         'friend_count': friend_count,
-        'word_count': word_count
+        'word_count': word_count,
+        'schedule_count': schedule_count,
+        'count_task_count': count_task_count
     }
 
 # شروع برنامه
@@ -241,46 +352,68 @@ init_db()
 async def start_command(client, message: Message):
     await message.edit_text(f"🤖 **ربات 1 آماده است!**\n\n📋 برای مشاهده کامندها: `/help`\n🆔 Admin: `{admin_id}`")
 
-# کامند وضعیت
-@app.on_message(filters.command("status") & filters.user(admin_id))
-async def status_command(client, message: Message):
-    try:
-        stats = get_stats()
-        status_text = f"""🤖 **وضعیت ربات 1:**
-
-✅ **وضعیت:** فعال و آماده
-🔄 **پاسخ خودکار:** {'فعال' if auto_reply_enabled else 'غیرفعال'}
-
-📊 **آمار:**
-• فحش‌ها: `{stats['fosh_count']}` عدد
-• دشمنان: `{stats['enemy_count']}` نفر
-• دوستان: `{stats['friend_count']}` نفر
-• کلمات دوستانه: `{stats['word_count']}` عدد
-
-🕐 **آخرین بروزرسانی:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
-        await message.edit_text(status_text)
-    except Exception as e:
-        await message.edit_text(f"❌ خطا در نمایش وضعیت: {str(e)}")
-
-# کامند اضافه کردن فحش
+# کامندهای مدیریت فحش
 @app.on_message(filters.command("addfosh") & filters.user(admin_id))
 async def add_fosh_command(client, message: Message):
     try:
-        if len(message.command) < 2:
-            await message.edit_text("⚠️ لطفاً یک فحش وارد کنید.\n💡 استفاده: `/addfosh متن فحش`")
-            return
+        # بررسی ریپلای برای رسانه
+        if message.reply_to_message:
+            replied = message.reply_to_message
+            media_type = None
+            file_id = None
+            fosh_text = None
 
-        fosh = " ".join(message.command[1:])
+            if replied.photo:
+                media_type = "photo"
+                file_id = replied.photo.file_id
+            elif replied.video:
+                media_type = "video"
+                file_id = replied.video.file_id
+            elif replied.animation:
+                media_type = "animation"
+                file_id = replied.animation.file_id
+            elif replied.sticker:
+                media_type = "sticker"
+                file_id = replied.sticker.file_id
+            elif replied.audio:
+                media_type = "audio"
+                file_id = replied.audio.file_id
+            elif replied.voice:
+                media_type = "voice"
+                file_id = replied.voice.file_id
+            elif replied.video_note:
+                media_type = "video_note"
+                file_id = replied.video_note.file_id
+            elif replied.document:
+                media_type = "document"
+                file_id = replied.document.file_id
+            elif replied.text:
+                fosh_text = replied.text
 
-        if add_fosh(fosh):
-            await message.edit_text(f"✅ فحش جدید اضافه شد:\n`{fosh}`")
-            log_action("add_fosh", admin_id, fosh[:50])
-            logger.info(f"فحش جدید اضافه شد: {fosh}")
+            if media_type or fosh_text:
+                if add_fosh(fosh_text, media_type, file_id):
+                    await message.edit_text(f"✅ فحش جدید اضافه شد ({media_type or 'متن'})")
+                    log_action("add_fosh", admin_id, f"{media_type or fosh_text}")
+                else:
+                    await message.edit_text("❌ خطا در اضافه کردن فحش")
+            else:
+                await message.edit_text("⚠️ نوع رسانه پشتیبانی نمی‌شود")
         else:
-            await message.edit_text(f"⚠️ این فحش قبلاً در لیست موجود است:\n`{fosh}`")
+            # اضافه کردن فحش متنی
+            if len(message.command) < 2:
+                await message.edit_text("⚠️ لطفاً یک فحش وارد کنید یا روی پیام ریپلای کنید.\n💡 استفاده: `/addfosh متن فحش`")
+                return
+
+            fosh = " ".join(message.command[1:])
+
+            if add_fosh(fosh):
+                await message.edit_text(f"✅ فحش جدید اضافه شد:\n`{fosh}`")
+                log_action("add_fosh", admin_id, fosh[:50])
+            else:
+                await message.edit_text("❌ خطا در اضافه کردن فحش")
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا در اضافه کردن فحش: {str(e)}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
         logger.error(f"خطا در add_fosh_command: {e}")
 
 # کامند حذف فحش
@@ -296,15 +429,13 @@ async def del_fosh_command(client, message: Message):
         if remove_fosh(fosh):
             await message.edit_text(f"✅ فحش حذف شد:\n`{fosh}`")
             log_action("del_fosh", admin_id, fosh[:50])
-            logger.info(f"فحش حذف شد: {fosh}")
         else:
             await message.edit_text(f"⚠️ این فحش در لیست یافت نشد:\n`{fosh}`")
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا در حذف فحش: {str(e)}")
-        logger.error(f"خطا در del_fosh_command: {e}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامند نمایش لیست فحش‌ها
+# کامند لیست فحش‌ها
 @app.on_message(filters.command("listfosh") & filters.user(admin_id))
 async def list_fosh_command(client, message: Message):
     try:
@@ -314,17 +445,33 @@ async def list_fosh_command(client, message: Message):
             return
 
         text = "🔥 **لیست فحش‌ها:**\n\n"
-        for i, fosh in enumerate(fosh_list, 1):
-            text += f"`{i}.` {fosh}\n"
+        for i, (fosh, media_type, file_id) in enumerate(fosh_list, 1):
+            if media_type:
+                text += f"`{i}.` [{media_type.upper()}]\n"
+            else:
+                text += f"`{i}.` {fosh}\n"
+            
+            if i >= 20:
+                text += f"\n... و {len(fosh_list) - 20} مورد دیگر"
+                break
 
         text += f"\n📊 **تعداد کل:** {len(fosh_list)} فحش"
         await message.edit_text(text)
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا در نمایش لیست: {str(e)}")
-        logger.error(f"خطا در list_fosh_command: {e}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامند اضافه کردن دشمن
+# کامند حذف کلی فحش‌ها
+@app.on_message(filters.command("clearfosh") & filters.user(admin_id))
+async def clear_fosh_command(client, message: Message):
+    try:
+        count = clear_fosh_list()
+        await message.edit_text(f"✅ تمام فحش‌ها حذف شدند.\n📊 تعداد حذف شده: {count} مورد")
+        log_action("clear_fosh", admin_id, f"حذف {count} فحش")
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
+# کامندهای مدیریت دشمنان
 @app.on_message(filters.command("setenemy") & filters.user(admin_id) & filters.reply)
 async def set_enemy_command(client, message: Message):
     try:
@@ -336,15 +483,12 @@ async def set_enemy_command(client, message: Message):
         if add_enemy(user_id, username, first_name):
             await message.edit_text(f"👹 کاربر به لیست دشمنان اضافه شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
             log_action("add_enemy", user_id, f"{first_name} (@{username})")
-            logger.info(f"دشمن جدید اضافه شد: {user_id} ({first_name})")
         else:
-            await message.edit_text(f"⚠️ این کاربر قبلاً در لیست دشمنان است:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
+            await message.edit_text(f"⚠️ این کاربر قبلاً در لیست دشمنان است")
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا در اضافه کردن دشمن: {str(e)}")
-        logger.error(f"خطا در set_enemy_command: {e}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامند حذف دشمن
 @app.on_message(filters.command("delenemy") & filters.user(admin_id) & filters.reply)
 async def del_enemy_command(client, message: Message):
     try:
@@ -353,17 +497,14 @@ async def del_enemy_command(client, message: Message):
         first_name = replied.from_user.first_name
 
         if remove_enemy(user_id):
-            await message.edit_text(f"✅ کاربر از لیست دشمنان حذف شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
+            await message.edit_text(f"✅ کاربر از لیست دشمنان حذف شد:\n**نام:** {first_name}")
             log_action("del_enemy", user_id, f"{first_name}")
-            logger.info(f"دشمن حذف شد: {user_id} ({first_name})")
         else:
-            await message.edit_text(f"⚠️ این کاربر در لیست دشمنان یافت نشد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
+            await message.edit_text(f"⚠️ این کاربر در لیست دشمنان یافت نشد")
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا در حذف دشمن: {str(e)}")
-        logger.error(f"خطا در del_enemy_command: {e}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامند لیست دشمنان
 @app.on_message(filters.command("listenemy") & filters.user(admin_id))
 async def list_enemy_command(client, message: Message):
     try:
@@ -373,17 +514,28 @@ async def list_enemy_command(client, message: Message):
             return
 
         text = "👹 **لیست دشمنان:**\n\n"
-        for i, user_id in enumerate(enemy_list, 1):
-            text += f"`{i}.` `{user_id}`\n"
+        for i, (user_id, username, first_name, created_at) in enumerate(enemy_list, 1):
+            text += f"`{i}.` {first_name or 'نامشخص'} (`{user_id}`)\n"
+            if i >= 20:
+                text += f"... و {len(enemy_list) - 20} نفر دیگر\n"
+                break
 
         text += f"\n📊 **تعداد کل:** {len(enemy_list)} دشمن"
         await message.edit_text(text)
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا در نمایش لیست دشمنان: {str(e)}")
-        logger.error(f"خطا در list_enemy_command: {e}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامند اضافه کردن دوست
+@app.on_message(filters.command("clearenemy") & filters.user(admin_id))
+async def clear_enemy_command(client, message: Message):
+    try:
+        count = clear_enemy_list()
+        await message.edit_text(f"✅ تمام دشمنان حذف شدند.\n📊 تعداد حذف شده: {count} نفر")
+        log_action("clear_enemy", admin_id, f"حذف {count} دشمن")
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
+# کامندهای مدیریت دوستان (مشابه دشمنان)
 @app.on_message(filters.command("setfriend") & filters.user(admin_id) & filters.reply)
 async def set_friend_command(client, message: Message):
     try:
@@ -395,15 +547,12 @@ async def set_friend_command(client, message: Message):
         if add_friend(user_id, username, first_name):
             await message.edit_text(f"😊 کاربر به لیست دوستان اضافه شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
             log_action("add_friend", user_id, f"{first_name} (@{username})")
-            logger.info(f"دوست جدید اضافه شد: {user_id} ({first_name})")
         else:
-            await message.edit_text(f"⚠️ این کاربر قبلاً در لیست دوستان است:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
+            await message.edit_text(f"⚠️ این کاربر قبلاً در لیست دوستان است")
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا در اضافه کردن دوست: {str(e)}")
-        logger.error(f"خطا در set_friend_command: {e}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامند حذف دوست
 @app.on_message(filters.command("delfriend") & filters.user(admin_id) & filters.reply)
 async def del_friend_command(client, message: Message):
     try:
@@ -412,17 +561,14 @@ async def del_friend_command(client, message: Message):
         first_name = replied.from_user.first_name
 
         if remove_friend(user_id):
-            await message.edit_text(f"✅ کاربر از لیست دوستان حذف شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
+            await message.edit_text(f"✅ کاربر از لیست دوستان حذف شد:\n**نام:** {first_name}")
             log_action("del_friend", user_id, f"{first_name}")
-            logger.info(f"دوست حذف شد: {user_id} ({first_name})")
         else:
-            await message.edit_text(f"⚠️ این کاربر در لیست دوستان یافت نشد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
+            await message.edit_text(f"⚠️ این کاربر در لیست دوستان یافت نشد")
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا در حذف دوست: {str(e)}")
-        logger.error(f"خطا در del_friend_command: {e}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامند لیست دوستان
 @app.on_message(filters.command("listfriend") & filters.user(admin_id))
 async def list_friend_command(client, message: Message):
     try:
@@ -432,38 +578,90 @@ async def list_friend_command(client, message: Message):
             return
 
         text = "😊 **لیست دوستان:**\n\n"
-        for i, user_id in enumerate(friend_list, 1):
-            text += f"`{i}.` `{user_id}`\n"
+        for i, (user_id, username, first_name, created_at) in enumerate(friend_list, 1):
+            text += f"`{i}.` {first_name or 'نامشخص'} (`{user_id}`)\n"
+            if i >= 20:
+                text += f"... و {len(friend_list) - 20} نفر دیگر\n"
+                break
 
         text += f"\n📊 **تعداد کل:** {len(friend_list)} دوست"
         await message.edit_text(text)
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا در نمایش لیست دوستان: {str(e)}")
-        logger.error(f"خطا در list_friend_command: {e}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامند اضافه کردن کلمه دوستانه
+@app.on_message(filters.command("clearfriend") & filters.user(admin_id))
+async def clear_friend_command(client, message: Message):
+    try:
+        count = clear_friend_list()
+        await message.edit_text(f"✅ تمام دوستان حذف شدند.\n📊 تعداد حذف شده: {count} نفر")
+        log_action("clear_friend", admin_id, f"حذف {count} دوست")
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
+# کامندهای مدیریت کلمات دوستانه
 @app.on_message(filters.command("addword") & filters.user(admin_id))
 async def add_word_command(client, message: Message):
     try:
-        if len(message.command) < 2:
-            await message.edit_text("⚠️ لطفاً یک کلمه دوستانه وارد کنید.\n💡 استفاده: `/addword سلام دوست عزیز`")
-            return
+        # بررسی ریپلای برای رسانه
+        if message.reply_to_message:
+            replied = message.reply_to_message
+            media_type = None
+            file_id = None
+            word_text = None
 
-        word = " ".join(message.command[1:])
+            if replied.photo:
+                media_type = "photo"
+                file_id = replied.photo.file_id
+            elif replied.video:
+                media_type = "video"
+                file_id = replied.video.file_id
+            elif replied.animation:
+                media_type = "animation"
+                file_id = replied.animation.file_id
+            elif replied.sticker:
+                media_type = "sticker"
+                file_id = replied.sticker.file_id
+            elif replied.audio:
+                media_type = "audio"
+                file_id = replied.audio.file_id
+            elif replied.voice:
+                media_type = "voice"
+                file_id = replied.voice.file_id
+            elif replied.video_note:
+                media_type = "video_note"
+                file_id = replied.video_note.file_id
+            elif replied.document:
+                media_type = "document"
+                file_id = replied.document.file_id
+            elif replied.text:
+                word_text = replied.text
 
-        if add_friend_word(word):
-            await message.edit_text(f"✅ کلمه دوستانه اضافه شد:\n`{word}`")
-            log_action("add_word", admin_id, word[:50])
-            logger.info(f"کلمه دوستانه اضافه شد: {word}")
+            if media_type or word_text:
+                if add_friend_word(word_text, media_type, file_id):
+                    await message.edit_text(f"✅ کلمه دوستانه اضافه شد ({media_type or 'متن'})")
+                    log_action("add_word", admin_id, f"{media_type or word_text}")
+                else:
+                    await message.edit_text("❌ خطا در اضافه کردن کلمه")
+            else:
+                await message.edit_text("⚠️ نوع رسانه پشتیبانی نمی‌شود")
         else:
-            await message.edit_text(f"⚠️ این کلمه قبلاً در لیست موجود است:\n`{word}`")
+            # اضافه کردن کلمه متنی
+            if len(message.command) < 2:
+                await message.edit_text("⚠️ لطفاً یک کلمه وارد کنید یا روی پیام ریپلای کنید.\n💡 استفاده: `/addword سلام دوست عزیز`")
+                return
+
+            word = " ".join(message.command[1:])
+
+            if add_friend_word(word):
+                await message.edit_text(f"✅ کلمه دوستانه اضافه شد:\n`{word}`")
+                log_action("add_word", admin_id, word[:50])
+            else:
+                await message.edit_text("❌ خطا در اضافه کردن کلمه")
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا در اضافه کردن کلمه: {str(e)}")
-        logger.error(f"خطا در add_word_command: {e}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامند حذف کلمه دوستانه
 @app.on_message(filters.command("delword") & filters.user(admin_id))
 async def del_word_command(client, message: Message):
     try:
@@ -476,15 +674,12 @@ async def del_word_command(client, message: Message):
         if remove_friend_word(word):
             await message.edit_text(f"✅ کلمه دوستانه حذف شد:\n`{word}`")
             log_action("del_word", admin_id, word[:50])
-            logger.info(f"کلمه دوستانه حذف شد: {word}")
         else:
             await message.edit_text(f"⚠️ این کلمه در لیست یافت نشد:\n`{word}`")
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا در حذف کلمه: {str(e)}")
-        logger.error(f"خطا در del_word_command: {e}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامند لیست کلمات دوستانه
 @app.on_message(filters.command("listword") & filters.user(admin_id))
 async def list_word_command(client, message: Message):
     try:
@@ -494,27 +689,44 @@ async def list_word_command(client, message: Message):
             return
 
         text = "💬 **لیست کلمات دوستانه:**\n\n"
-        for i, word in enumerate(word_list, 1):
-            text += f"`{i}.` {word}\n"
+        for i, (word, media_type, file_id) in enumerate(word_list, 1):
+            if media_type:
+                text += f"`{i}.` [{media_type.upper()}]\n"
+            else:
+                text += f"`{i}.` {word}\n"
+            
+            if i >= 20:
+                text += f"\n... و {len(word_list) - 20} مورد دیگر"
+                break
 
         text += f"\n📊 **تعداد کل:** {len(word_list)} کلمه"
         await message.edit_text(text)
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا در نمایش لیست: {str(e)}")
-        logger.error(f"خطا در list_word_command: {e}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامند نمایش آمار
+@app.on_message(filters.command("clearword") & filters.user(admin_id))
+async def clear_word_command(client, message: Message):
+    try:
+        count = clear_friend_words()
+        await message.edit_text(f"✅ تمام کلمات دوستانه حذف شدند.\n📊 تعداد حذف شده: {count} مورد")
+        log_action("clear_word", admin_id, f"حذف {count} کلمه")
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
+# کامند آمار
 @app.on_message(filters.command("stats") & filters.user(admin_id))
 async def stats_command(client, message: Message):
     try:
         stats = get_stats()
-
+        
         text = "📊 **آمار کامل ربات 1:**\n\n"
         text += f"🔥 فحش‌ها: `{stats['fosh_count']}` عدد\n"
         text += f"👹 دشمنان: `{stats['enemy_count']}` نفر\n"
         text += f"😊 دوستان: `{stats['friend_count']}` نفر\n"
-        text += f"💬 کلمات دوستانه: `{stats['word_count']}` عدد\n\n"
+        text += f"💬 کلمات دوستانه: `{stats['word_count']}` عدد\n"
+        text += f"⏰ پیام‌های زمان‌بندی: `{stats['schedule_count']}` عدد\n"
+        text += f"🔢 شمارش‌ها: `{stats['count_task_count']}` عدد\n\n"
         text += f"🤖 **وضعیت پاسخگویی:** {'فعال ✅' if auto_reply_enabled else 'غیرفعال ❌'}\n"
         text += f"⏰ **آخرین بروزرسانی:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
@@ -522,146 +734,162 @@ async def stats_command(client, message: Message):
         log_action("stats_view", admin_id, "نمایش آمار")
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا در نمایش آمار: {str(e)}")
-        logger.error(f"خطا در stats_command: {e}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامند فعال/غیرفعال کردن پاسخگویی خودکار
-@app.on_message(filters.command(["autoreply", "toggle"]) & filters.user(admin_id))
+# کامند فعال/غیرفعال پاسخگویی
+@app.on_message(filters.command(["autoreply", "toggle", "runself"]) & filters.user(admin_id))
 async def toggle_auto_reply(client, message: Message):
     global auto_reply_enabled
     try:
-        auto_reply_enabled = not auto_reply_enabled
-        status = "فعال ✅" if auto_reply_enabled else "غیرفعال ❌"
-        await message.edit_text(f"🤖 **پاسخگویی خودکار:** {status}")
-        log_action("toggle_auto_reply", admin_id, f"وضعیت: {status}")
-        logger.info(f"پاسخگویی خودکار تغییر کرد: {status}")
+        auto_reply_enabled = True
+        await message.edit_text("🤖 **پاسخگویی خودکار فعال شد ✅**")
+        log_action("toggle_auto_reply", admin_id, "فعال")
 
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
-        logger.error(f"خطا در toggle_auto_reply: {e}")
+
+@app.on_message(filters.command("offself") & filters.user(admin_id))
+async def off_auto_reply(client, message: Message):
+    global auto_reply_enabled
+    try:
+        auto_reply_enabled = False
+        await message.edit_text("🤖 **پاسخگویی خودکار غیرفعال شد ❌**")
+        log_action("toggle_auto_reply", admin_id, "غیرفعال")
+
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
 # کامند ارسال همگانی
 @app.on_message(filters.command("broadcast") & filters.user(admin_id))
 async def broadcast_command(client, message: Message):
     try:
-        if len(message.command) < 2:
-            await message.edit_text("⚠️ لطفاً پیام مورد نظر را وارد کنید.\n💡 استفاده: `/broadcast سلام به همه`")
+        if len(message.command) < 2 and not message.reply_to_message:
+            await message.edit_text("⚠️ لطفاً پیام مورد نظر را وارد کنید یا روی پیام ریپلای کنید.\n💡 استفاده: `/broadcast سلام به همه`")
             return
 
-        text = " ".join(message.command[1:])
+        # دریافت پیام برای ارسال
+        if message.reply_to_message:
+            target_message = message.reply_to_message
+        else:
+            text = " ".join(message.command[1:])
 
-        # دریافت تمام کاربران
-        friend_list = get_friend_list()
-        enemy_list = get_enemy_list()
-        all_users = set(friend_list + enemy_list)
-
-        if not all_users:
-            await message.edit_text("⚠️ هیچ کاربری در لیست دوستان یا دشمنان موجود نیست!")
-            return
-
-        await message.edit_text(f"📤 شروع ارسال پیام به {len(all_users)} کاربر...")
+        await message.edit_text("📤 شروع ارسال همگانی...")
 
         success = 0
         fail = 0
 
-        for user_id in all_users:
-            try:
-                await client.send_message(user_id, text)
-                success += 1
-                await asyncio.sleep(0.1)  # تاخیر برای جلوگیری از فلاد
-            except FloodWait as e:
-                logger.warning(f"FloodWait {e.value} ثانیه")
-                await asyncio.sleep(e.value)
+        # ارسال به همه گروه‌ها
+        async for dialog in client.get_dialogs():
+            if dialog.chat.type in ["group", "supergroup"]:
                 try:
-                    await client.send_message(user_id, text)
+                    if message.reply_to_message:
+                        await target_message.copy(dialog.chat.id)
+                    else:
+                        await client.send_message(dialog.chat.id, text)
                     success += 1
+                    await asyncio.sleep(0.1)
+                except FloodWait as e:
+                    await asyncio.sleep(e.value)
+                    try:
+                        if message.reply_to_message:
+                            await target_message.copy(dialog.chat.id)
+                        else:
+                            await client.send_message(dialog.chat.id, text)
+                        success += 1
+                    except:
+                        fail += 1
                 except:
                     fail += 1
-            except Exception as e:
-                fail += 1
-                logger.error(f"خطا در ارسال به {user_id}: {e}")
 
         result_text = f"✅ **ارسال همگانی تکمیل شد:**\n\n"
-        result_text += f"📤 **ارسال شده:** {success} نفر\n"
-        result_text += f"❌ **ناموفق:** {fail} نفر\n"
-        result_text += f"📊 **کل:** {len(all_users)} نفر"
+        result_text += f"📤 **موفق:** {success} گروه\n"
+        result_text += f"❌ **ناموفق:** {fail} گروه\n"
+        result_text += f"📊 **کل:** {success + fail} گروه"
 
         await message.edit_text(result_text)
         log_action("broadcast", admin_id, f"موفق:{success}, ناموفق:{fail}")
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا در ارسال همگانی: {str(e)}")
-        logger.error(f"خطا در broadcast_command: {e}")
+        await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامند تست سیستم
-@app.on_message(filters.command("test") & filters.user(admin_id))
-async def test_command(client, message: Message):
-    try:
-        stats = get_stats()
-        import os
-        db_size = os.path.getsize('bot1_data.db') / 1024  # KB
-
-        test_report = f"""🔍 **گزارش تست سیستم بات 1:**
-
-✅ **وضعیت کلی:** سالم و فعال
-📊 **آمار داده‌ها:**
-   • فحش‌ها: `{stats['fosh_count']}` عدد
-   • دشمنان: `{stats['enemy_count']}` نفر
-   • دوستان: `{stats['friend_count']}` نفر
-   • کلمات دوستانه: `{stats['word_count']}` عدد
-
-💾 **دیتابیس:** {db_size:.1f} KB
-🤖 **Admin ID:** `{admin_id}`
-🔄 **پاسخ خودکار:** {'فعال' if auto_reply_enabled else 'غیرفعال'}
-
-⏰ **زمان تست:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
-        await message.edit_text(test_report)
-    except Exception as e:
-        await message.edit_text(f"❌ خطا در تست: {str(e)}")
-
-# پاسخگویی خودکار بهینه شده
+# پاسخگویی خودکار فوری
 @app.on_message(~filters.me & ~filters.channel & ~filters.user(admin_id))
 async def auto_reply_handler(client, message: Message):
     try:
-        if not auto_reply_enabled:
+        if not auto_reply_enabled or not message.from_user:
             return
 
-        if not message.from_user:
-            return
-
-        # فقط در گروه‌ها پاسخ بده
+        # فقط در گروه‌ها
         if message.chat.type not in ["group", "supergroup"]:
             return
 
         user_id = message.from_user.id
-        user_name = message.from_user.first_name or "کاربر"
 
-        # دریافت لیست‌ها یکبار
-        friend_list = get_friend_list()
-        enemy_list = get_enemy_list()
+        # دریافت لیست‌ها
+        enemy_list = [row[0] for row in get_enemy_list()]
+        friend_list = [row[0] for row in get_friend_list()]
 
         # پاسخ فوری به دشمنان
         if user_id in enemy_list:
             fosh_list = get_fosh_list()
             if fosh_list:
                 try:
-                    fosh = choice(fosh_list)
-                    await message.reply(fosh)
-                    logger.info(f"فحش فوری به دشمن {user_id} ({user_name}) ارسال شد")
-                    log_action("auto_reply_enemy", user_id, fosh[:50])
+                    selected = choice(fosh_list)
+                    fosh_text, media_type, file_id = selected
+                    
+                    if media_type and file_id:
+                        if media_type == "photo":
+                            await message.reply_photo(file_id)
+                        elif media_type == "video":
+                            await message.reply_video(file_id)
+                        elif media_type == "animation":
+                            await message.reply_animation(file_id)
+                        elif media_type == "sticker":
+                            await message.reply_sticker(file_id)
+                        elif media_type == "audio":
+                            await message.reply_audio(file_id)
+                        elif media_type == "voice":
+                            await message.reply_voice(file_id)
+                        elif media_type == "video_note":
+                            await message.reply_video_note(file_id)
+                        elif media_type == "document":
+                            await message.reply_document(file_id)
+                    elif fosh_text:
+                        await message.reply(fosh_text)
+                        
+                    log_action("auto_reply_enemy", user_id, f"{media_type or fosh_text}")
                 except Exception as e:
                     logger.error(f"خطا در ارسال فحش: {e}")
-            return
 
         # پاسخ به دوستان
         elif user_id in friend_list:
             friend_words = get_friend_words()
             if friend_words:
                 try:
-                    word = choice(friend_words)
-                    await message.reply(word)
-                    logger.info(f"پاسخ دوستانه به {user_id} ({user_name}) ارسال شد")
-                    log_action("auto_reply_friend", user_id, word[:50])
+                    selected = choice(friend_words)
+                    word_text, media_type, file_id = selected
+                    
+                    if media_type and file_id:
+                        if media_type == "photo":
+                            await message.reply_photo(file_id)
+                        elif media_type == "video":
+                            await message.reply_video(file_id)
+                        elif media_type == "animation":
+                            await message.reply_animation(file_id)
+                        elif media_type == "sticker":
+                            await message.reply_sticker(file_id)
+                        elif media_type == "audio":
+                            await message.reply_audio(file_id)
+                        elif media_type == "voice":
+                            await message.reply_voice(file_id)
+                        elif media_type == "video_note":
+                            await message.reply_video_note(file_id)
+                        elif media_type == "document":
+                            await message.reply_document(file_id)
+                    elif word_text:
+                        await message.reply(word_text)
+                        
+                    log_action("auto_reply_friend", user_id, f"{media_type or word_text}")
                 except Exception as e:
                     logger.error(f"خطا در ارسال پاسخ دوستانه: {e}")
 
@@ -672,44 +900,51 @@ async def auto_reply_handler(client, message: Message):
 @app.on_message(filters.command("help") & filters.user(admin_id))
 async def help_command(client, message: Message):
     try:
-        text = """📚 **راهنمای ربات 1:**
+        text = """📚 **راهنمای کامل ربات 1 v2.0:**
 
 🔥 **مدیریت فحش‌ها:**
 • `/addfosh [متن]` - اضافه کردن فحش
 • `/delfosh [متن]` - حذف فحش
 • `/listfosh` - نمایش لیست فحش‌ها
+• `/clearfosh` - حذف همه فحش‌ها
 
 👹 **مدیریت دشمنان:**
 • `/setenemy` - اضافه کردن دشمن (ریپلای)
 • `/delenemy` - حذف دشمن (ریپلای)
 • `/listenemy` - لیست دشمنان
+• `/clearenemy` - حذف همه دشمنان
 
 😊 **مدیریت دوستان:**
 • `/setfriend` - اضافه کردن دوست (ریپلای)
 • `/delfriend` - حذف دوست (ریپلای)
 • `/listfriend` - لیست دوستان
+• `/clearfriend` - حذف همه دوستان
 
 💬 **مدیریت کلمات دوستانه:**
 • `/addword [متن]` - اضافه کردن کلمه
 • `/delword [متن]` - حذف کلمه
-• `/listword` - لیست کلمات دوستانه
+• `/listword` - لیست کلمات
+• `/clearword` - حذف همه کلمات
 
 🤖 **تنظیمات:**
-• `/autoreply` - فعال/غیرفعال پاسخگویی
+• `/runself` - فعال کردن پاسخگویی
+• `/offself` - غیرفعال کردن پاسخگویی
 • `/stats` - نمایش آمار
 • `/broadcast [پیام]` - ارسال همگانی
-• `/test` - تست سیستم
+
+💡 **نکات:**
+• از ریپلای برای اضافه کردن رسانه استفاده کنید
+• پشتیبانی از عکس، ویدیو، صوت، استیکر و...
+• پاسخگویی فوری و بدون تاخیر
 
 ℹ️ **سایر:**
 • `/start` - شروع ربات
-• `/status` - وضعیت ربات
 • `/help` - نمایش این راهنما"""
 
         await message.edit_text(text)
 
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
-        logger.error(f"خطا در help_command: {e}")
 
 print("Bot 1 initialized and ready!")
 logger.info("ربات 1 آماده شد!")
