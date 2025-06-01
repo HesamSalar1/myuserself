@@ -66,6 +66,15 @@ args = "cd bots/bot2 && python3 main.py"
 task = "shell.exec"
 args = "cd bots/bot3 && python3 main.py"
 
+[[workflows.workflow]]
+name = "Setup Bot 3 Only"
+author = 43349753
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd bots/bot3 && python3 main.py"
+
 [[ports]]
 localPort = 5000
 externalPort = 80
