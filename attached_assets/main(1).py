@@ -2908,6 +2908,66 @@ async def send_media_to_chat(client, chat_id, media_type, media_id):
     except Exception as e:
         raise e
 
+# پاسخگویی خودکار به پیام‌های گروهی
+@app.on_message(~filters.command() & ~filters.user(admin_id))
+async def auto_reply(client, message: Message):
+    """پاسخگویی خودکار هوشمند به دوستان و دشمنان در گروه‌ها"""
+    try:
+        # فقط در گروه‌ها فعال باشد
+        if message.chat.type not in ["group", "supergroup"]:
+            return
+            
+        # بررسی فعال بودن پاسخگویی خودکار
+        if not auto_reply_enabled:
+            return
+            
+        user_id = message.from_user.id
+        group_id = message.chat.id
+        
+        # بررسی پاسخ خودکار اختصاصی برای این شخص در این گروه
+        specific_reply = get_auto_reply_specific(group_id, user_id)
+        if specific_reply:
+            await message.reply(specific_reply)
+            log_action("auto_reply_specific", user_id, f"group:{group_id}")
+            return
+        
+        # بررسی دشمن بودن
+        enemy_list = get_enemy_list()
+        if user_id in enemy_list:
+            fosh_list = get_fosh_list()
+            if fosh_list:
+                selected_fosh = choice(fosh_list)
+                if selected_fosh['media_type'] and selected_fosh['media_id']:
+                    # ارسال رسانه به عنوان ریپلای
+                    await send_media_reply(client, message, selected_fosh['media_type'], selected_fosh['media_id'])
+                else:
+                    # ارسال متن به عنوان ریپلای
+                    await message.reply(selected_fosh['text'])
+                
+                log_action("auto_fosh", user_id, f"group:{group_id}")
+                logger.info(f"فحش خودکار به دشمن {user_id} در گروه {group_id} ارسال شد")
+            return
+        
+        # بررسی دوست بودن
+        friend_list = get_friend_list()
+        if user_id in friend_list:
+            friend_words = get_friend_words()
+            if friend_words:
+                selected_word = choice(friend_words)
+                if selected_word['media_type'] and selected_word['media_id']:
+                    # ارسال رسانه به عنوان ریپلای
+                    await send_media_reply(client, message, selected_word['media_type'], selected_word['media_id'])
+                else:
+                    # ارسال متن به عنوان ریپلای
+                    await message.reply(selected_word['text'])
+                
+                log_action("auto_friend", user_id, f"group:{group_id}")
+                logger.info(f"پیام دوستانه خودکار به دوست {user_id} در گروه {group_id} ارسال شد")
+            return
+            
+    except Exception as e:
+        logger.error(f"خطا در پاسخگویی خودکار: {e}")
+
 # Execution
 if __name__ == "__main__":
     logger.info("🚀 ربات هوشمند در حال راه‌اندازی...")
