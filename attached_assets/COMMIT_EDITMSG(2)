@@ -1,0 +1,5 @@
+Checkpoint before assistant change: Shorten bot commands and fix the private list command functionality
+
+Refactor command names to abbreviations and fix `/listprivate` command error.
+
+Replit-Commit-Author: Assistant
