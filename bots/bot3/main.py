@@ -749,8 +749,13 @@ async def broadcast_command(client, message: Message):
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
 
-# پاسخگویی خودکار فوری و قدرتمند
-@app.on_message(~filters.me & ~filters.channel & ~filters.user(admin_id))
+# پاسخگویی خودکار بهینه شده و قدرتمند
+@app.on_message(
+    ~filters.me & 
+    ~filters.channel & 
+    ~filters.user(admin_id) & 
+    (filters.group | filters.supergroup)
+)
 async def auto_reply_handler(client, message: Message):
     try:
         # بررسی اولیه
