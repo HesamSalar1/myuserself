@@ -31,7 +31,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = Client("my_bot1", api_id, api_hash, phone_number="+989123456789")
+app = Client("my_bot1", api_id, api_hash)
 
 # متغیر کنترل وضعیت پاسخگویی خودکار
 auto_reply_enabled = True
