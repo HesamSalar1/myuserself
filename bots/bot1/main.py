@@ -851,10 +851,12 @@ async def auto_reply_handler(client, message: Message):
             logger.info("⚠️ پیام بدون کاربر")
             return
             
-        # بررسی نوع چت
-        if message.chat.type not in ["group", "supergroup"]:
-            logger.info(f"⚠️ پیام از چت خصوصی: {message.chat.type}")
+        # بررسی نوع چت - فقط در گروه‌ها کار کن
+        if message.chat.type == "private":
+            logger.info(f"⚠️ پیام از چت خصوصی نادیده گرفته شد")
             return
+            
+        logger.info(f"📍 چت معتبر - نوع: {message.chat.type}")
             
         # نادیده گرفتن ادمین
         if message.from_user.id == admin_id:
@@ -1022,6 +1024,8 @@ async def debug_system(client, message: Message):
 🎯 **وضعیت پاسخگویی:**
 • auto_reply_enabled = `{auto_reply_enabled}`
 • admin_id = `{admin_id}`
+• chat_type = `{message.chat.type}`
+• chat_id = `{message.chat.id}`
 
 📋 **دیتابیس:**
 • دشمنان: {len(enemy_list)} نفر
@@ -1049,11 +1053,56 @@ async def debug_system(client, message: Message):
                 debug_info += f"\n`{i}.` [{media_type}] - {file_id[:20]}..."
             else:
                 debug_info += f"\n`{i}.` {word[:30]}..."
+
+        # تست کاربر مشخص
+        if 5126723756 in [row[0] for row in enemy_list]:
+            debug_info += f"\n\n✅ کاربر 5126723756 در لیست دشمنان موجود است"
+        else:
+            debug_info += f"\n\n❌ کاربر 5126723756 در لیست دشمنان یافت نشد"
                 
         await message.edit_text(debug_info)
         
     except Exception as e:
         await message.edit_text(f"❌ خطا در دیباگ: {str(e)}")
+
+# کامند تست مخصوص برای بررسی دقیق مشکل
+@app.on_message(filters.command("testuser") & filters.user(admin_id))
+async def test_user_check(client, message: Message):
+    try:
+        if len(message.command) < 2:
+            await message.edit_text("⚠️ استفاده: `/testuser 5126723756`")
+            return
+            
+        test_user_id = int(message.command[1])
+        
+        # بررسی دقیق
+        enemy_list = get_enemy_list()
+        enemy_ids = [row[0] for row in enemy_list]
+        fosh_list = get_fosh_list()
+        
+        test_result = f"""🧪 **تست کاربر {test_user_id}:**
+
+📊 **بررسی‌ها:**
+• auto_reply_enabled: {auto_reply_enabled}
+• کاربر در لیست دشمنان: {'✅ بله' if test_user_id in enemy_ids else '❌ خیر'}
+• تعداد فحش‌ها: {len(fosh_list)}
+• نوع چت فعلی: {message.chat.type}
+
+👹 **لیست کامل دشمنان:**
+{enemy_ids}
+
+🔥 **اولین فحش در دیتابیس:**"""
+        
+        if fosh_list:
+            first_fosh = fosh_list[0]
+            test_result += f"\n• متن: {first_fosh[0] or 'رسانه'}\n• نوع: {first_fosh[1] or 'متن'}"
+        else:
+            test_result += "\n❌ هیچ فحشی یافت نشد!"
+            
+        await message.edit_text(test_result)
+        
+    except Exception as e:
+        await message.edit_text(f"❌ خطا در تست: {str(e)}")
 
 # راهنما
 @app.on_message(filters.command("help") & filters.user(admin_id))
