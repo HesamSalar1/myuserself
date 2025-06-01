@@ -13,9 +13,8 @@ from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
 from random import choice
 
 # تنظیمات اصلی
-import os
-api_id = int(os.getenv('TELEGRAM_API_ID'))
-api_hash = os.getenv('TELEGRAM_API_HASH')
+api_id = 29262538
+api_hash = "0417ebf26dbd92d3455d51595f2c923c"
 admin_id = 7419698159
 
 # تنظیم لاگ
@@ -23,13 +22,13 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('bot3.log', encoding='utf-8'),
+        logging.FileHandler('bot.log', encoding='utf-8'),
         logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger(__name__)
 
-app = Client("bot3_session", api_id, api_hash)
+app = Client("my_bot", api_id, api_hash)
 
 # متغیر کنترل وضعیت پاسخگویی خودکار
 auto_reply_enabled = True
@@ -39,7 +38,7 @@ count_tasks = {}
 
 # ایجاد و راه‌اندازی دیتابیس SQLite با بهین‌سازی
 def init_database():
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
 
     # جدول فحش‌ها با ایندکس
@@ -202,7 +201,7 @@ def init_database():
 
 # توابع کمکی دیتابیس
 def get_fosh_list():
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     try:
         cursor.execute('SELECT text FROM fosh_list ORDER BY created_at DESC')
@@ -213,7 +212,7 @@ def get_fosh_list():
     return result
 
 def get_enemy_list():
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('SELECT user_id FROM enemy_list')
     result = [row[0] for row in cursor.fetchall()]
@@ -221,7 +220,7 @@ def get_enemy_list():
     return result
 
 def get_enemy_details():
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     try:
         cursor.execute('SELECT user_id, username, first_name, added_at FROM enemy_list ORDER BY added_at DESC')
@@ -239,7 +238,7 @@ def get_enemy_details():
     return result
 
 def get_friend_list():
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('SELECT user_id FROM friend_list')
     result = [row[0] for row in cursor.fetchall()]
@@ -247,7 +246,7 @@ def get_friend_list():
     return result
 
 def get_friend_details():
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     try:
         cursor.execute('SELECT user_id, username, first_name, added_at FROM friend_list ORDER BY added_at DESC')
@@ -265,7 +264,7 @@ def get_friend_details():
     return result
 
 def get_friend_words():
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     try:
         cursor.execute('SELECT text FROM friend_words ORDER BY created_at DESC')
@@ -276,7 +275,7 @@ def get_friend_words():
     return result
 
 def add_fosh_to_db(fosh):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     try:
         cursor.execute('INSERT INTO fosh_list (text) VALUES (?)', (fosh,))
@@ -289,7 +288,7 @@ def add_fosh_to_db(fosh):
         conn.close()
 
 def remove_fosh_from_db(fosh):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM fosh_list WHERE text = ?', (fosh,))
     affected = cursor.rowcount
@@ -300,7 +299,7 @@ def remove_fosh_from_db(fosh):
     return affected > 0
 
 def clear_fosh_db():
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM fosh_list')
     conn.commit()
@@ -308,7 +307,7 @@ def clear_fosh_db():
     log_action("clear_fosh", None, "all")
 
 def add_enemy_to_db(user_id, username=None, first_name=None):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     try:
         cursor.execute('INSERT INTO enemy_list (user_id, username, first_name) VALUES (?, ?, ?)', 
@@ -322,7 +321,7 @@ def add_enemy_to_db(user_id, username=None, first_name=None):
         conn.close()
 
 def remove_enemy_from_db(user_id):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM enemy_list WHERE user_id = ?', (user_id,))
     affected = cursor.rowcount
@@ -333,7 +332,7 @@ def remove_enemy_from_db(user_id):
     return affected > 0
 
 def clear_enemy_db():
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM enemy_list')
     conn.commit()
@@ -341,7 +340,7 @@ def clear_enemy_db():
     log_action("clear_enemy", None, "all")
 
 def add_friend_to_db(user_id, username=None, first_name=None):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     try:
         cursor.execute('INSERT INTO friend_list (user_id, username, first_name) VALUES (?, ?, ?)', 
@@ -355,7 +354,7 @@ def add_friend_to_db(user_id, username=None, first_name=None):
         conn.close()
 
 def remove_friend_from_db(user_id):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM friend_list WHERE user_id = ?', (user_id,))
     affected = cursor.rowcount
@@ -366,7 +365,7 @@ def remove_friend_from_db(user_id):
     return affected > 0
 
 def clear_friend_db():
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM friend_list')
     conn.commit()
@@ -374,7 +373,7 @@ def clear_friend_db():
     log_action("clear_friend", None, "all")
 
 def add_friend_word_to_db(word):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     try:
         cursor.execute('INSERT INTO friend_words (text) VALUES (?)', (word,))
@@ -387,7 +386,7 @@ def add_friend_word_to_db(word):
         conn.close()
 
 def remove_friend_word_from_db(word):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM friend_words WHERE text = ?', (word,))
     affected = cursor.rowcount
@@ -398,7 +397,7 @@ def remove_friend_word_from_db(word):
     return affected > 0
 
 def clear_friend_words_db():
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM friend_words')
     conn.commit()
@@ -407,7 +406,7 @@ def clear_friend_words_db():
 
 def log_action(action_type, target_user_id, details):
     """ثبت فعالیت‌ها در دیتابیس"""
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     try:
         cursor.execute('INSERT INTO stats (action_type, target_user_id, details) VALUES (?, ?, ?)',
@@ -420,7 +419,7 @@ def log_action(action_type, target_user_id, details):
 
 def get_stats():
     """دریافت آمار کلی"""
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
 
     stats = {}
@@ -449,7 +448,7 @@ def get_stats():
     return stats
 
 def add_private_command(group_id, user_id, keyword, response, media_type=None, media_id=None):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     try:
         cursor.execute('INSERT INTO private_commands (group_id, user_id, keyword, response, media_type, media_id) VALUES (?, ?, ?, ?, ?, ?)',
@@ -462,7 +461,7 @@ def add_private_command(group_id, user_id, keyword, response, media_type=None, m
         conn.close()
 
 def remove_private_command(group_id, user_id, keyword):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM private_commands WHERE group_id = ? AND user_id = ? AND keyword = ?',
                    (group_id, user_id, keyword))
@@ -472,14 +471,14 @@ def remove_private_command(group_id, user_id, keyword):
     return affected > 0
 
 def clear_private_commands(group_id, user_id):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM private_commands WHERE group_id = ? AND user_id = ?', (group_id, user_id))
     conn.commit()
     conn.close()
 
 def list_private_commands(group_id, user_id):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('SELECT keyword, response, media_type, media_id FROM private_commands WHERE group_id = ? AND user_id = ?',
                    (group_id, user_id))
@@ -489,7 +488,7 @@ def list_private_commands(group_id, user_id):
 
 # جدول auto_reply_specific برای پاسخگویی خودکار به شخص خاص در گروه خاص
 def init_auto_reply_specific_table():
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS auto_reply_specific (
@@ -520,7 +519,7 @@ def init_auto_reply_specific_table():
     conn.close()
 
 def add_auto_reply_specific(group_id, user_id, response):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     try:
         cursor.execute('INSERT OR REPLACE INTO auto_reply_specific (group_id, user_id, response) VALUES (?, ?, ?)',
@@ -533,7 +532,7 @@ def add_auto_reply_specific(group_id, user_id, response):
         conn.close()
 
 def remove_auto_reply_specific(group_id, user_id):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM auto_reply_specific WHERE group_id = ? AND user_id = ?', (group_id, user_id))
     affected = cursor.rowcount
@@ -542,7 +541,7 @@ def remove_auto_reply_specific(group_id, user_id):
     return affected > 0
 
 def get_auto_reply_specific(group_id, user_id):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('SELECT response FROM auto_reply_specific WHERE group_id = ? AND user_id = ?',
                    (group_id, user_id))
@@ -551,7 +550,7 @@ def get_auto_reply_specific(group_id, user_id):
     return result[0] if result else None
 
 def list_auto_reply_specific():
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('SELECT group_id, user_id, response, created_at FROM auto_reply_specific ORDER BY created_at DESC')
     result = cursor.fetchall()
@@ -559,7 +558,7 @@ def list_auto_reply_specific():
     return result
 
 def clear_auto_reply_specific():
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM auto_reply_specific')
     conn.commit()
@@ -567,7 +566,7 @@ def clear_auto_reply_specific():
 
 # توابع مدیریت پیام‌های تایمی
 def add_scheduled_message(user_id, chat_id, message_text, scheduled_time, media_type=None, media_id=None):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('INSERT INTO scheduled_messages (user_id, chat_id, message_text, media_type, media_id, scheduled_time) VALUES (?, ?, ?, ?, ?, ?)',
                    (user_id, chat_id, message_text, media_type, media_id, scheduled_time))
@@ -577,7 +576,7 @@ def add_scheduled_message(user_id, chat_id, message_text, scheduled_time, media_
     return schedule_id
 
 def remove_scheduled_message(schedule_id):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM scheduled_messages WHERE id = ?', (schedule_id,))
     affected = cursor.rowcount
@@ -586,7 +585,7 @@ def remove_scheduled_message(schedule_id):
     return affected > 0
 
 def list_scheduled_messages(user_id):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('SELECT id, message_text, media_type, scheduled_time FROM scheduled_messages WHERE user_id = ? ORDER BY created_at DESC',
                    (user_id,))
@@ -595,7 +594,7 @@ def list_scheduled_messages(user_id):
     return result
 
 def clear_scheduled_messages(user_id):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM scheduled_messages WHERE user_id = ?', (user_id,))
     conn.commit()
@@ -603,7 +602,7 @@ def clear_scheduled_messages(user_id):
 
 # توابع مدیریت شمارش‌ها
 def add_count_task(user_id, chat_id, current_count, target_count, delay):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('INSERT INTO count_tasks (user_id, chat_id, current_count, target_count, delay) VALUES (?, ?, ?, ?, ?)',
                    (user_id, chat_id, current_count, target_count, delay))
@@ -613,7 +612,7 @@ def add_count_task(user_id, chat_id, current_count, target_count, delay):
     return count_id
 
 def remove_count_task(count_id):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM count_tasks WHERE id = ?', (count_id,))
     affected = cursor.rowcount
@@ -622,7 +621,7 @@ def remove_count_task(count_id):
     return affected > 0
 
 def list_count_tasks(user_id):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('SELECT id, current_count, target_count, delay FROM count_tasks WHERE user_id = ? ORDER BY created_at DESC',
                    (user_id,))
@@ -631,7 +630,7 @@ def list_count_tasks(user_id):
     return result
 
 def clear_count_tasks(user_id):
-    conn = sqlite3.connect('bot3_database.db', timeout=30.0, check_same_thread=False)
+    conn = sqlite3.connect('bot_database.db', timeout=30.0, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('DELETE FROM count_tasks WHERE user_id = ?', (user_id,))
     conn.commit()
@@ -1578,7 +1577,7 @@ async def backup_database(client, message: Message):
         from datetime import datetime
 
         backup_name = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
-        shutil.copy2('bot3_database.db', backup_name)
+        shutil.copy2('bot_database.db', backup_name)
 
         await message.edit_text(f"✅ بکاپ دیتابیس ایجاد شد: `{backup_name}`")
         logger.info(f"بکاپ دیتابیس ایجاد شد: {backup_name}")
@@ -1594,7 +1593,7 @@ async def test_command(client, message: Message):
     try:
         stats = get_stats()
         import os
-        db_size = os.path.getsize('bot3_database.db') / 1024  # KB
+        db_size = os.path.getsize('bot_database.db') / 1024  # KB
 
         test_report = f"""
 🔍 **گزارش تست سیستم:**
@@ -1631,7 +1630,7 @@ async def run_self(client, message: Message):
         import os
 
         # اطلاعات سیستم بدون psutil
-        db_size = os.path.getsize('bot3_database.db') / 1024
+        db_size = os.path.getsize('bot_database.db') / 1024
 
         start_report = f"""
 🟢 **ربات در حال اجرا و فعال است**
@@ -2908,66 +2907,6 @@ async def send_media_to_chat(client, chat_id, media_type, media_id):
             await client.send_video_note(chat_id, media_id)
     except Exception as e:
         raise e
-
-# پاسخگویی خودکار به پیام‌های گروهی
-@app.on_message(~filters.command() & ~filters.user(admin_id))
-async def auto_reply(client, message: Message):
-    """پاسخگویی خودکار هوشمند به دوستان و دشمنان در گروه‌ها"""
-    try:
-        # فقط در گروه‌ها فعال باشد
-        if message.chat.type not in ["group", "supergroup"]:
-            return
-            
-        # بررسی فعال بودن پاسخگویی خودکار
-        if not auto_reply_enabled:
-            return
-            
-        user_id = message.from_user.id
-        group_id = message.chat.id
-        
-        # بررسی پاسخ خودکار اختصاصی برای این شخص در این گروه
-        specific_reply = get_auto_reply_specific(group_id, user_id)
-        if specific_reply:
-            await message.reply(specific_reply)
-            log_action("auto_reply_specific", user_id, f"group:{group_id}")
-            return
-        
-        # بررسی دشمن بودن
-        enemy_list = get_enemy_list()
-        if user_id in enemy_list:
-            fosh_list = get_fosh_list()
-            if fosh_list:
-                selected_fosh = choice(fosh_list)
-                if selected_fosh['media_type'] and selected_fosh['media_id']:
-                    # ارسال رسانه به عنوان ریپلای
-                    await send_media_reply(client, message, selected_fosh['media_type'], selected_fosh['media_id'])
-                else:
-                    # ارسال متن به عنوان ریپلای
-                    await message.reply(selected_fosh['text'])
-                
-                log_action("auto_fosh", user_id, f"group:{group_id}")
-                logger.info(f"فحش خودکار به دشمن {user_id} در گروه {group_id} ارسال شد")
-            return
-        
-        # بررسی دوست بودن
-        friend_list = get_friend_list()
-        if user_id in friend_list:
-            friend_words = get_friend_words()
-            if friend_words:
-                selected_word = choice(friend_words)
-                if selected_word['media_type'] and selected_word['media_id']:
-                    # ارسال رسانه به عنوان ریپلای
-                    await send_media_reply(client, message, selected_word['media_type'], selected_word['media_id'])
-                else:
-                    # ارسال متن به عنوان ریپلای
-                    await message.reply(selected_word['text'])
-                
-                log_action("auto_friend", user_id, f"group:{group_id}")
-                logger.info(f"پیام دوستانه خودکار به دوست {user_id} در گروه {group_id} ارسال شد")
-            return
-            
-    except Exception as e:
-        logger.error(f"خطا در پاسخگویی خودکار: {e}")
 
 # Execution
 if __name__ == "__main__":
