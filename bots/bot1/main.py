@@ -645,7 +645,7 @@ async def add_word_command(client, message: Message):
                 media_type = "audio"
                 file_id = replied.audio.file_id
             elif replied.voice:
-                media_type = "voice"
+                media_type = "audio"
                 file_id = replied.voice.file_id
             elif replied.video_note:
                 media_type = "video_note"
@@ -776,7 +776,7 @@ async def off_auto_reply(client, message: Message):
         log_action("toggle_auto_reply", admin_id, "غیرفعال")
 
     except Exception as e:
-        await message.edit_text(f"❌ خطا: {str(e)}")
+        awaitmessage.edit_text(f"❌ خطا: {str(e)}")
 
 # کامند ارسال همگانی
 @app.on_message(filters.command("broadcast") & filters.user(admin_id))
