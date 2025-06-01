@@ -1,16 +1,16 @@
+
 const { spawn } = require('child_process');
 const path = require('path');
 
 const BOT_ID = process.env.BOT_ID || '2';
-const BOT_PORT = process.env.BOT_PORT || '3002';
 
-console.log(`Bot ${BOT_ID} starting Python Telegram Bot on port ${BOT_PORT}...`);
+console.log(`Bot ${BOT_ID} starting Python Telegram Bot...`);
 
-// Run the Python bot
-const pythonProcess = spawn('/home/runner/workspace/.pythonlibs/bin/python3', ['main.py'], {
+// Run the Python bot directly
+const pythonProcess = spawn('python3', ['main.py'], {
   cwd: __dirname,
   stdio: 'inherit',
-  env: { ...process.env, BOT_ID, BOT_PORT, PYTHONPATH: '/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages' }
+  env: { ...process.env, BOT_ID }
 });
 
 pythonProcess.on('close', (code) => {
