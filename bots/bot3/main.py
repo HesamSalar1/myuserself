@@ -769,12 +769,10 @@ async def auto_reply_handler(client, message: Message):
             logger.info("⚠️ BOT3 - پیام بدون کاربر")
             return
             
-        # بررسی نوع چت - فقط در گروه‌ها کار کن
-        if message.chat.type == "private":
-            logger.info(f"⚠️ BOT3 - پیام از چت خصوصی نادیده گرفته شد")
+        # بررسی نوع چت
+        if message.chat.type not in ["group", "supergroup"]:
+            logger.info(f"⚠️ BOT3 - پیام از چت خصوصی: {message.chat.type}")
             return
-            
-        logger.info(f"📍 BOT3 - چت معتبر - نوع: {message.chat.type}")
             
         # نادیده گرفتن ادمین
         if message.from_user.id == admin_id:
