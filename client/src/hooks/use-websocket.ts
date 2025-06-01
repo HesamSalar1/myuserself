@@ -39,7 +39,7 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
     return () => {
       ws.current?.close();
     };
-  }, [onMessage]);
+  }, []);
 
   const sendMessage = (type: string, data: any) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {

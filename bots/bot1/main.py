@@ -4,9 +4,13 @@ import sys
 import sqlite3
 import logging
 from datetime import datetime
-sys.stdout.reconfigure(encoding='utf-8')
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+except AttributeError:
+    pass
 
-from pyrogram import Client, filters
+from pyrogram.client import Client
+from pyrogram import filters
 
 from pyrogram.types import Message, ChatMember
 from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
