@@ -831,7 +831,7 @@ async def broadcast_command(client, message: Message):
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
 
-# پاسخگویی خودکار ساده و مؤثر (براساس فایل نمونه موفق)
+# پاسخگویی خودکار با لاگ‌گذاری کامل
 @app.on_message(
     filters.text & 
     ~filters.me & 
@@ -840,97 +840,140 @@ async def broadcast_command(client, message: Message):
 )
 async def auto_reply_handler(client, message: Message):
     try:
-        # بررسی‌های اولیه
+        logger.info(f"📨 پیام دریافت شد از {message.from_user.first_name if message.from_user else 'ناشناس'}")
+        
+        # بررسی فعال بودن پاسخگویی
         if not auto_reply_enabled:
+            logger.info("⚠️ پاسخگویی خودکار غیرفعال است")
             return
             
         if not message.from_user:
+            logger.info("⚠️ پیام بدون کاربر")
             return
             
-        # فقط در گروه‌ها فعال
+        # بررسی نوع چت
         if message.chat.type not in ["group", "supergroup"]:
+            logger.info(f"⚠️ پیام از چت خصوصی: {message.chat.type}")
             return
             
         # نادیده گرفتن ادمین
         if message.from_user.id == admin_id:
+            logger.info("⚠️ پیام از ادمین - نادیده گرفته شد")
             return
 
         user_id = message.from_user.id
         user_name = message.from_user.first_name or "ناشناس"
-
-        # دریافت لیست دشمنان
-        enemy_list = [row[0] for row in get_enemy_list()]
+        chat_title = message.chat.title or "گروه ناشناس"
         
-        # بررسی دشمن بودن و ارسال فحش
-        if user_id in enemy_list:
+        logger.info(f"🔍 بررسی کاربر: {user_name} (ID: {user_id}) در گروه: {chat_title}")
+
+        # دریافت لیست دشمنان با لاگ
+        enemy_list = get_enemy_list()
+        enemy_ids = [row[0] for row in enemy_list]
+        logger.info(f"👹 تعداد دشمنان: {len(enemy_ids)} - لیست: {enemy_ids}")
+        
+        # بررسی دشمن بودن
+        if user_id in enemy_ids:
+            logger.info(f"🎯 کاربر {user_name} در لیست دشمنان یافت شد!")
+            
             fosh_list = get_fosh_list()
+            logger.info(f"🔥 تعداد فحش‌ها در دیتابیس: {len(fosh_list)}")
+            
             if fosh_list:
-                logger.info(f"🎯 دشمن شناسایی شد: {user_name} - ارسال فحش")
-                
                 # انتخاب فحش تصادفی
                 selected = choice(fosh_list)
                 fosh_text, media_type, file_id = selected
+                logger.info(f"🎲 فحش انتخاب شده: نوع={media_type or 'متن'}, محتوا={fosh_text[:30] if fosh_text else 'رسانه'}")
 
-                # ارسال فحش
-                if media_type and file_id:
-                    if media_type == "photo":
-                        await message.reply_photo(file_id)
-                    elif media_type == "video":
-                        await message.reply_video(file_id)
-                    elif media_type == "animation":
-                        await message.reply_animation(file_id)
-                    elif media_type == "sticker":
-                        await message.reply_sticker(file_id)
-                    elif media_type == "audio":
-                        await message.reply_audio(file_id)
-                    elif media_type == "voice":
-                        await message.reply_voice(file_id)
-                    elif media_type == "video_note":
-                        await message.reply_video_note(file_id)
-                    elif media_type == "document":
-                        await message.reply_document(file_id)
-                elif fosh_text:
-                    await message.reply_text(fosh_text)
+                try:
+                    # ارسال فحش
+                    if media_type and file_id:
+                        logger.info(f"📤 در حال ارسال رسانه {media_type}")
+                        if media_type == "photo":
+                            await message.reply_photo(file_id)
+                        elif media_type == "video":
+                            await message.reply_video(file_id)
+                        elif media_type == "animation":
+                            await message.reply_animation(file_id)
+                        elif media_type == "sticker":
+                            await message.reply_sticker(file_id)
+                        elif media_type == "audio":
+                            await message.reply_audio(file_id)
+                        elif media_type == "voice":
+                            await message.reply_voice(file_id)
+                        elif media_type == "video_note":
+                            await message.reply_video_note(file_id)
+                        elif media_type == "document":
+                            await message.reply_document(file_id)
+                    elif fosh_text:
+                        logger.info(f"📤 در حال ارسال متن: {fosh_text[:50]}")
+                        await message.reply_text(fosh_text)
+                    
+                    logger.info(f"✅ فحش با موفقیت ارسال شد به {user_name}")
+                    log_action("enemy_auto_reply", user_id, f"فحش به {user_name}")
+                    
+                except Exception as send_error:
+                    logger.error(f"❌ خطا در ارسال فحش: {send_error}")
                 
-                log_action("enemy_auto_reply", user_id, f"فحش به {user_name}")
                 return
+            else:
+                logger.warning("⚠️ هیچ فحشی در دیتابیس یافت نشد!")
 
-        # بررسی دوست بودن و ارسال پیام دوستانه
-        friend_list = [row[0] for row in get_friend_list()]
-        if user_id in friend_list:
+        # بررسی دوست بودن
+        friend_list = get_friend_list()
+        friend_ids = [row[0] for row in friend_list]
+        logger.info(f"😊 تعداد دوستان: {len(friend_ids)} - لیست: {friend_ids}")
+        
+        if user_id in friend_ids:
+            logger.info(f"😊 کاربر {user_name} در لیست دوستان یافت شد!")
+            
             friend_words = get_friend_words()
+            logger.info(f"💬 تعداد کلمات دوستانه: {len(friend_words)}")
+            
             if friend_words:
-                logger.info(f"😊 دوست شناسایی شد: {user_name} - ارسال پیام دوستانه")
-                
                 # انتخاب پیام دوستانه تصادفی
                 selected = choice(friend_words)
                 word_text, media_type, file_id = selected
+                logger.info(f"🎲 پیام دوستانه انتخاب شده: نوع={media_type or 'متن'}")
 
-                # ارسال پیام دوستانه
-                if media_type and file_id:
-                    if media_type == "photo":
-                        await message.reply_photo(file_id)
-                    elif media_type == "video":
-                        await message.reply_video(file_id)
-                    elif media_type == "animation":
-                        await message.reply_animation(file_id)
-                    elif media_type == "sticker":
-                        await message.reply_sticker(file_id)
-                    elif media_type == "audio":
-                        await message.reply_audio(file_id)
-                    elif media_type == "voice":
-                        await message.reply_voice(file_id)
-                    elif media_type == "video_note":
-                        await message.reply_video_note(file_id)
-                    elif media_type == "document":
-                        await message.reply_document(file_id)
-                elif word_text:
-                    await message.reply_text(word_text)
-                
-                log_action("friend_auto_reply", user_id, f"پاسخ دوستانه به {user_name}")
+                try:
+                    # ارسال پیام دوستانه
+                    if media_type and file_id:
+                        logger.info(f"📤 در حال ارسال رسانه دوستانه {media_type}")
+                        if media_type == "photo":
+                            await message.reply_photo(file_id)
+                        elif media_type == "video":
+                            await message.reply_video(file_id)
+                        elif media_type == "animation":
+                            await message.reply_animation(file_id)
+                        elif media_type == "sticker":
+                            await message.reply_sticker(file_id)
+                        elif media_type == "audio":
+                            await message.reply_audio(file_id)
+                        elif media_type == "voice":
+                            await message.reply_voice(file_id)
+                        elif media_type == "video_note":
+                            await message.reply_video_note(file_id)
+                        elif media_type == "document":
+                            await message.reply_document(file_id)
+                    elif word_text:
+                        logger.info(f"📤 در حال ارسال متن دوستانه: {word_text[:50]}")
+                        await message.reply_text(word_text)
+                    
+                    logger.info(f"✅ پیام دوستانه با موفقیت ارسال شد به {user_name}")
+                    log_action("friend_auto_reply", user_id, f"پاسخ دوستانه به {user_name}")
+                    
+                except Exception as send_error:
+                    logger.error(f"❌ خطا در ارسال پیام دوستانه: {send_error}")
+            else:
+                logger.warning("⚠️ هیچ کلمه دوستانه‌ای در دیتابیس یافت نشد!")
+        else:
+            logger.info(f"🔍 کاربر {user_name} نه دشمن است نه دوست - هیچ اقدامی انجام نمی‌شود")
 
     except Exception as e:
-        logger.error(f"❌ خطا در پاسخگویی خودکار: {e}")
+        logger.error(f"❌ خطای کلی در پاسخگویی خودکار: {e}")
+        import traceback
+        logger.error(f"📋 جزئیات خطا: {traceback.format_exc()}")
 
 # کامند تست پاسخگویی
 @app.on_message(filters.command("test") & filters.user(admin_id))
@@ -963,6 +1006,54 @@ async def test_auto_reply(client, message: Message):
 
     except Exception as e:
         await message.edit_text(f"❌ خطا در تست: {str(e)}")
+
+# کامند دیباگ کامل
+@app.on_message(filters.command("debug") & filters.user(admin_id))
+async def debug_system(client, message: Message):
+    try:
+        # بررسی دیتابیس
+        enemy_list = get_enemy_list()
+        friend_list = get_friend_list()
+        fosh_list = get_fosh_list()
+        friend_words = get_friend_words()
+        
+        debug_info = f"""🔧 **دیباگ کامل سیستم BOT1:**
+
+🎯 **وضعیت پاسخگویی:**
+• auto_reply_enabled = `{auto_reply_enabled}`
+• admin_id = `{admin_id}`
+
+📋 **دیتابیس:**
+• دشمنان: {len(enemy_list)} نفر
+• دوستان: {len(friend_list)} نفر  
+• فحش‌ها: {len(fosh_list)} عدد
+• کلمات دوستانه: {len(friend_words)} عدد
+
+👹 **لیست دشمنان (ID):**
+{[row[0] for row in enemy_list[:10]]}
+
+😊 **لیست دوستان (ID):**
+{[row[0] for row in friend_list[:10]]}
+
+🔥 **نمونه فحش‌ها:**"""
+        
+        for i, (fosh, media_type, file_id) in enumerate(fosh_list[:3], 1):
+            if media_type:
+                debug_info += f"\n`{i}.` [{media_type}] - {file_id[:20]}..."
+            else:
+                debug_info += f"\n`{i}.` {fosh[:30]}..."
+        
+        debug_info += f"\n\n💬 **نمونه کلمات دوستانه:**"
+        for i, (word, media_type, file_id) in enumerate(friend_words[:3], 1):
+            if media_type:
+                debug_info += f"\n`{i}.` [{media_type}] - {file_id[:20]}..."
+            else:
+                debug_info += f"\n`{i}.` {word[:30]}..."
+                
+        await message.edit_text(debug_info)
+        
+    except Exception as e:
+        await message.edit_text(f"❌ خطا در دیباگ: {str(e)}")
 
 # راهنما
 @app.on_message(filters.command("help") & filters.user(admin_id))
