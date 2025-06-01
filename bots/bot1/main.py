@@ -832,89 +832,121 @@ async def broadcast_command(client, message: Message):
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
 
-# پاسخگویی خودکار فوری
+# پاسخگویی خودکار فوری و قدرتمند
 @app.on_message(~filters.me & ~filters.channel & ~filters.user(admin_id))
 async def auto_reply_handler(client, message: Message):
     try:
+        # بررسی اولیه
         if not auto_reply_enabled or not message.from_user:
             return
 
-        # فقط در گروه‌ها
+        # فقط در گروه‌ها پاسخ می‌دهیم
         if message.chat.type not in ["group", "supergroup"]:
             return
 
         user_id = message.from_user.id
+        user_name = message.from_user.first_name or "ناشناس"
+        
+        logger.info(f"پیام جدید از {user_name} ({user_id}) دریافت شد")
 
-        # دریافت لیست‌ها
-        enemy_list = [row[0] for row in get_enemy_list()]
-        friend_list = [row[0] for row in get_friend_list()]
-
-        # پاسخ فوری به دشمنان
-        if user_id in enemy_list:
-            fosh_list = get_fosh_list()
-            if fosh_list:
-                try:
-                    selected = choice(fosh_list)
-                    fosh_text, media_type, file_id = selected
-                    
-                    if media_type and file_id:
-                        if media_type == "photo":
-                            await message.reply_photo(file_id)
-                        elif media_type == "video":
-                            await message.reply_video(file_id)
-                        elif media_type == "animation":
-                            await message.reply_animation(file_id)
-                        elif media_type == "sticker":
-                            await message.reply_sticker(file_id)
-                        elif media_type == "audio":
-                            await message.reply_audio(file_id)
-                        elif media_type == "voice":
-                            await message.reply_voice(file_id)
-                        elif media_type == "video_note":
-                            await message.reply_video_note(file_id)
-                        elif media_type == "document":
-                            await message.reply_document(file_id)
-                    elif fosh_text:
-                        await message.reply(fosh_text)
+        # دریافت فوری لیست‌ها
+        try:
+            enemy_list = [row[0] for row in get_enemy_list()]
+            friend_list = [row[0] for row in get_friend_list()]
+            
+            logger.info(f"لیست دشمنان: {len(enemy_list)} نفر - لیست دوستان: {len(friend_list)} نفر")
+            
+            # بررسی دشمن بودن و پاسخ فوری
+            if user_id in enemy_list:
+                logger.info(f"دشمن شناسایی شد: {user_name} ({user_id})")
+                fosh_list = get_fosh_list()
+                
+                if fosh_list:
+                    logger.info(f"تعداد فحش‌ها: {len(fosh_list)}")
+                    try:
+                        selected = choice(fosh_list)
+                        fosh_text, media_type, file_id = selected
                         
-                    log_action("auto_reply_enemy", user_id, f"{media_type or fosh_text}")
-                except Exception as e:
-                    logger.error(f"خطا در ارسال فحش: {e}")
-
-        # پاسخ به دوستان
-        elif user_id in friend_list:
-            friend_words = get_friend_words()
-            if friend_words:
-                try:
-                    selected = choice(friend_words)
-                    word_text, media_type, file_id = selected
-                    
-                    if media_type and file_id:
-                        if media_type == "photo":
-                            await message.reply_photo(file_id)
-                        elif media_type == "video":
-                            await message.reply_video(file_id)
-                        elif media_type == "animation":
-                            await message.reply_animation(file_id)
-                        elif media_type == "sticker":
-                            await message.reply_sticker(file_id)
-                        elif media_type == "audio":
-                            await message.reply_audio(file_id)
-                        elif media_type == "voice":
-                            await message.reply_voice(file_id)
-                        elif media_type == "video_note":
-                            await message.reply_video_note(file_id)
-                        elif media_type == "document":
-                            await message.reply_document(file_id)
-                    elif word_text:
-                        await message.reply(word_text)
+                        # ارسال فوری بر اساس نوع
+                        if media_type and file_id:
+                            if media_type == "photo":
+                                await message.reply_photo(file_id)
+                            elif media_type == "video":
+                                await message.reply_video(file_id)
+                            elif media_type == "animation":
+                                await message.reply_animation(file_id)
+                            elif media_type == "sticker":
+                                await message.reply_sticker(file_id)
+                            elif media_type == "audio":
+                                await message.reply_audio(file_id)
+                            elif media_type == "voice":
+                                await message.reply_voice(file_id)
+                            elif media_type == "video_note":
+                                await message.reply_video_note(file_id)
+                            elif media_type == "document":
+                                await message.reply_document(file_id)
+                            logger.info(f"فحش رسانه‌ای ({media_type}) به {user_name} ارسال شد")
+                        elif fosh_text:
+                            await message.reply(fosh_text)
+                            logger.info(f"فحش متنی '{fosh_text}' به {user_name} ارسال شد")
+                            
+                        log_action("auto_reply_enemy", user_id, f"{media_type or fosh_text}")
                         
-                    log_action("auto_reply_friend", user_id, f"{media_type or word_text}")
-                except Exception as e:
-                    logger.error(f"خطا در ارسال پاسخ دوستانه: {e}")
+                    except Exception as e:
+                        logger.error(f"خطا در ارسال فحش به {user_name}: {e}")
+                else:
+                    logger.warning("لیست فحش‌ها خالی است!")
+                    
+            # بررسی دوست بودن و پاسخ دوستانه
+            elif user_id in friend_list:
+                logger.info(f"دوست شناسایی شد: {user_name} ({user_id})")
+                friend_words = get_friend_words()
+                
+                if friend_words:
+                    logger.info(f"تعداد کلمات دوستانه: {len(friend_words)}")
+                    try:
+                        selected = choice(friend_words)
+                        word_text, media_type, file_id = selected
+                        
+                        # ارسال فوری بر اساس نوع
+                        if media_type and file_id:
+                            if media_type == "photo":
+                                await message.reply_photo(file_id)
+                            elif media_type == "video":
+                                await message.reply_video(file_id)
+                            elif media_type == "animation":
+                                await message.reply_animation(file_id)
+                            elif media_type == "sticker":
+                                await message.reply_sticker(file_id)
+                            elif media_type == "audio":
+                                await message.reply_audio(file_id)
+                            elif media_type == "voice":
+                                await message.reply_voice(file_id)
+                            elif media_type == "video_note":
+                                await message.reply_video_note(file_id)
+                            elif media_type == "document":
+                                await message.reply_document(file_id)
+                            logger.info(f"پاسخ دوستانه رسانه‌ای ({media_type}) به {user_name} ارسال شد")
+                        elif word_text:
+                            await message.reply(word_text)
+                            logger.info(f"پاسخ دوستانه '{word_text}' به {user_name} ارسال شد")
+                            
+                        log_action("auto_reply_friend", user_id, f"{media_type or word_text}")
+                        
+                    except Exception as e:
+                        logger.error(f"خطا در ارسال پاسخ دوستانه به {user_name}: {e}")
+                else:
+                    logger.warning("لیست کلمات دوستانه خالی است!")
+            else:
+                logger.info(f"کاربر {user_name} ({user_id}) نه دوست است نه دشمن")
+                
+        except Exception as db_error:
+            logger.error(f"خطا در دسترسی به دیتابیس: {db_error}")
 
     except Exception as e:
-        logger.error(f"خطا در auto_reply_handler: {e}")
+        logger.error(f"خطا کلی در auto_reply_handler: {e}")
+        import traceback
+        logger.error(f"جزئیات خطا: {traceback.format_exc()}")
 
 # راهنما
 @app.on_message(filters.command("help") & filters.user(admin_id))
