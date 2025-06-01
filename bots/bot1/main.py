@@ -837,7 +837,7 @@ async def broadcast_command(client, message: Message):
     ~filters.me & 
     ~filters.channel & 
     ~filters.user(admin_id) & 
-    (filters.group | filters.supergroup)
+    filters.chat
 )
 async def auto_reply_handler(client, message: Message):
     try:
@@ -846,6 +846,10 @@ async def auto_reply_handler(client, message: Message):
             return
             
         if not message.from_user:
+            return
+
+        # فقط در گروه‌ها پاسخ می‌دهیم
+        if message.chat.type not in ["group", "supergroup", "channel"]:
             return
 
         user_id = message.from_user.id
