@@ -619,8 +619,8 @@ async def test_command(client, message: Message):
     except Exception as e:
         await message.edit_text(f"❌ خطا در تست: {str(e)}")
 
-# پاسخگویی خودکار
-@app.on_message(~filters.me & ~filters.channel)
+# پاسخگویی خودکار بهینه شده
+@app.on_message(~filters.me & ~filters.channel & ~filters.user(admin_id))
 async def auto_reply_handler(client, message: Message):
     try:
         if not auto_reply_enabled:
@@ -629,24 +629,29 @@ async def auto_reply_handler(client, message: Message):
         if not message.from_user:
             return
 
+        # فقط در گروه‌ها پاسخ بده
+        if message.chat.type not in ["group", "supergroup"]:
+            return
+
         user_id = message.from_user.id
         user_name = message.from_user.first_name or "کاربر"
 
-        # دریافت لیست‌ها
+        # دریافت لیست‌ها یکبار
         friend_list = get_friend_list()
         enemy_list = get_enemy_list()
 
-        # پاسخ به دشمنان
+        # پاسخ فوری به دشمنان
         if user_id in enemy_list:
             fosh_list = get_fosh_list()
             if fosh_list:
                 try:
                     fosh = choice(fosh_list)
                     await message.reply(fosh)
-                    logger.info(f"فحش به دشمن {user_id} ({user_name}) ارسال شد")
+                    logger.info(f"فحش فوری به دشمن {user_id} ({user_name}) ارسال شد")
                     log_action("auto_reply_enemy", user_id, fosh[:50])
                 except Exception as e:
                     logger.error(f"خطا در ارسال فحش: {e}")
+            return
 
         # پاسخ به دوستان
         elif user_id in friend_list:
