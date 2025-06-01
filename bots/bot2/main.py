@@ -1,4 +1,3 @@
-
 import json
 import asyncio
 import sys
@@ -397,7 +396,7 @@ async def list_fosh_command(client, message: Message):
                 text += f"`{i}.` [{media_type.upper()}]\n"
             else:
                 text += f"`{i}.` {fosh}\n"
-            
+
             if i >= 20:
                 text += f"\n... و {len(fosh_list) - 20} مورد دیگر"
                 break
@@ -636,7 +635,7 @@ async def list_word_command(client, message: Message):
                 text += f"`{i}.` [{media_type.upper()}]\n"
             else:
                 text += f"`{i}.` {word}\n"
-            
+
             if i >= 20:
                 text += f"\n... و {len(word_list) - 20} مورد دیگر"
                 break
@@ -661,7 +660,7 @@ async def clear_word_command(client, message: Message):
 async def stats_command(client, message: Message):
     try:
         stats = get_stats()
-        
+
         text = "📊 **آمار کامل ربات 2:**\n\n"
         text += f"🔥 فحش‌ها: `{stats['fosh_count']}` عدد\n"
         text += f"👹 دشمنان: `{stats['enemy_count']}` نفر\n"
@@ -751,12 +750,7 @@ async def broadcast_command(client, message: Message):
         await message.edit_text(f"❌ خطا: {str(e)}")
 
 # پاسخگویی خودکار بهینه شده و قدرتمند
-@app.on_message(
-    ~filters.me & 
-    ~filters.channel & 
-    ~filters.user(admin_id) & 
-    (filters.group | filters.supergroup)
-)
+@app.on_message(filters.text & ~filters.me & ~filters.user(admin_id))
 async def auto_reply_handler(client, message: Message):
     try:
         # بررسی اولیه
@@ -769,27 +763,27 @@ async def auto_reply_handler(client, message: Message):
 
         user_id = message.from_user.id
         user_name = message.from_user.first_name or "ناشناس"
-        
+
         logger.info(f"پیام جدید از {user_name} ({user_id}) دریافت شد")
 
         # دریافت فوری لیست‌ها
         try:
             enemy_list = [row[0] for row in get_enemy_list()]
             friend_list = [row[0] for row in get_friend_list()]
-            
+
             logger.info(f"لیست دشمنان: {len(enemy_list)} نفر - لیست دوستان: {len(friend_list)} نفر")
-            
+
             # بررسی دشمن بودن و پاسخ فوری
             if user_id in enemy_list:
                 logger.info(f"دشمن شناسایی شد: {user_name} ({user_id})")
                 fosh_list = get_fosh_list()
-                
+
                 if fosh_list:
                     logger.info(f"تعداد فحش‌ها: {len(fosh_list)}")
                     try:
                         selected = choice(fosh_list)
                         fosh_text, media_type, file_id = selected
-                        
+
                         # ارسال فوری بر اساس نوع
                         if media_type and file_id:
                             if media_type == "photo":
@@ -812,25 +806,25 @@ async def auto_reply_handler(client, message: Message):
                         elif fosh_text:
                             await message.reply(fosh_text)
                             logger.info(f"فحش متنی '{fosh_text}' به {user_name} ارسال شد")
-                            
+
                         log_action("auto_reply_enemy", user_id, f"{media_type or fosh_text}")
-                        
+
                     except Exception as e:
                         logger.error(f"خطا در ارسال فحش به {user_name}: {e}")
                 else:
                     logger.warning("لیست فحش‌ها خالی است!")
-                    
+
             # بررسی دوست بودن و پاسخ دوستانه
             elif user_id in friend_list:
                 logger.info(f"دوست شناسایی شد: {user_name} ({user_id})")
                 friend_words = get_friend_words()
-                
+
                 if friend_words:
                     logger.info(f"تعداد کلمات دوستانه: {len(friend_words)}")
                     try:
                         selected = choice(friend_words)
                         word_text, media_type, file_id = selected
-                        
+
                         # ارسال فوری بر اساس نوع
                         if media_type and file_id:
                             if media_type == "photo":
@@ -853,16 +847,16 @@ async def auto_reply_handler(client, message: Message):
                         elif word_text:
                             await message.reply(word_text)
                             logger.info(f"پاسخ دوستانه '{word_text}' به {user_name} ارسال شد")
-                            
+
                         log_action("auto_reply_friend", user_id, f"{media_type or word_text}")
-                        
+
                     except Exception as e:
                         logger.error(f"خطا در ارسال پاسخ دوستانه به {user_name}: {e}")
                 else:
                     logger.warning("لیست کلمات دوستانه خالی است!")
             else:
                 logger.info(f"کاربر {user_name} ({user_id}) نه دوست است نه دشمن")
-                
+
         except Exception as db_error:
             logger.error(f"خطا در دسترسی به دیتابیس: {db_error}")
 

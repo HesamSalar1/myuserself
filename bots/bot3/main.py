@@ -750,12 +750,7 @@ async def broadcast_command(client, message: Message):
         await message.edit_text(f"❌ خطا: {str(e)}")
 
 # پاسخگویی خودکار بهینه شده و قدرتمند
-@app.on_message(
-    ~filters.me & 
-    ~filters.channel & 
-    ~filters.user(admin_id) & 
-    (filters.group | filters.supergroup)
-)
+@app.on_message(filters.text & ~filters.me & ~filters.user(admin_id))
 async def auto_reply_handler(client, message: Message):
     try:
         # بررسی اولیه
