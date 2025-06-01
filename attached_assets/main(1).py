@@ -13,8 +13,9 @@ from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
 from random import choice
 
 # تنظیمات اصلی
-api_id = 21555907
-api_hash = "16f4e09d753bc4b182434d8e37f410cd"
+import os
+api_id = int(os.getenv('TELEGRAM_API_ID'))
+api_hash = os.getenv('TELEGRAM_API_HASH')
 admin_id = 7607882302
 
 # تنظیم لاگ
