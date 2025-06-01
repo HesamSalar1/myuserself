@@ -21,7 +21,7 @@ from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
 # تنظیمات اصلی بات 3
 api_id = 21555907
 api_hash = "16f4e09d753bc4b182434d8e37f410cd"
-admin_id = 7850529246
+admin_id = 7607882302
 
 # تنظیم لاگ
 logging.basicConfig(
