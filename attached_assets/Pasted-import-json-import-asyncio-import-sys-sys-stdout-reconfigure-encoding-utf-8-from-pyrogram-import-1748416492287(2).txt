@@ -1,0 +1,100 @@
+import json
+import asyncio
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
+
+from pyrogram import Client, filters
+# ... بقیه کد
+
+from pyrogram import Client, filters
+from pyrogram.types import Message
+from random import choice
+
+api_id = 15508294  # از my.telegram.org بگیر
+api_hash = "778e5cd56ffcf22c2d62aa963ce85a0c"
+
+admin_id = 7850529246  # آی‌دی خودت
+
+app = Client("my_bot", api_id, api_hash)
+
+# بارگذاری دیتا از فایل
+def load_data():
+    try:
+        with open("data.json", "r") as f:
+            return json.load(f)
+    except:
+        return {"friends": [], "enemies": [], "friend_words": [], "enemy_words": []}
+
+# ذخیره دیتا در فایل
+def save_data():
+    with open("data.json", "w") as f:
+        json.dump(data, f, indent=2)
+
+# دیتا
+data = load_data()
+
+# دستورات ادمین برای مدیریت لیست‌ها و کلمات
+@app.on_message(filters.command("setfriend") & filters.user(admin_id) & filters.reply)
+async def set_friend(client, message: Message):
+    user_id = message.reply_to_message.from_user.id
+    if user_id not in data["friends"]:
+        data["friends"].append(user_id)
+        save_data()
+        await message.reply("✅ به لیست دوستان اضافه شد.")
+    else:
+        await message.reply("⚠️ قبلاً در لیست دوستان هست.")
+
+@app.on_message(filters.command("setenemy") & filters.user(admin_id) & filters.reply)
+async def set_enemy(client, message: Message):
+    user_id = message.reply_to_message.from_user.id
+    if user_id not in data["enemies"]:
+        data["enemies"].append(user_id)
+        save_data()
+        await message.reply("❌ به لیست دشمنان اضافه شد.")
+    else:
+        await message.reply("⚠️ قبلاً در لیست دشمنان هست.")
+
+@app.on_message(filters.command("addword") & filters.user(admin_id))
+async def add_word(client, message: Message):
+    if len(message.command) < 3:
+        await message.reply("⚠️ استفاده: /addword friend|enemy کلمه‌")
+        return
+    target, word = message.command[1], " ".join(message.command[2:])
+    if target == "friend":
+        data["friend_words"].append(word)
+        await message.reply("✅ کلمه برای دوست ثبت شد.")
+    elif target == "enemy":
+        data["enemy_words"].append(word)
+        await message.reply("✅ کلمه برای دشمن ثبت شد.")
+    else:
+        await message.reply("⚠️ نوع باید friend یا enemy باشه.")
+    save_data()
+
+@app.on_message(filters.command("broadcast") & filters.user(admin_id))
+async def broadcast(client, message: Message):
+    if len(message.command) < 2:
+        await message.reply("📢 لطفاً پیام رو وارد کن.")
+        return
+    text = " ".join(message.command[1:])
+    all_users = set(data["friends"] + data["enemies"])
+    success, fail = 0, 0
+    for uid in all_users:
+        try:
+            await client.send_message(uid, text)
+            success += 1
+            await asyncio.sleep(0.1)
+        except:
+            fail += 1
+    await message.reply(f"📤 ارسال شد. موفق: {success}, ناموفق: {fail}")
+
+@app.on_message(filters.private)
+async def auto_reply(client, message: Message):
+    uid = message.from_user.id
+    if uid in data["friends"] and data["friend_words"]:
+        await message.reply(choice(data["friend_words"]))
+    elif uid in data["enemies"] and data["enemy_words"]:
+        await message.reply(choice(data["enemy_words"]))
+
+# اجرای بات
+print("ربات روشن شد.")
+app.run()
