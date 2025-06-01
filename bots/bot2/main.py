@@ -34,7 +34,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = Client("my_bot2", api_id, api_hash)
+app = Client(
+    "my_bot2", 
+    api_id, 
+    api_hash,
+    workdir="./",
+    sleep_threshold=60
+)
 
 # متغیرهای کنترل
 auto_reply_enabled = True

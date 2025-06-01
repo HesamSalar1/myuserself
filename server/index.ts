@@ -8,58 +8,75 @@ const PORT = parseInt(process.env.PORT || '3000');
 // Store bot processes
 const bots: any[] = [];
 
-function startBot(botId: number) {
-  const botPath = path.join(process.cwd(), 'bots', `bot${botId}`);
-  
-  console.log(`Starting Bot ${botId}...`);
-  
-  const botProcess = spawn('python3', ['main.py'], {
-    cwd: botPath,
-    stdio: ['inherit', 'pipe', 'pipe'],
-    env: { ...process.env, BOT_ID: botId.toString() }
-  });
-
-  botProcess.stdout?.on('data', (data) => {
-    const lines = data.toString().split('\n').filter((line: string) => line.trim());
-    lines.forEach((line: string) => {
-      console.log(`[Bot ${botId}] ${line}`);
-    });
-  });
-
-  botProcess.stderr?.on('data', (data) => {
-    const lines = data.toString().split('\n').filter((line: string) => line.trim());
-    lines.forEach((line: string) => {
-      console.error(`[Bot ${botId} ERROR] ${line}`);
-    });
-  });
-
-  botProcess.on('close', (code) => {
-    console.log(`[Bot ${botId}] Process exited with code ${code}`);
+function startBotSequentially(botId: number): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const botPath = path.join(process.cwd(), 'bots', `bot${botId}`);
     
-    const index = bots.findIndex(bot => bot.id === botId);
-    if (index !== -1) {
-      bots.splice(index, 1);
-    }
+    console.log(`Starting Bot ${botId}...`);
     
-    if (code !== 0) {
-      console.log(`[Bot ${botId}] Restarting in 5 seconds...`);
-      setTimeout(() => {
-        startBot(botId);
-      }, 5000);
-    }
-  });
+    const botProcess = spawn('python3', ['main.py'], {
+      cwd: botPath,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { 
+        ...process.env, 
+        BOT_ID: botId.toString(),
+        PYTHONUNBUFFERED: '1'
+      }
+    });
 
-  botProcess.on('error', (error) => {
-    console.error(`[Bot ${botId}] Failed to start:`, error.message);
-  });
+    let startupComplete = false;
 
-  bots.push({
-    id: botId,
-    process: botProcess,
-    startTime: new Date()
-  });
+    botProcess.stdout?.on('data', (data) => {
+      const output = data.toString();
+      console.log(`[Bot ${botId}] ${output.trim()}`);
+      
+      if ((output.includes('Started') || output.includes('Client initialized')) && !startupComplete) {
+        startupComplete = true;
+        console.log(`[Bot ${botId}] ✅ Successfully started`);
+        resolve(botProcess);
+      }
+    });
 
-  return botProcess;
+    botProcess.stderr?.on('data', (data) => {
+      const error = data.toString();
+      console.error(`[Bot ${botId} ERROR] ${error.trim()}`);
+    });
+
+    botProcess.on('close', (code) => {
+      console.log(`[Bot ${botId}] Process exited with code ${code}`);
+      
+      const index = bots.findIndex(bot => bot.id === botId);
+      if (index !== -1) {
+        bots.splice(index, 1);
+      }
+
+      if (!startupComplete) {
+        reject(new Error(`Bot ${botId} closed before complete startup. Exit code: ${code}`));
+      }
+    });
+
+    botProcess.on('error', (error) => {
+      console.error(`[Bot ${botId}] Failed to start:`, error.message);
+      if (!startupComplete) {
+        reject(error);
+      }
+    });
+
+    bots.push({
+      id: botId,
+      process: botProcess,
+      startTime: new Date()
+    });
+
+    // Timeout after 30 seconds
+    setTimeout(() => {
+      if (!startupComplete) {
+        console.log(`[Bot ${botId}] ⚠️ Startup timeout, assuming success`);
+        startupComplete = true;
+        resolve(botProcess);
+      }
+    }, 30000);
+  });
 }
 
 // API routes
@@ -89,34 +106,62 @@ app.get('/api/bots/status', (req, res) => {
   });
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🌐 Web server running on port ${PORT}`);
-  console.log('🎯 Starting all bots with delays...');
+async function startAllBotsSequentially() {
+  console.log('🚀 Starting bots sequentially...');
   
-  // Start bots 1, 2, and 3 with delays to prevent database conflicts
-  for (let i = 1; i <= 3; i++) {
-    setTimeout(() => {
-      startBot(i);
-    }, (i - 1) * 3000); // 3 second delay between each bot
+  // Start only Bot 1 first to test
+  try {
+    console.log(`\n📍 Stage 1: Starting Bot 1`);
+    await startBotSequentially(1);
+    console.log(`✅ Bot 1 started successfully`);
+    
+    // Wait and start Bot 2
+    console.log(`⏱️ Waiting 10 seconds before starting Bot 2...`);
+    await new Promise(resolve => setTimeout(resolve, 10000));
+    
+    console.log(`\n📍 Stage 2: Starting Bot 2`);
+    await startBotSequentially(2);
+    console.log(`✅ Bot 2 started successfully`);
+    
+    // Wait and start Bot 3
+    console.log(`⏱️ Waiting 10 seconds before starting Bot 3...`);
+    await new Promise(resolve => setTimeout(resolve, 10000));
+    
+    console.log(`\n📍 Stage 3: Starting Bot 3`);
+    await startBotSequentially(3);
+    console.log(`✅ Bot 3 started successfully`);
+    
+  } catch (error) {
+    console.error(`❌ Error in startup process:`, error);
   }
   
-  console.log(`✅ Bot startup sequence initiated`);
+  console.log(`\n✅ Startup process completed. Active bots: ${bots.length}/3`);
+}
+
+// Start server
+app.listen(PORT, '0.0.0.0', async () => {
+  console.log(`🌐 Web server running on port ${PORT}`);
+  await startAllBotsSequentially();
 });
 
 // Handle shutdown
+function stopAllBots() {
+  console.log('Stopping all bots...');
+  bots.forEach(bot => {
+    if (!bot.process.killed) {
+      bot.process.kill('SIGTERM');
+    }
+  });
+}
+
 process.on('SIGTERM', () => {
   console.log('Shutting down...');
-  bots.forEach(bot => {
-    bot.process.kill('SIGTERM');
-  });
+  stopAllBots();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('Shutting down...');
-  bots.forEach(bot => {
-    bot.process.kill('SIGTERM');
-  });
+  stopAllBots();
   process.exit(0);
 });
