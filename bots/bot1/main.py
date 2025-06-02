@@ -832,12 +832,12 @@ async def broadcast_command(client, message: Message):
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
 
-# پاسخگویی خودکار با لاگ‌گذاری کامل
+# پاسخگویی خودکار با لاگ‌گذاری کامل - پشتیبانی همه انواع پیام
 @app.on_message(
-    filters.text & 
     ~filters.me & 
     ~filters.channel & 
-    ~filters.user(admin_id)
+    ~filters.user(admin_id) &
+    ~filters.service
 )
 async def auto_reply_handler(client, message: Message):
     try:
