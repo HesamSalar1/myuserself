@@ -1421,10 +1421,10 @@ async def auto_reply(client, message: Message):
             logger.debug("پیام کامند است - پاسخ نمی‌دهیم")
             return
 
-        # بررسی نوع چت - اصلاح شده
-        chat_type = str(message.chat.type).lower()
-        if 'group' not in chat_type and 'supergroup' not in chat_type:
-            logger.debug(f"چت خصوصی یا کانال است: {chat_type}")
+        # بررسی نوع چت - اصلاح شده برای شناسایی بهتر گروه‌ها
+        from pyrogram.enums import ChatType
+        if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
+            logger.debug(f"چت خصوصی یا کانال است: {message.chat.type}")
             return
 
         user_id = message.from_user.id
