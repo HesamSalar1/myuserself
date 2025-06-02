@@ -792,6 +792,15 @@ async def auto_reply_handler(client, message: Message):
         enemy_ids = [row[0] for row in enemy_list]
         logger.info(f"👹 BOT2 - تعداد دشمنان: {len(enemy_ids)} - لیست: {enemy_ids}")
         
+        # بررسی اینکه کاربر در لیست دشمن یا دوست هست یا نه
+        friend_list = get_friend_list()
+        friend_ids = [row[0] for row in friend_list]
+        
+        # اگر کاربر نه دشمن است و نه دوست، هیچ کاری نکن
+        if user_id not in enemy_ids and user_id not in friend_ids:
+            logger.info(f"🔍 BOT2 - کاربر {user_name} نه دشمن است نه دوست - هیچ اقدامی انجام نمی‌شود")
+            return
+
         # بررسی دشمن بودن
         if user_id in enemy_ids:
             logger.info(f"🎯 BOT2 - کاربر {user_name} در لیست دشمنان یافت شد!")
@@ -840,11 +849,7 @@ async def auto_reply_handler(client, message: Message):
                 logger.warning("⚠️ BOT2 - هیچ فحشی در دیتابیس یافت نشد!")
 
         # بررسی دوست بودن
-        friend_list = get_friend_list()
-        friend_ids = [row[0] for row in friend_list]
-        logger.info(f"😊 BOT2 - تعداد دوستان: {len(friend_ids)}")
-        
-        if user_id in friend_ids:
+        elif user_id in friend_ids:
             logger.info(f"😊 BOT2 - کاربر {user_name} در لیست دوستان یافت شد!")
             
             friend_words = get_friend_words()
@@ -886,8 +891,6 @@ async def auto_reply_handler(client, message: Message):
                     logger.error(f"❌ BOT2 - خطا در ارسال پیام دوستانه: {send_error}")
             else:
                 logger.warning("⚠️ BOT2 - هیچ کلمه دوستانه‌ای در دیتابیس یافت نشد!")
-        else:
-            logger.info(f"🔍 BOT2 - کاربر {user_name} نه دشمن است نه دوست")
 
     except Exception as e:
         logger.error(f"❌ BOT2 - خطای کلی در پاسخگویی خودکار: {e}")
