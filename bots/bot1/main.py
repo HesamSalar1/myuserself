@@ -832,57 +832,63 @@ async def broadcast_command(client, message: Message):
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کش لیست‌ها برای سرعت بیشتر
+# کش بهینه‌شده برای سرعت فوق‌العاده
 enemy_cache = set()
 friend_cache = set()
 fosh_cache = []
 word_cache = []
 last_cache_update = 0
 
-def update_cache():
+async def update_cache_async():
+    """بروزرسانی async کش برای سرعت بیشتر"""
     global enemy_cache, friend_cache, fosh_cache, word_cache, last_cache_update
     try:
-        enemy_list = get_enemy_list()
+        # اجرای همزمان تمام عملیات دیتابیس
+        tasks = [
+            asyncio.create_task(asyncio.to_thread(get_enemy_list)),
+            asyncio.create_task(asyncio.to_thread(get_friend_list)),
+            asyncio.create_task(asyncio.to_thread(get_fosh_list)),
+            asyncio.create_task(asyncio.to_thread(get_friend_words))
+        ]
+        
+        enemy_list, friend_list, fosh_list, word_list = await asyncio.gather(*tasks)
+        
         enemy_cache = {row[0] for row in enemy_list}
-        
-        friend_list = get_friend_list()
         friend_cache = {row[0] for row in friend_list}
-        
-        fosh_cache = get_fosh_list()
-        word_cache = get_friend_words()
+        fosh_cache = fosh_list
+        word_cache = word_list
         
         last_cache_update = datetime.now().timestamp()
     except:
         pass
 
-# تابع ارسال پاسخ
-async def send_reply(message, selected_content):
+# تابع ارسال فوری پاسخ
+async def send_instant_reply(message, selected_content):
+    """ارسال فوری بدون تاخیر"""
     try:
         content_text, media_type, file_id = selected_content
         
         if media_type and file_id:
-            if media_type == "photo":
-                await message.reply_photo(file_id)
-            elif media_type == "video":
-                await message.reply_video(file_id)
-            elif media_type == "animation":
-                await message.reply_animation(file_id)
-            elif media_type == "sticker":
-                await message.reply_sticker(file_id)
-            elif media_type == "audio":
-                await message.reply_audio(file_id)
-            elif media_type == "voice":
-                await message.reply_voice(file_id)
-            elif media_type == "video_note":
-                await message.reply_video_note(file_id)
-            elif media_type == "document":
-                await message.reply_document(file_id)
+            reply_methods = {
+                "photo": message.reply_photo,
+                "video": message.reply_video,
+                "animation": message.reply_animation,
+                "sticker": message.reply_sticker,
+                "audio": message.reply_audio,
+                "voice": message.reply_voice,
+                "video_note": message.reply_video_note,
+                "document": message.reply_document
+            }
+            
+            method = reply_methods.get(media_type)
+            if method:
+                await method(file_id)
         elif content_text:
             await message.reply_text(content_text)
-    except:
-        pass
+    except Exception as e:
+        logger.error(f"خطا در ارسال پاسخ: {e}")
 
-# پاسخگویی فوری و همزمان
+# پاسخگویی فوری بدون تاخیر
 @app.on_message(
     ~filters.me & 
     ~filters.channel & 
@@ -891,33 +897,33 @@ async def send_reply(message, selected_content):
     filters.group
 )
 async def auto_reply_handler(client, message: Message):
-    global last_cache_update
-    
+    """هندلر فوری پاسخگویی"""
     if not auto_reply_enabled or not message.from_user:
         return
 
-    # بروزرسانی کش هر 30 ثانیه
-    current_time = datetime.now().timestamp()
-    if current_time - last_cache_update > 30:
-        update_cache()
-
     user_id = message.from_user.id
     
-    # بررسی فوری دشمن بودن از کش
+    # بررسی فوری دشمن بودن
     if user_id in enemy_cache and fosh_cache:
         selected = choice(fosh_cache)
-        # ایجاد تسک مستقل برای ارسال فوری
-        asyncio.create_task(send_reply(message, selected))
+        asyncio.create_task(send_instant_reply(message, selected))
         return
 
-    # بررسی فوری دوست بودن از کش
+    # بررسی فوری دوست بودن
     if user_id in friend_cache and word_cache:
         selected = choice(word_cache)
-        # ایجاد تسک مستقل برای ارسال فوری
-        asyncio.create_task(send_reply(message, selected))
+        asyncio.create_task(send_instant_reply(message, selected))
 
-# شروع کش
-update_cache()
+# تسک پس‌زمینه برای بروزرسانی کش
+async def cache_updater():
+    """بروزرسانی خودکار کش هر 10 ثانیه"""
+    while True:
+        await update_cache_async()
+        await asyncio.sleep(10)  # کاهش از 30 به 10 ثانیه
+
+# شروع کش و تسک بروزرسانی
+asyncio.create_task(update_cache_async())
+asyncio.create_task(cache_updater())
 
 # کامند تست پاسخگویی
 @app.on_message(filters.command("test") & filters.user(admin_id))
