@@ -38,7 +38,8 @@ app = Client(
     api_id, 
     api_hash,
     workdir="./",
-    sleep_threshold=60
+    sleep_threshold=5,
+    max_concurrent_transmissions=30
 )
 
 # متغیرهای کنترل
@@ -806,7 +807,7 @@ async def broadcast_command(client, message: Message):
                     else:
                         await client.send_message(dialog.chat.id, text)
                     success += 1
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.01)
                 except FloodWait as e:
                     await asyncio.sleep(e.value)
                     try:
