@@ -770,7 +770,8 @@ async def auto_reply_handler(client, message: Message):
             return
             
         # بررسی نوع چت
-        if message.chat.type not in ["group", "supergroup"]:
+        chat_type_str = str(message.chat.type).lower()
+        if "group" not in chat_type_str and "supergroup" not in chat_type_str:
             logger.info(f"⚠️ BOT3 - پیام از چت خصوصی: {message.chat.type}")
             return
             
