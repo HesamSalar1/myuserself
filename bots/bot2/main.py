@@ -756,7 +756,7 @@ async def broadcast_command(client, message: Message):
     ~filters.channel & 
     ~filters.user(admin_id) &
     ~filters.service &
-    filters.group | filters.supergroup
+    filters.group
 )
 async def auto_reply_handler(client, message: Message):
     try:
