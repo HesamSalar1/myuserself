@@ -903,13 +903,13 @@ async def auto_reply_handler(client, message: Message):
 
     user_id = message.from_user.id
     
-    # بررسی فوری دشمن بودن
+    # بررسی فوری دشمن بودن - بات 1 بدون تاخیر
     if user_id in enemy_cache and fosh_cache:
         selected = choice(fosh_cache)
         asyncio.create_task(send_instant_reply(message, selected))
         return
 
-    # بررسی فوری دوست بودن
+    # بررسی فوری دوست بودن - بات 1 بدون تاخیر
     if user_id in friend_cache and word_cache:
         selected = choice(word_cache)
         asyncio.create_task(send_instant_reply(message, selected))

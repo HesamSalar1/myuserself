@@ -806,7 +806,34 @@ async def send_instant_reply(message, selected_content):
     except Exception as e:
         logger.error(f"خطا در ارسال پاسخ: {e}")
 
-# پاسخگویی فوری بدون تاخیر
+# تابع ارسال پاسخ با تاخیر
+async def send_delayed_reply(message, selected_content, delay):
+    """ارسال پاسخ با تاخیر مشخص"""
+    try:
+        await asyncio.sleep(delay)
+        content_text, media_type, file_id = selected_content
+        
+        if media_type and file_id:
+            reply_methods = {
+                "photo": message.reply_photo,
+                "video": message.reply_video,
+                "animation": message.reply_animation,
+                "sticker": message.reply_sticker,
+                "audio": message.reply_audio,
+                "voice": message.reply_voice,
+                "video_note": message.reply_video_note,
+                "document": message.reply_document
+            }
+            
+            method = reply_methods.get(media_type)
+            if method:
+                await method(file_id)
+        elif content_text:
+            await message.reply_text(content_text)
+    except Exception as e:
+        logger.error(f"خطا در ارسال پاسخ: {e}")
+
+# پاسخگویی با تاخیر 0.001 ثانیه
 @app.on_message(
     ~filters.me & 
     ~filters.channel & 
@@ -815,22 +842,22 @@ async def send_instant_reply(message, selected_content):
     filters.group
 )
 async def auto_reply_handler(client, message: Message):
-    """هندلر فوری پاسخگویی"""
+    """هندلر پاسخگویی با تاخیر کوتاه"""
     if not auto_reply_enabled or not message.from_user:
         return
 
     user_id = message.from_user.id
     
-    # بررسی فوری دشمن بودن
+    # بررسی دشمن بودن - بات 2 با تاخیر 0.001 ثانیه
     if user_id in enemy_cache and fosh_cache:
         selected = choice(fosh_cache)
-        asyncio.create_task(send_instant_reply(message, selected))
+        asyncio.create_task(send_delayed_reply(message, selected, 0.001))
         return
 
-    # بررسی فوری دوست بودن
+    # بررسی دوست بودن - بات 2 با تاخیر 0.001 ثانیه
     if user_id in friend_cache and word_cache:
         selected = choice(word_cache)
-        asyncio.create_task(send_instant_reply(message, selected))
+        asyncio.create_task(send_delayed_reply(message, selected, 0.001))
 
 # تسک پس‌زمینه برای بروزرسانی کش
 async def cache_updater():
