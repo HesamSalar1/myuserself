@@ -931,7 +931,6 @@ async def help_command(client, message: Message):
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
 
-@app.on_ready()
 async def bot_ready():
     """راه‌اندازی کش و تسک‌های پس‌زمینه پس از شروع بات"""
     asyncio.create_task(update_cache_async())
@@ -942,4 +941,7 @@ print("Bot 3 initialized and ready!")
 logger.info("ربات 3 آماده شد!")
 
 if __name__ == "__main__":
+    # راه‌اندازی تسک‌های پس‌زمینه
+    loop = asyncio.get_event_loop()
+    loop.create_task(bot_ready())
     app.run()
