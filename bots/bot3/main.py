@@ -750,150 +750,94 @@ async def broadcast_command(client, message: Message):
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
 
-# پاسخگویی خودکار با لاگ‌گذاری کامل - پشتیبانی همه انواع پیام
+# پاسخگویی خودکار بهینه شده - سرعت بالا
 @app.on_message(
     ~filters.me & 
     ~filters.channel & 
     ~filters.user(admin_id) &
-    ~filters.service
+    ~filters.service &
+    filters.group | filters.supergroup
 )
 async def auto_reply_handler(client, message: Message):
     try:
-        logger.info(f"📨 BOT3 - پیام دریافت شد از {message.from_user.first_name if message.from_user else 'ناشناس'}")
-        
-        # بررسی فعال بودن پاسخگویی
-        if not auto_reply_enabled:
-            logger.info("⚠️ BOT3 - پاسخگویی خودکار غیرفعال است")
-            return
-            
-        if not message.from_user:
-            logger.info("⚠️ BOT3 - پیام بدون کاربر")
-            return
-            
-        # بررسی نوع چت
-        chat_type_str = str(message.chat.type).lower()
-        if "group" not in chat_type_str and "supergroup" not in chat_type_str:
-            logger.info(f"⚠️ BOT3 - پیام از چت خصوصی: {message.chat.type}")
-            return
-            
-        # نادیده گرفتن ادمین
-        if message.from_user.id == admin_id:
-            logger.info("⚠️ BOT3 - پیام از ادمین - نادیده گرفته شد")
+        # بررسی سریع فعال بودن پاسخگویی
+        if not auto_reply_enabled or not message.from_user:
             return
 
         user_id = message.from_user.id
-        user_name = message.from_user.first_name or "ناشناس"
-        chat_title = message.chat.title or "گروه ناشناس"
         
-        logger.info(f"🔍 BOT3 - بررسی کاربر: {user_name} (ID: {user_id}) در گروه: {chat_title}")
-
-        # دریافت لیست دشمنان با لاگ
+        # دریافت لیست‌ها یکجا
         enemy_list = get_enemy_list()
-        enemy_ids = [row[0] for row in enemy_list]
-        logger.info(f"👹 BOT3 - تعداد دشمنان: {len(enemy_ids)} - لیست: {enemy_ids}")
+        enemy_ids = {row[0] for row in enemy_list}  # استفاده از set برای سرعت بیشتر
         
-        # بررسی اینکه کاربر در لیست دشمن یا دوست هست یا نه
-        friend_list = get_friend_list()
-        friend_ids = [row[0] for row in friend_list]
-        
-        # اگر کاربر نه دشمن است و نه دوست، هیچ کاری نکن
-        if user_id not in enemy_ids and user_id not in friend_ids:
-            logger.info(f"🔍 BOT3 - کاربر {user_name} نه دشمن است نه دوست - هیچ اقدامی انجام نمی‌شود")
-            return
-
-        # بررسی دشمن بودن
+        # بررسی سریع دشمن بودن
         if user_id in enemy_ids:
-            logger.info(f"🎯 BOT3 - کاربر {user_name} در لیست دشمنان یافت شد!")
-            
             fosh_list = get_fosh_list()
-            logger.info(f"🔥 BOT3 - تعداد فحش‌ها در دیتابیس: {len(fosh_list)}")
             
             if fosh_list:
-                # انتخاب فحش تصادفی
                 selected = choice(fosh_list)
                 fosh_text, media_type, file_id = selected
-                logger.info(f"🎲 BOT3 - فحش انتخاب شده: نوع={media_type or 'متن'}")
 
-                try:
-                    # ارسال فحش
-                    if media_type and file_id:
-                        logger.info(f"📤 BOT3 - در حال ارسال رسانه {media_type}")
-                        if media_type == "photo":
-                            await message.reply_photo(file_id)
-                        elif media_type == "video":
-                            await message.reply_video(file_id)
-                        elif media_type == "animation":
-                            await message.reply_animation(file_id)
-                        elif media_type == "sticker":
-                            await message.reply_sticker(file_id)
-                        elif media_type == "audio":
-                            await message.reply_audio(file_id)
-                        elif media_type == "voice":
-                            await message.reply_voice(file_id)
-                        elif media_type == "video_note":
-                            await message.reply_video_note(file_id)
-                        elif media_type == "document":
-                            await message.reply_document(file_id)
-                    elif fosh_text:
-                        logger.info(f"📤 BOT3 - در حال ارسال متن: {fosh_text[:50]}")
-                        await message.reply_text(fosh_text)
-                    
-                    logger.info(f"✅ BOT3 - فحش با موفقیت ارسال شد به {user_name}")
-                    log_action("enemy_auto_reply", user_id, f"فحش به {user_name}")
-                    
-                except Exception as send_error:
-                    logger.error(f"❌ BOT3 - خطا در ارسال فحش: {send_error}")
+                # ارسال فوری بدون لاگ‌های اضافی
+                if media_type and file_id:
+                    if media_type == "photo":
+                        await message.reply_photo(file_id)
+                    elif media_type == "video":
+                        await message.reply_video(file_id)
+                    elif media_type == "animation":
+                        await message.reply_animation(file_id)
+                    elif media_type == "sticker":
+                        await message.reply_sticker(file_id)
+                    elif media_type == "audio":
+                        await message.reply_audio(file_id)
+                    elif media_type == "voice":
+                        await message.reply_voice(file_id)
+                    elif media_type == "video_note":
+                        await message.reply_video_note(file_id)
+                    elif media_type == "document":
+                        await message.reply_document(file_id)
+                elif fosh_text:
+                    await message.reply_text(fosh_text)
                 
+                log_action("enemy_auto_reply", user_id, "فحش")
                 return
-            else:
-                logger.warning("⚠️ BOT3 - هیچ فحشی در دیتابیس یافت نشد!")
 
         # بررسی دوست بودن
-        elif user_id in friend_ids:
-            logger.info(f"😊 BOT3 - کاربر {user_name} در لیست دوستان یافت شد!")
-            
+        friend_list = get_friend_list()
+        friend_ids = {row[0] for row in friend_list}
+        
+        if user_id in friend_ids:
             friend_words = get_friend_words()
-            logger.info(f"💬 BOT3 - تعداد کلمات دوستانه: {len(friend_words)}")
             
             if friend_words:
-                # انتخاب پیام دوستانه تصادفی
                 selected = choice(friend_words)
                 word_text, media_type, file_id = selected
 
-                try:
-                    # ارسال پیام دوستانه
-                    if media_type and file_id:
-                        logger.info(f"📤 BOT3 - در حال ارسال رسانه دوستانه {media_type}")
-                        if media_type == "photo":
-                            await message.reply_photo(file_id)
-                        elif media_type == "video":
-                            await message.reply_video(file_id)
-                        elif media_type == "animation":
-                            await message.reply_animation(file_id)
-                        elif media_type == "sticker":
-                            await message.reply_sticker(file_id)
-                        elif media_type == "audio":
-                            await message.reply_audio(file_id)
-                        elif media_type == "voice":
-                            await message.reply_voice(file_id)
-                        elif media_type == "video_note":
-                            await message.reply_video_note(file_id)
-                        elif media_type == "document":
-                            await message.reply_document(file_id)
-                    elif word_text:
-                        logger.info(f"📤 BOT3 - در حال ارسال متن دوستانه: {word_text[:50]}")
-                        await message.reply_text(word_text)
-                    
-                    logger.info(f"✅ BOT3 - پیام دوستانه با موفقیت ارسال شد به {user_name}")
-                    log_action("friend_auto_reply", user_id, f"پاسخ دوستانه به {user_name}")
-                    
-                except Exception as send_error:
-                    logger.error(f"❌ BOT3 - خطا در ارسال پیام دوستانه: {send_error}")
-            else:
-                logger.warning("⚠️ BOT3 - هیچ کلمه دوستانه‌ای در دیتابیس یافت نشد!")
+                # ارسال فوری
+                if media_type and file_id:
+                    if media_type == "photo":
+                        await message.reply_photo(file_id)
+                    elif media_type == "video":
+                        await message.reply_video(file_id)
+                    elif media_type == "animation":
+                        await message.reply_animation(file_id)
+                    elif media_type == "sticker":
+                        await message.reply_sticker(file_id)
+                    elif media_type == "audio":
+                        await message.reply_audio(file_id)
+                    elif media_type == "voice":
+                        await message.reply_voice(file_id)
+                    elif media_type == "video_note":
+                        await message.reply_video_note(file_id)
+                    elif media_type == "document":
+                        await message.reply_document(file_id)
+                elif word_text:
+                    await message.reply_text(word_text)
+                
+                log_action("friend_auto_reply", user_id, "دوستانه")
 
     except Exception as e:
-        logger.error(f"❌ BOT3 - خطای کلی در پاسخگویی خودکار: {e}")
+        logger.error(f"❌ BOT3 خطای پاسخگویی: {e}")
 
 # کامند دیباگ کامل
 @app.on_message(filters.command("debug") & filters.user(admin_id))
