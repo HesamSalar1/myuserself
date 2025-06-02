@@ -839,10 +839,6 @@ async def cache_updater():
         await update_cache_async()
         await asyncio.sleep(10)  # کاهش از 30 به 10 ثانیه
 
-# شروع کش و تسک بروزرسانی
-asyncio.create_task(update_cache_async())
-asyncio.create_task(cache_updater())
-
 # کامند دیباگ کامل
 @app.on_message(filters.command("debug") & filters.user(admin_id))
 async def debug_system(client, message: Message):
@@ -934,6 +930,13 @@ async def help_command(client, message: Message):
 
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
+
+@app.on_ready()
+async def bot_ready():
+    """راه‌اندازی کش و تسک‌های پس‌زمینه پس از شروع بات"""
+    asyncio.create_task(update_cache_async())
+    asyncio.create_task(cache_updater())
+    logger.info("ربات 3 آماده شد و کش راه‌اندازی شد!")
 
 print("Bot 3 initialized and ready!")
 logger.info("ربات 3 آماده شد!")
