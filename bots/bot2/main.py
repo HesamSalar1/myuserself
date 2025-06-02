@@ -750,7 +750,30 @@ async def broadcast_command(client, message: Message):
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
 
-# پاسخگویی خودکار بهینه شده - سرعت بالا
+# کش لیست‌ها برای سرعت بیشتر
+enemy_cache = set()
+friend_cache = set()
+fosh_cache = []
+word_cache = []
+last_cache_update = 0
+
+def update_cache():
+    global enemy_cache, friend_cache, fosh_cache, word_cache, last_cache_update
+    try:
+        enemy_list = get_enemy_list()
+        enemy_cache = {row[0] for row in enemy_list}
+        
+        friend_list = get_friend_list()
+        friend_cache = {row[0] for row in friend_list}
+        
+        fosh_cache = get_fosh_list()
+        word_cache = get_friend_words()
+        
+        last_cache_update = datetime.now().timestamp()
+    except:
+        pass
+
+# پاسخگویی فوری بدون تاخیر
 @app.on_message(
     ~filters.me & 
     ~filters.channel & 
@@ -759,85 +782,77 @@ async def broadcast_command(client, message: Message):
     filters.group
 )
 async def auto_reply_handler(client, message: Message):
+    global last_cache_update
+    
     try:
-        # بررسی سریع فعال بودن پاسخگویی
         if not auto_reply_enabled or not message.from_user:
             return
 
+        # بروزرسانی کش هر 30 ثانیه
+        current_time = datetime.now().timestamp()
+        if current_time - last_cache_update > 30:
+            update_cache()
+
         user_id = message.from_user.id
         
-        # دریافت لیست‌ها یکجا
-        enemy_list = get_enemy_list()
-        enemy_ids = {row[0] for row in enemy_list}  # استفاده از set برای سرعت بیشتر
-        
-        # بررسی سریع دشمن بودن
-        if user_id in enemy_ids:
-            fosh_list = get_fosh_list()
-            
-            if fosh_list:
-                selected = choice(fosh_list)
-                fosh_text, media_type, file_id = selected
+        # بررسی فوری دشمن بودن از کش
+        if user_id in enemy_cache and fosh_cache:
+            selected = choice(fosh_cache)
+            fosh_text, media_type, file_id = selected
 
-                # ارسال فوری بدون لاگ‌های اضافی
-                if media_type and file_id:
-                    if media_type == "photo":
-                        await message.reply_photo(file_id)
-                    elif media_type == "video":
-                        await message.reply_video(file_id)
-                    elif media_type == "animation":
-                        await message.reply_animation(file_id)
-                    elif media_type == "sticker":
-                        await message.reply_sticker(file_id)
-                    elif media_type == "audio":
-                        await message.reply_audio(file_id)
-                    elif media_type == "voice":
-                        await message.reply_voice(file_id)
-                    elif media_type == "video_note":
-                        await message.reply_video_note(file_id)
-                    elif media_type == "document":
-                        await message.reply_document(file_id)
-                elif fosh_text:
-                    await message.reply_text(fosh_text)
-                
-                log_action("enemy_auto_reply", user_id, "فحش")
-                return
+            # ارسال فوری بدون لاگ
+            if media_type and file_id:
+                if media_type == "photo":
+                    await message.reply_photo(file_id)
+                elif media_type == "video":
+                    await message.reply_video(file_id)
+                elif media_type == "animation":
+                    await message.reply_animation(file_id)
+                elif media_type == "sticker":
+                    await message.reply_sticker(file_id)
+                elif media_type == "audio":
+                    await message.reply_audio(file_id)
+                elif media_type == "voice":
+                    await message.reply_voice(file_id)
+                elif media_type == "video_note":
+                    await message.reply_video_note(file_id)
+                elif media_type == "document":
+                    await message.reply_document(file_id)
+            elif fosh_text:
+                await message.reply_text(fosh_text)
+            return
 
-        # بررسی دوست بودن
-        friend_list = get_friend_list()
-        friend_ids = {row[0] for row in friend_list}
-        
-        if user_id in friend_ids:
-            friend_words = get_friend_words()
-            
-            if friend_words:
-                selected = choice(friend_words)
-                word_text, media_type, file_id = selected
+        # بررسی فوری دوست بودن از کش
+        if user_id in friend_cache and word_cache:
+            selected = choice(word_cache)
+            word_text, media_type, file_id = selected
 
-                # ارسال فوری
-                if media_type and file_id:
-                    if media_type == "photo":
-                        await message.reply_photo(file_id)
-                    elif media_type == "video":
-                        await message.reply_video(file_id)
-                    elif media_type == "animation":
-                        await message.reply_animation(file_id)
-                    elif media_type == "sticker":
-                        await message.reply_sticker(file_id)
-                    elif media_type == "audio":
-                        await message.reply_audio(file_id)
-                    elif media_type == "voice":
-                        await message.reply_voice(file_id)
-                    elif media_type == "video_note":
-                        await message.reply_video_note(file_id)
-                    elif media_type == "document":
-                        await message.reply_document(file_id)
-                elif word_text:
-                    await message.reply_text(word_text)
-                
-                log_action("friend_auto_reply", user_id, "دوستانه")
+            # ارسال فوری بدون لاگ
+            if media_type and file_id:
+                if media_type == "photo":
+                    await message.reply_photo(file_id)
+                elif media_type == "video":
+                    await message.reply_video(file_id)
+                elif media_type == "animation":
+                    await message.reply_animation(file_id)
+                elif media_type == "sticker":
+                    await message.reply_sticker(file_id)
+                elif media_type == "audio":
+                    await message.reply_audio(file_id)
+                elif media_type == "voice":
+                    await message.reply_voice(file_id)
+                elif media_type == "video_note":
+                    await message.reply_video_note(file_id)
+                elif media_type == "document":
+                    await message.reply_document(file_id)
+            elif word_text:
+                await message.reply_text(word_text)
 
-    except Exception as e:
-        logger.error(f"❌ BOT2 خطای پاسخگویی: {e}")
+    except:
+        pass
+
+# شروع کش
+update_cache()
 
 # کامند دیباگ کامل
 @app.on_message(filters.command("debug") & filters.user(admin_id))
