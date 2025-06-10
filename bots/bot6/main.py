@@ -9,6 +9,11 @@ from datetime import datetime, timedelta
 import shutil
 import os
 from random import choice
+sys.path.append('../../')
+from shared_database import (
+    add_shared_fosh, add_shared_enemy, add_shared_friend, add_shared_word,
+    get_shared_enemies, get_shared_friends, get_shared_fosh, get_shared_words
+)
 
 try:
     sys.stdout.reconfigure(encoding='utf-8')
@@ -760,23 +765,29 @@ word_cache = []
 last_cache_update = 0
 
 async def update_cache_async():
-    """بروزرسانی async کش برای سرعت بیشتر"""
+    """بروزرسانی async کش برای سرعت بیشتر + داده‌های مشترک"""
     global enemy_cache, friend_cache, fosh_cache, word_cache, last_cache_update
     try:
-        # اجرای همزمان تمام عملیات دیتابیس
+        # اجرای همزمان تمام عملیات دیتابیس محلی و مشترک
         tasks = [
             asyncio.create_task(asyncio.to_thread(get_enemy_list)),
             asyncio.create_task(asyncio.to_thread(get_friend_list)),
             asyncio.create_task(asyncio.to_thread(get_fosh_list)),
-            asyncio.create_task(asyncio.to_thread(get_friend_words))
+            asyncio.create_task(asyncio.to_thread(get_friend_words)),
+            asyncio.create_task(get_shared_enemies()),
+            asyncio.create_task(get_shared_friends()),
+            asyncio.create_task(get_shared_fosh()),
+            asyncio.create_task(get_shared_words())
         ]
         
-        enemy_list, friend_list, fosh_list, word_list = await asyncio.gather(*tasks)
+        (enemy_list, friend_list, fosh_list, word_list, 
+         shared_enemies, shared_friends, shared_fosh, shared_words) = await asyncio.gather(*tasks)
         
-        enemy_cache = {row[0] for row in enemy_list}
-        friend_cache = {row[0] for row in friend_list}
-        fosh_cache = fosh_list
-        word_cache = word_list
+        # ترکیب داده‌های محلی با مشترک
+        enemy_cache = {row[0] for row in enemy_list} | set(shared_enemies)
+        friend_cache = {row[0] for row in friend_list} | set(shared_friends)
+        fosh_cache = fosh_list + shared_fosh
+        word_cache = word_list + shared_words
         
         last_cache_update = datetime.now().timestamp()
     except:
@@ -888,6 +899,13 @@ async def help_command(client, message: Message):
 • `/start` - راه‌اندازی مجدد ربات
 • `/help` - نمایش این راهنما
 
+🌐 **کامندهای مشترک بین تمام باتان:**
+• `/sharedfosh add/list/sync` - مدیریت فحش‌های مشترک
+• `/sharedenemy add/list/sync` - مدیریت دشمنان مشترک (ریپلای)
+• `/sharedfriend add/list/sync` - مدیریت دوستان مشترک (ریپلای)
+• `/sharedword add/list/sync` - مدیریت کلمات دوستانه مشترک
+• `/syncall` - همگام‌سازی کامل با تمام باتان
+
 💡 **نکات مهم:**
 • از ریپلای برای اضافه کردن رسانه استفاده کنید
 • پشتیبانی کامل از عکس، ویدیو، صوت، استیکر، گیف و...
@@ -899,6 +917,281 @@ async def help_command(client, message: Message):
 
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
+
+# کامندهای مشترک بین تمام باتان
+@app.on_message(filters.command("sharedfosh") & filters.user(admin_id))
+async def shared_fosh_command(client, message: Message):
+    """مدیریت فحش‌های مشترک"""
+    try:
+        if len(message.command) < 2:
+            await message.edit_text("""
+🔥 **مدیریت فحش‌های مشترک:**
+• `/sharedfosh add [متن]` - اضافه کردن فحش مشترک
+• `/sharedfosh list` - نمایش لیست فحش‌های مشترک
+• `/sharedfosh sync` - همگام‌سازی با سایر باتان
+
+**مثال:** `/sharedfosh add احمق`
+            """)
+            return
+            
+        action = message.command[1].lower()
+        
+        if action == "add":
+            if len(message.command) < 3 and not message.reply_to_message:
+                await message.edit_text("⚠️ لطفاً متن فحش یا رسانه را مشخص کنید!")
+                return
+                
+            fosh = None
+            media_type = None
+            file_id = None
+            
+            if message.reply_to_message:
+                if message.reply_to_message.photo:
+                    media_type = "photo"
+                    file_id = message.reply_to_message.photo.file_id
+                elif message.reply_to_message.video:
+                    media_type = "video"
+                    file_id = message.reply_to_message.video.file_id
+                elif message.reply_to_message.sticker:
+                    media_type = "sticker"
+                    file_id = message.reply_to_message.sticker.file_id
+                elif message.reply_to_message.text:
+                    fosh = message.reply_to_message.text
+            else:
+                fosh = " ".join(message.command[2:])
+            
+            if await add_shared_fosh(6, fosh, media_type, file_id):
+                content = media_type or fosh
+                await message.edit_text(f"✅ فحش مشترک اضافه شد: {content}\n🔄 در حال همگام‌سازی با سایر باتان...")
+            else:
+                await message.edit_text("❌ خطا در اضافه کردن فحش مشترک")
+                
+        elif action == "list":
+            shared_fosh = await get_shared_fosh()
+            if not shared_fosh:
+                await message.edit_text("📝 لیست فحش‌های مشترک خالی است")
+                return
+                
+            text = "🔥 **فحش‌های مشترک بین تمام باتان:**\n\n"
+            for i, (fosh, media_type, file_id) in enumerate(shared_fosh[:20], 1):
+                content = f"[{media_type}]" if media_type else fosh
+                text += f"`{i}.` {content}\n"
+                
+            text += f"\n📊 **تعداد کل:** {len(shared_fosh)} فحش مشترک"
+            await message.edit_text(text)
+            
+        elif action == "sync":
+            await update_cache_async()
+            await message.edit_text("🔄 همگام‌سازی کامل شد!")
+            
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
+@app.on_message(filters.command("sharedenemy") & filters.user(admin_id))
+async def shared_enemy_command(client, message: Message):
+    """مدیریت دشمنان مشترک"""
+    try:
+        if len(message.command) < 2:
+            await message.edit_text("""
+👹 **مدیریت دشمنان مشترک:**
+• `/sharedenemy add` (ریپلای) - اضافه کردن دشمن مشترک
+• `/sharedenemy list` - نمایش لیست دشمنان مشترک
+• `/sharedenemy sync` - همگام‌سازی با سایر باتان
+
+**استفاده:** روی پیام کاربر ریپلای کنید
+            """)
+            return
+            
+        action = message.command[1].lower()
+        
+        if action == "add":
+            if not message.reply_to_message:
+                await message.edit_text("⚠️ لطفاً روی پیام کاربر ریپلای کنید!")
+                return
+                
+            user = message.reply_to_message.from_user
+            if await add_shared_enemy(6, user.id, user.username, user.first_name):
+                await message.edit_text(f"👹 دشمن مشترک اضافه شد: {user.first_name} (`{user.id}`)\n🔄 همه باتان او را دشمن خواهند دید!")
+            else:
+                await message.edit_text("❌ خطا در اضافه کردن دشمن مشترک")
+                
+        elif action == "list":
+            enemies = await get_shared_enemies()
+            if not enemies:
+                await message.edit_text("📝 لیست دشمنان مشترک خالی است")
+                return
+                
+            text = "👹 **دشمنان مشترک:**\n\n"
+            for i, user_id in enumerate(enemies[:20], 1):
+                text += f"`{i}.` کاربر `{user_id}`\n"
+                
+            text += f"\n📊 **تعداد کل:** {len(enemies)} دشمن مشترک"
+            await message.edit_text(text)
+            
+        elif action == "sync":
+            await update_cache_async()
+            await message.edit_text("🔄 همگام‌سازی کامل شد!")
+            
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
+@app.on_message(filters.command("sharedfriend") & filters.user(admin_id))
+async def shared_friend_command(client, message: Message):
+    """مدیریت دوستان مشترک"""
+    try:
+        if len(message.command) < 2:
+            await message.edit_text("""
+😊 **مدیریت دوستان مشترک:**
+• `/sharedfriend add` (ریپلای) - اضافه کردن دوست مشترک
+• `/sharedfriend list` - نمایش لیست دوستان مشترک
+• `/sharedfriend sync` - همگام‌سازی با سایر باتان
+
+**استفاده:** روی پیام کاربر ریپلای کنید
+            """)
+            return
+            
+        action = message.command[1].lower()
+        
+        if action == "add":
+            if not message.reply_to_message:
+                await message.edit_text("⚠️ لطفاً روی پیام کاربر ریپلای کنید!")
+                return
+                
+            user = message.reply_to_message.from_user
+            if await add_shared_friend(6, user.id, user.username, user.first_name):
+                await message.edit_text(f"😊 دوست مشترک اضافه شد: {user.first_name} (`{user.id}`)\n🔄 همه باتان او را دوست خواهند دید!")
+            else:
+                await message.edit_text("❌ خطا در اضافه کردن دوست مشترک")
+                
+        elif action == "list":
+            friends = await get_shared_friends()
+            if not friends:
+                await message.edit_text("📝 لیست دوستان مشترک خالی است")
+                return
+                
+            text = "😊 **دوستان مشترک:**\n\n"
+            for i, user_id in enumerate(friends[:20], 1):
+                text += f"`{i}.` کاربر `{user_id}`\n"
+                
+            text += f"\n📊 **تعداد کل:** {len(friends)} دوست مشترک"
+            await message.edit_text(text)
+            
+        elif action == "sync":
+            await update_cache_async()
+            await message.edit_text("🔄 همگام‌سازی کامل شد!")
+            
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
+@app.on_message(filters.command("sharedword") & filters.user(admin_id))
+async def shared_word_command(client, message: Message):
+    """مدیریت کلمات دوستانه مشترک"""
+    try:
+        if len(message.command) < 2:
+            await message.edit_text("""
+💬 **مدیریت کلمات دوستانه مشترک:**
+• `/sharedword add [متن]` - اضافه کردن کلمه مشترک
+• `/sharedword list` - نمایش لیست کلمات مشترک
+• `/sharedword sync` - همگام‌سازی با سایر باتان
+
+**مثال:** `/sharedword add سلام دوست عزیز`
+            """)
+            return
+            
+        action = message.command[1].lower()
+        
+        if action == "add":
+            if len(message.command) < 3 and not message.reply_to_message:
+                await message.edit_text("⚠️ لطفاً متن کلمه یا رسانه را مشخص کنید!")
+                return
+                
+            word = None
+            media_type = None
+            file_id = None
+            
+            if message.reply_to_message:
+                if message.reply_to_message.photo:
+                    media_type = "photo"
+                    file_id = message.reply_to_message.photo.file_id
+                elif message.reply_to_message.video:
+                    media_type = "video"
+                    file_id = message.reply_to_message.video.file_id
+                elif message.reply_to_message.sticker:
+                    media_type = "sticker"
+                    file_id = message.reply_to_message.sticker.file_id
+                elif message.reply_to_message.text:
+                    word = message.reply_to_message.text
+            else:
+                word = " ".join(message.command[2:])
+            
+            if await add_shared_word(6, word, media_type, file_id):
+                content = media_type or word
+                await message.edit_text(f"✅ کلمه دوستانه مشترک اضافه شد: {content}\n🔄 در حال همگام‌سازی با سایر باتان...")
+            else:
+                await message.edit_text("❌ خطا در اضافه کردن کلمه مشترک")
+                
+        elif action == "list":
+            shared_words = await get_shared_words()
+            if not shared_words:
+                await message.edit_text("📝 لیست کلمات مشترک خالی است")
+                return
+                
+            text = "💬 **کلمات دوستانه مشترک:**\n\n"
+            for i, (word, media_type, file_id) in enumerate(shared_words[:20], 1):
+                content = f"[{media_type}]" if media_type else word
+                text += f"`{i}.` {content}\n"
+                
+            text += f"\n📊 **تعداد کل:** {len(shared_words)} کلمه مشترک"
+            await message.edit_text(text)
+            
+        elif action == "sync":
+            await update_cache_async()
+            await message.edit_text("🔄 همگام‌سازی کامل شد!")
+            
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
+@app.on_message(filters.command("syncall") & filters.user(admin_id))
+async def sync_all_command(client, message: Message):
+    """همگام‌سازی کامل با تمام باتان"""
+    try:
+        await message.edit_text("🔄 شروع همگام‌سازی کامل...")
+        
+        # بروزرسانی کش با داده‌های مشترک
+        global enemy_cache, friend_cache, fosh_cache, word_cache
+        
+        # دریافت داده‌های مشترک
+        shared_enemies = await get_shared_enemies()
+        shared_friends = await get_shared_friends()
+        shared_fosh = await get_shared_fosh()
+        shared_words = await get_shared_words()
+        
+        # ترکیب با داده‌های محلی
+        local_enemies = get_enemy_list()
+        local_friends = get_friend_list()
+        local_fosh = get_fosh_list()
+        local_words = get_friend_words()
+        
+        # بروزرسانی کش
+        enemy_cache = set(local_enemies + shared_enemies)
+        friend_cache = set(local_friends + shared_friends)
+        fosh_cache = local_fosh + shared_fosh
+        word_cache = local_words + shared_words
+        
+        report = f"""✅ **همگام‌سازی کامل شد:**
+
+📊 **آمار نهایی:**
+• دشمنان: {len(enemy_cache)} نفر (محلی + مشترک)
+• دوستان: {len(friend_cache)} نفر (محلی + مشترک)  
+• فحش‌ها: {len(fosh_cache)} عدد (محلی + مشترک)
+• کلمات دوستانه: {len(word_cache)} عدد (محلی + مشترک)
+
+🤖 **بات 6 با تمام باتان همگام است!**"""
+        
+        await message.edit_text(report)
+        
+    except Exception as e:
+        await message.edit_text(f"❌ خطا در همگام‌سازی: {str(e)}")
 
 async def bot_ready():
     """راه‌اندازی کش و تسک‌های پس‌زمینه پس از شروع بات"""

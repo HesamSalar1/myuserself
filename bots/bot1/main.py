@@ -7,6 +7,11 @@ from datetime import datetime, timedelta
 import shutil
 import os
 from random import choice
+sys.path.append('../../')
+from shared_database import (
+    add_shared_fosh, add_shared_enemy, add_shared_friend, add_shared_word,
+    get_shared_enemies, get_shared_friends, get_shared_fosh, get_shared_words
+)
 
 try:
     sys.stdout.reconfigure(encoding='utf-8')
