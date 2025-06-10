@@ -14,10 +14,6 @@ try:
 except AttributeError:
     pass
 
-# اضافه کردن پوشه‌ی اصلی به مسیر برای دسترسی به shared_database
-sys.path.append('/home/runner/BlueOfficialHexagon-1111')
-from shared_database import *
-
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMember
 from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
@@ -26,7 +22,6 @@ from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
 api_id = 24815549
 api_hash = "13d1e8f4d5e90fdd11f7cb9152d78268"
 admin_id = 7927398744
-BOT_NUMBER = 6  # شماره بات برای شناسایی
 
 # تنظیم لاگ
 logging.basicConfig(
@@ -378,207 +373,7 @@ init_db()
 async def start_command(client, message: Message):
     await message.edit_text(f"🤖 **ربات 6 آماده است!**\n\n📋 برای مشاهده کامندها: `/help`\n🆔 Admin: `{admin_id}`")
 
-# کامندهای مشترک جدید
-@app.on_message(filters.command("sharedenemy") & filters.user(admin_id) & filters.reply)
-async def shared_set_enemy_command(client, message: Message):
-    try:
-        replied = message.reply_to_message
-        user_id = replied.from_user.id
-        username = replied.from_user.username
-        first_name = replied.from_user.first_name
-
-        if add_shared_enemy(user_id, username, first_name, BOT_NUMBER):
-            await message.edit_text(f"👹 کاربر به لیست دشمنان مشترک اضافه شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`\n**توسط بات:** {BOT_NUMBER}")
-            log_action("add_shared_enemy", user_id, f"{first_name} (@{username})")
-        else:
-            await message.edit_text(f"⚠️ این کاربر قبلاً در لیست دشمنان مشترک است")
-
-    except Exception as e:
-        await message.edit_text(f"❌ خطا: {str(e)}")
-
-@app.on_message(filters.command("sharedfriend") & filters.user(admin_id) & filters.reply)
-async def shared_set_friend_command(client, message: Message):
-    try:
-        replied = message.reply_to_message
-        user_id = replied.from_user.id
-        username = replied.from_user.username
-        first_name = replied.from_user.first_name
-
-        if add_shared_friend(user_id, username, first_name, BOT_NUMBER):
-            await message.edit_text(f"😊 کاربر به لیست دوستان مشترک اضافه شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`\n**توسط بات:** {BOT_NUMBER}")
-            log_action("add_shared_friend", user_id, f"{first_name} (@{username})")
-        else:
-            await message.edit_text(f"⚠️ این کاربر قبلاً در لیست دوستان مشترک است")
-
-    except Exception as e:
-        await message.edit_text(f"❌ خطا: {str(e)}")
-
-@app.on_message(filters.command("sharedfosh") & filters.user(admin_id))
-async def shared_add_fosh_command(client, message: Message):
-    try:
-        # بررسی ریپلای برای رسانه
-        if message.reply_to_message:
-            replied = message.reply_to_message
-            media_type = None
-            file_id = None
-            fosh_text = None
-
-            if replied.photo:
-                media_type = "photo"
-                file_id = replied.photo.file_id
-            elif replied.video:
-                media_type = "video"
-                file_id = replied.video.file_id
-            elif replied.animation:
-                media_type = "animation"
-                file_id = replied.animation.file_id
-            elif replied.sticker:
-                media_type = "sticker"
-                file_id = replied.sticker.file_id
-            elif replied.audio:
-                media_type = "audio"
-                file_id = replied.audio.file_id
-            elif replied.voice:
-                media_type = "voice"
-                file_id = replied.voice.file_id
-            elif replied.video_note:
-                media_type = "video_note"
-                file_id = replied.video_note.file_id
-            elif replied.document:
-                media_type = "document"
-                file_id = replied.document.file_id
-            elif replied.text:
-                fosh_text = replied.text
-
-            if media_type or fosh_text:
-                if add_shared_fosh(fosh_text, media_type, file_id, BOT_NUMBER):
-                    await message.edit_text(f"✅ فحش مشترک اضافه شد ({media_type or 'متن'})\n**توسط بات:** {BOT_NUMBER}")
-                    log_action("add_shared_fosh", admin_id, f"{media_type or fosh_text}")
-                else:
-                    await message.edit_text("❌ خطا در اضافه کردن فحش مشترک")
-            else:
-                await message.edit_text("⚠️ نوع رسانه پشتیبانی نمی‌شود")
-        else:
-            # اضافه کردن فحش متنی
-            if len(message.command) < 2:
-                await message.edit_text("⚠️ لطفاً یک فحش وارد کنید یا روی پیام ریپلای کنید.\n💡 استفاده: `/sharedfosh متن فحش`")
-                return
-
-            fosh = " ".join(message.command[1:])
-
-            if add_shared_fosh(fosh, None, None, BOT_NUMBER):
-                await message.edit_text(f"✅ فحش مشترک اضافه شد:\n`{fosh}`\n**توسط بات:** {BOT_NUMBER}")
-                log_action("add_shared_fosh", admin_id, fosh[:50])
-            else:
-                await message.edit_text("❌ خطا در اضافه کردن فحش مشترک")
-
-    except Exception as e:
-        await message.edit_text(f"❌ خطا: {str(e)}")
-
-@app.on_message(filters.command("sharedword") & filters.user(admin_id))
-async def shared_add_word_command(client, message: Message):
-    try:
-        # بررسی ریپلای برای رسانه
-        if message.reply_to_message:
-            replied = message.reply_to_message
-            media_type = None
-            file_id = None
-            word_text = None
-
-            if replied.photo:
-                media_type = "photo"
-                file_id = replied.photo.file_id
-            elif replied.video:
-                media_type = "video"
-                file_id = replied.video.file_id
-            elif replied.animation:
-                media_type = "animation"
-                file_id = replied.animation.file_id
-            elif replied.sticker:
-                media_type = "sticker"
-                file_id = replied.sticker.file_id
-            elif replied.audio:
-                media_type = "audio"
-                file_id = replied.audio.file_id
-            elif replied.voice:
-                media_type = "voice"
-                file_id = replied.voice.file_id
-            elif replied.video_note:
-                media_type = "video_note"
-                file_id = replied.video_note.file_id
-            elif replied.document:
-                media_type = "document"
-                file_id = replied.document.file_id
-            elif replied.text:
-                word_text = replied.text
-
-            if media_type or word_text:
-                if add_shared_friend_word(word_text, media_type, file_id, BOT_NUMBER):
-                    await message.edit_text(f"✅ کلمه دوستانه مشترک اضافه شد ({media_type or 'متن'})\n**توسط بات:** {BOT_NUMBER}")
-                    log_action("add_shared_word", admin_id, f"{media_type or word_text}")
-                else:
-                    await message.edit_text("❌ خطا در اضافه کردن کلمه مشترک")
-            else:
-                await message.edit_text("⚠️ نوع رسانه پشتیبانی نمی‌شود")
-        else:
-            # اضافه کردن کلمه متنی
-            if len(message.command) < 2:
-                await message.edit_text("⚠️ لطفاً یک کلمه وارد کنید یا روی پیام ریپلای کنید.\n💡 استفاده: `/sharedword سلام دوست عزیز`")
-                return
-
-            word = " ".join(message.command[1:])
-
-            if add_shared_friend_word(word, None, None, BOT_NUMBER):
-                await message.edit_text(f"✅ کلمه دوستانه مشترک اضافه شد:\n`{word}`\n**توسط بات:** {BOT_NUMBER}")
-                log_action("add_shared_word", admin_id, word[:50])
-            else:
-                await message.edit_text("❌ خطا در اضافه کردن کلمه مشترک")
-
-    except Exception as e:
-        await message.edit_text(f"❌ خطا: {str(e)}")
-
-@app.on_message(filters.command("sharedlist") & filters.user(admin_id))
-async def shared_list_command(client, message: Message):
-    try:
-        enemy_list = get_shared_enemy_list()
-        friend_list = get_shared_friend_list()
-        fosh_list = get_shared_fosh_list()
-        word_list = get_shared_friend_words()
-
-        text = "📋 **لیست‌های مشترک تمام باتها:**\n\n"
-        
-        text += f"👹 **دشمنان مشترک:** {len(enemy_list)} نفر\n"
-        for i, (user_id, username, first_name, bot_num, created_at) in enumerate(enemy_list[:5], 1):
-            text += f"`{i}.` {first_name or 'نامشخص'} (`{user_id}`) - بات {bot_num}\n"
-        if len(enemy_list) > 5:
-            text += f"... و {len(enemy_list) - 5} نفر دیگر\n"
-
-        text += f"\n😊 **دوستان مشترک:** {len(friend_list)} نفر\n"
-        for i, (user_id, username, first_name, bot_num, created_at) in enumerate(friend_list[:5], 1):
-            text += f"`{i}.` {first_name or 'نامشخص'} (`{user_id}`) - بات {bot_num}\n"
-        if len(friend_list) > 5:
-            text += f"... و {len(friend_list) - 5} نفر دیگر\n"
-
-        text += f"\n🔥 **فحش‌های مشترک:** {len(fosh_list)} عدد\n"
-        for i, (fosh, media_type, file_id, bot_num) in enumerate(fosh_list[:3], 1):
-            if media_type:
-                text += f"`{i}.` [{media_type.upper()}] - بات {bot_num}\n"
-            else:
-                text += f"`{i}.` {fosh[:30]}... - بات {bot_num}\n"
-
-        text += f"\n💬 **کلمات دوستانه مشترک:** {len(word_list)} عدد\n"
-        for i, (word, media_type, file_id, bot_num) in enumerate(word_list[:3], 1):
-            if media_type:
-                text += f"`{i}.` [{media_type.upper()}] - بات {bot_num}\n"
-            else:
-                text += f"`{i}.` {word[:30]}... - بات {bot_num}\n"
-
-        await message.edit_text(text)
-
-    except Exception as e:
-        await message.edit_text(f"❌ خطا: {str(e)}")
-
-# ادامه کامندهای معمولی مشابه بات ۱
+# کامند اضافه کردن فحش (تمام انواع رسانه)
 @app.on_message(filters.command("addfosh") & filters.user(admin_id))
 async def add_fosh_command(client, message: Message):
     try:
@@ -852,7 +647,7 @@ async def add_word_command(client, message: Message):
                 media_type = "audio"
                 file_id = replied.audio.file_id
             elif replied.voice:
-                media_type = "voice"
+                media_type = "audio"
                 file_id = replied.voice.file_id
             elif replied.video_note:
                 media_type = "video_note"
@@ -1043,40 +838,26 @@ enemy_cache = set()
 friend_cache = set()
 fosh_cache = []
 word_cache = []
-shared_enemy_cache = set()
-shared_friend_cache = set()
-shared_fosh_cache = []
-shared_word_cache = []
 last_cache_update = 0
 
 async def update_cache_async():
     """بروزرسانی async کش برای سرعت بیشتر"""
-    global enemy_cache, friend_cache, fosh_cache, word_cache
-    global shared_enemy_cache, shared_friend_cache, shared_fosh_cache, shared_word_cache, last_cache_update
+    global enemy_cache, friend_cache, fosh_cache, word_cache, last_cache_update
     try:
         # اجرای همزمان تمام عملیات دیتابیس
         tasks = [
             asyncio.create_task(asyncio.to_thread(get_enemy_list)),
             asyncio.create_task(asyncio.to_thread(get_friend_list)),
             asyncio.create_task(asyncio.to_thread(get_fosh_list)),
-            asyncio.create_task(asyncio.to_thread(get_friend_words)),
-            asyncio.create_task(asyncio.to_thread(get_shared_enemy_list)),
-            asyncio.create_task(asyncio.to_thread(get_shared_friend_list)),
-            asyncio.create_task(asyncio.to_thread(get_shared_fosh_list)),
-            asyncio.create_task(asyncio.to_thread(get_shared_friend_words))
+            asyncio.create_task(asyncio.to_thread(get_friend_words))
         ]
         
-        enemy_list, friend_list, fosh_list, word_list, shared_enemy_list, shared_friend_list, shared_fosh_list, shared_word_list = await asyncio.gather(*tasks)
+        enemy_list, friend_list, fosh_list, word_list = await asyncio.gather(*tasks)
         
         enemy_cache = {row[0] for row in enemy_list}
         friend_cache = {row[0] for row in friend_list}
         fosh_cache = fosh_list
         word_cache = word_list
-        
-        shared_enemy_cache = {row[0] for row in shared_enemy_list}
-        shared_friend_cache = {row[0] for row in shared_friend_list}
-        shared_fosh_cache = shared_fosh_list
-        shared_word_cache = shared_word_list
         
         last_cache_update = datetime.now().timestamp()
     except:
@@ -1086,10 +867,7 @@ async def update_cache_async():
 async def send_instant_reply(message, selected_content):
     """ارسال فوری بدون تاخیر"""
     try:
-        if len(selected_content) == 3:
-            content_text, media_type, file_id = selected_content
-        else:
-            content_text, media_type, file_id, bot_num = selected_content
+        content_text, media_type, file_id = selected_content
         
         if media_type and file_id:
             reply_methods = {
@@ -1126,20 +904,16 @@ async def auto_reply_handler(client, message: Message):
 
     user_id = message.from_user.id
     
-    # بررسی فوری دشمن بودن - بات 6 بدون تاخیر (محلی + مشترک)
-    if (user_id in enemy_cache or user_id in shared_enemy_cache) and (fosh_cache or shared_fosh_cache):
-        all_fosh = fosh_cache + shared_fosh_cache
-        if all_fosh:
-            selected = choice(all_fosh)
-            asyncio.create_task(send_instant_reply(message, selected))
-            return
+    # بررسی فوری دشمن بودن - بات 6 بدون تاخیر
+    if user_id in enemy_cache and fosh_cache:
+        selected = choice(fosh_cache)
+        asyncio.create_task(send_instant_reply(message, selected))
+        return
 
-    # بررسی فوری دوست بودن - بات 6 بدون تاخیر (محلی + مشترک)
-    if (user_id in friend_cache or user_id in shared_friend_cache) and (word_cache or shared_word_cache):
-        all_words = word_cache + shared_word_cache
-        if all_words:
-            selected = choice(all_words)
-            asyncio.create_task(send_instant_reply(message, selected))
+    # بررسی فوری دوست بودن - بات 6 بدون تاخیر
+    if user_id in friend_cache and word_cache:
+        selected = choice(word_cache)
+        asyncio.create_task(send_instant_reply(message, selected))
 
 # تسک پس‌زمینه برای بروزرسانی کش
 async def cache_updater():
@@ -1236,34 +1010,36 @@ async def help_command(client, message: Message):
 
 🔥 **مدیریت سیستم فحش‌ها:**
 • `/addfosh [متن]` - اضافه کردن فحش جدید (متن یا ریپلای رسانه)
+  └ پشتیبانی: متن، عکس، ویدیو، گیف، استیکر، صوت
 • `/delfosh [متن]` - حذف فحش مشخص از دیتابیس
-• `/listfosh` - نمایش کامل فحش‌ها
-• `/clearfosh` - حذف کلی تمام فحش‌ها
+• `/listfosh` - نمایش کامل فحش‌ها با صفحه‌بندی خودکار
+• `/clearfosh` - حذف کلی تمام فحش‌ها (غیرقابل بازگشت)
 
 👹 **سیستم مدیریت دشمنان:**
 • `/setenemy` (ریپلای) - افزودن کاربر به لیست سیاه
 • `/delenemy` (ریپلای) - حذف کاربر از لیست دشمنان
-• `/listenemy` - نمایش جزئیات کامل دشمنان
+• `/listenemy` - نمایش جزئیات کامل دشمنان + تاریخ
 • `/clearenemy` - پاک‌سازی کامل لیست دشمنان
 
 😊 **سیستم مدیریت دوستان:**
 • `/setfriend` (ریپلای) - افزودن کاربر به لیست VIP
 • `/delfriend` (ریپلای) - حذف کاربر از لیست دوستان
-• `/listfriend` - نمایش اطلاعات کامل دوستان
+• `/listfriend` - نمایش اطلاعات کامل دوستان + آمار
 • `/clearfriend` - حذف کلی لیست دوستان
 
 💬 **بانک کلمات دوستانه:**
 • `/addword [متن]` - اضافه کردن پیام دوستانه (متن یا ریپلای رسانه)
+  └ پشتیبانی: متن، عکس، ویدیو، گیف، استیکر، صوت
 • `/delword [متن]` - حذف کلمه مشخص از بانک
 • `/listword` - مشاهده تمام پیام‌های دوستانه
 • `/clearword` - حذف کامل بانک
 
-🌐 **کامندهای مشترک جدید:**
-• `/sharedenemy` (ریپلای) - اضافه کردن دشمن مشترک بین تمام باتها
-• `/sharedfriend` (ریپلای) - اضافه کردن دوست مشترک بین تمام باتها
-• `/sharedfosh [متن یا ریپلای]` - اضافه کردن فحش مشترک
-• `/sharedword [متن یا ریپلای]` - اضافه کردن کلمه مشترک
-• `/sharedlist` - نمایش تمام لیست‌های مشترک
+📢 **سیستم ارسال همگانی:**
+• `/broadcast [پیام]` - ارسال همگانی متن به تمام گروه‌ها
+• پشتیبانی از ارسال رسانه با ریپلای در broadcast
+  └ شامل گزارش دقیق موفقیت/ناموفقی
+  └ مدیریت خطای Flood + تاخیر هوشمند
+  └ فقط گروه‌ها (نه چت خصوصی/کانال)
 
 🤖 **تنظیمات سیستم:**
 • `/runself` - فعال کردن پاسخگویی خودکار
@@ -1273,9 +1049,11 @@ async def help_command(client, message: Message):
 • `/help` - نمایش این راهنما
 
 💡 **نکات مهم:**
-• کامندهای مشترک در تمام باتها قابل دسترسی است
-• پاسخگویی از هم دیتابیس محلی و هم مشترک استفاده می‌کند
-• تمام باتها می‌توانند از لیست‌های مشترک استفاده کنند"""
+• از ریپلای برای اضافه کردن رسانه استفاده کنید
+• پشتیبانی کامل از عکس، ویدیو، صوت، استیکر، گیف و...
+• پاسخگویی فوری و بدون تاخیر در گروه‌ها
+• سیستم لاگ کامل برای تمام عملیات
+• امکان بکاپ و بازیابی اطلاعات"""
 
         await message.edit_text(text)
 
