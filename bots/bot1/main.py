@@ -13,6 +13,10 @@ try:
 except AttributeError:
     pass
 
+# اضافه کردن پوشه‌ی اصلی به مسیر برای دسترسی به shared_database
+sys.path.append('/home/runner/BlueOfficialHexagon-1111')
+from shared_database import *
+
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMember
 from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
@@ -21,6 +25,7 @@ from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
 api_id = 15508294
 api_hash = "778e5cd56ffcf22c2d62aa963ce85a0c"
 admin_id = 7850529246
+BOT_NUMBER = 1  # شماره بات برای شناسایی
 
 # تنظیم لاگ
 logging.basicConfig(
@@ -368,6 +373,206 @@ def get_stats():
 init_db()
 
 # کامند شروع
+# کامندهای مشترک جدید
+@app.on_message(filters.command("sharedenemy") & filters.user(admin_id) & filters.reply)
+async def shared_set_enemy_command(client, message: Message):
+    try:
+        replied = message.reply_to_message
+        user_id = replied.from_user.id
+        username = replied.from_user.username
+        first_name = replied.from_user.first_name
+
+        if add_shared_enemy(user_id, username, first_name, BOT_NUMBER):
+            await message.edit_text(f"👹 کاربر به لیست دشمنان مشترک اضافه شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`\n**توسط بات:** {BOT_NUMBER}")
+            log_action("add_shared_enemy", user_id, f"{first_name} (@{username})")
+        else:
+            await message.edit_text(f"⚠️ این کاربر قبلاً در لیست دشمنان مشترک است")
+
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
+@app.on_message(filters.command("sharedfriend") & filters.user(admin_id) & filters.reply)
+async def shared_set_friend_command(client, message: Message):
+    try:
+        replied = message.reply_to_message
+        user_id = replied.from_user.id
+        username = replied.from_user.username
+        first_name = replied.from_user.first_name
+
+        if add_shared_friend(user_id, username, first_name, BOT_NUMBER):
+            await message.edit_text(f"😊 کاربر به لیست دوستان مشترک اضافه شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`\n**توسط بات:** {BOT_NUMBER}")
+            log_action("add_shared_friend", user_id, f"{first_name} (@{username})")
+        else:
+            await message.edit_text(f"⚠️ این کاربر قبلاً در لیست دوستان مشترک است")
+
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
+@app.on_message(filters.command("sharedfosh") & filters.user(admin_id))
+async def shared_add_fosh_command(client, message: Message):
+    try:
+        # بررسی ریپلای برای رسانه
+        if message.reply_to_message:
+            replied = message.reply_to_message
+            media_type = None
+            file_id = None
+            fosh_text = None
+
+            if replied.photo:
+                media_type = "photo"
+                file_id = replied.photo.file_id
+            elif replied.video:
+                media_type = "video"
+                file_id = replied.video.file_id
+            elif replied.animation:
+                media_type = "animation"
+                file_id = replied.animation.file_id
+            elif replied.sticker:
+                media_type = "sticker"
+                file_id = replied.sticker.file_id
+            elif replied.audio:
+                media_type = "audio"
+                file_id = replied.audio.file_id
+            elif replied.voice:
+                media_type = "voice"
+                file_id = replied.voice.file_id
+            elif replied.video_note:
+                media_type = "video_note"
+                file_id = replied.video_note.file_id
+            elif replied.document:
+                media_type = "document"
+                file_id = replied.document.file_id
+            elif replied.text:
+                fosh_text = replied.text
+
+            if media_type or fosh_text:
+                if add_shared_fosh(fosh_text, media_type, file_id, BOT_NUMBER):
+                    await message.edit_text(f"✅ فحش مشترک اضافه شد ({media_type or 'متن'})\n**توسط بات:** {BOT_NUMBER}")
+                    log_action("add_shared_fosh", admin_id, f"{media_type or fosh_text}")
+                else:
+                    await message.edit_text("❌ خطا در اضافه کردن فحش مشترک")
+            else:
+                await message.edit_text("⚠️ نوع رسانه پشتیبانی نمی‌شود")
+        else:
+            # اضافه کردن فحش متنی
+            if len(message.command) < 2:
+                await message.edit_text("⚠️ لطفاً یک فحش وارد کنید یا روی پیام ریپلای کنید.\n💡 استفاده: `/sharedfosh متن فحش`")
+                return
+
+            fosh = " ".join(message.command[1:])
+
+            if add_shared_fosh(fosh, None, None, BOT_NUMBER):
+                await message.edit_text(f"✅ فحش مشترک اضافه شد:\n`{fosh}`\n**توسط بات:** {BOT_NUMBER}")
+                log_action("add_shared_fosh", admin_id, fosh[:50])
+            else:
+                await message.edit_text("❌ خطا در اضافه کردن فحش مشترک")
+
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
+@app.on_message(filters.command("sharedword") & filters.user(admin_id))
+async def shared_add_word_command(client, message: Message):
+    try:
+        # بررسی ریپلای برای رسانه
+        if message.reply_to_message:
+            replied = message.reply_to_message
+            media_type = None
+            file_id = None
+            word_text = None
+
+            if replied.photo:
+                media_type = "photo"
+                file_id = replied.photo.file_id
+            elif replied.video:
+                media_type = "video"
+                file_id = replied.video.file_id
+            elif replied.animation:
+                media_type = "animation"
+                file_id = replied.animation.file_id
+            elif replied.sticker:
+                media_type = "sticker"
+                file_id = replied.sticker.file_id
+            elif replied.audio:
+                media_type = "audio"
+                file_id = replied.audio.file_id
+            elif replied.voice:
+                media_type = "voice"
+                file_id = replied.voice.file_id
+            elif replied.video_note:
+                media_type = "video_note"
+                file_id = replied.video_note.file_id
+            elif replied.document:
+                media_type = "document"
+                file_id = replied.document.file_id
+            elif replied.text:
+                word_text = replied.text
+
+            if media_type or word_text:
+                if add_shared_friend_word(word_text, media_type, file_id, BOT_NUMBER):
+                    await message.edit_text(f"✅ کلمه دوستانه مشترک اضافه شد ({media_type or 'متن'})\n**توسط بات:** {BOT_NUMBER}")
+                    log_action("add_shared_word", admin_id, f"{media_type or word_text}")
+                else:
+                    await message.edit_text("❌ خطا در اضافه کردن کلمه مشترک")
+            else:
+                await message.edit_text("⚠️ نوع رسانه پشتیبانی نمی‌شود")
+        else:
+            # اضافه کردن کلمه متنی
+            if len(message.command) < 2:
+                await message.edit_text("⚠️ لطفاً یک کلمه وارد کنید یا روی پیام ریپلای کنید.\n💡 استفاده: `/sharedword سلام دوست عزیز`")
+                return
+
+            word = " ".join(message.command[1:])
+
+            if add_shared_friend_word(word, None, None, BOT_NUMBER):
+                await message.edit_text(f"✅ کلمه دوستانه مشترک اضافه شد:\n`{word}`\n**توسط بات:** {BOT_NUMBER}")
+                log_action("add_shared_word", admin_id, word[:50])
+            else:
+                await message.edit_text("❌ خطا در اضافه کردن کلمه مشترک")
+
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
+@app.on_message(filters.command("sharedlist") & filters.user(admin_id))
+async def shared_list_command(client, message: Message):
+    try:
+        enemy_list = get_shared_enemy_list()
+        friend_list = get_shared_friend_list()
+        fosh_list = get_shared_fosh_list()
+        word_list = get_shared_friend_words()
+
+        text = "📋 **لیست‌های مشترک تمام باتها:**\n\n"
+        
+        text += f"👹 **دشمنان مشترک:** {len(enemy_list)} نفر\n"
+        for i, (user_id, username, first_name, bot_num, created_at) in enumerate(enemy_list[:5], 1):
+            text += f"`{i}.` {first_name or 'نامشخص'} (`{user_id}`) - بات {bot_num}\n"
+        if len(enemy_list) > 5:
+            text += f"... و {len(enemy_list) - 5} نفر دیگر\n"
+
+        text += f"\n😊 **دوستان مشترک:** {len(friend_list)} نفر\n"
+        for i, (user_id, username, first_name, bot_num, created_at) in enumerate(friend_list[:5], 1):
+            text += f"`{i}.` {first_name or 'نامشخص'} (`{user_id}`) - بات {bot_num}\n"
+        if len(friend_list) > 5:
+            text += f"... و {len(friend_list) - 5} نفر دیگر\n"
+
+        text += f"\n🔥 **فحش‌های مشترک:** {len(fosh_list)} عدد\n"
+        for i, (fosh, media_type, file_id, bot_num) in enumerate(fosh_list[:3], 1):
+            if media_type:
+                text += f"`{i}.` [{media_type.upper()}] - بات {bot_num}\n"
+            else:
+                text += f"`{i}.` {fosh[:30]}... - بات {bot_num}\n"
+
+        text += f"\n💬 **کلمات دوستانه مشترک:** {len(word_list)} عدد\n"
+        for i, (word, media_type, file_id, bot_num) in enumerate(word_list[:3], 1):
+            if media_type:
+                text += f"`{i}.` [{media_type.upper()}] - بات {bot_num}\n"
+            else:
+                text += f"`{i}.` {word[:30]}... - بات {bot_num}\n"
+
+        await message.edit_text(text)
+
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
 @app.on_message(filters.command("start") & filters.user(admin_id))
 async def start_command(client, message: Message):
     await message.edit_text(f"🤖 **ربات 1 آماده است!**\n\n📋 برای مشاهده کامندها: `/help`\n🆔 Admin: `{admin_id}`")
