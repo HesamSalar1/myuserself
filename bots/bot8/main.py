@@ -1,3 +1,4 @@
+
 import json
 import asyncio
 import sys
@@ -764,17 +765,18 @@ async def update_cache_async():
         # اجرای همزمان تمام عملیات دیتابیس
         tasks = [
             asyncio.create_task(asyncio.to_thread(get_enemy_list)),
-            asyncio.create_task(asyncio.to_thread(get_friend_list)),            asyncio.create_task(asyncio.to_thread(get_fosh_list)),
+            asyncio.create_task(asyncio.to_thread(get_friend_list)),
+            asyncio.create_task(asyncio.to_thread(get_fosh_list)),
             asyncio.create_task(asyncio.to_thread(get_friend_words))
         ]
-
+        
         enemy_list, friend_list, fosh_list, word_list = await asyncio.gather(*tasks)
-
+        
         enemy_cache = {row[0] for row in enemy_list}
         friend_cache = {row[0] for row in friend_list}
         fosh_cache = fosh_list
         word_cache = word_list
-
+        
         last_cache_update = datetime.now().timestamp()
     except:
         pass
@@ -785,7 +787,7 @@ async def send_delayed_reply(message, selected_content, delay):
     try:
         await asyncio.sleep(delay)
         content_text, media_type, file_id = selected_content
-
+        
         if media_type and file_id:
             reply_methods = {
                 "photo": message.reply_photo,
@@ -797,7 +799,7 @@ async def send_delayed_reply(message, selected_content, delay):
                 "video_note": message.reply_video_note,
                 "document": message.reply_document
             }
-
+            
             method = reply_methods.get(media_type)
             if method:
                 await method(file_id)
@@ -820,7 +822,7 @@ async def auto_reply_handler(client, message: Message):
         return
 
     user_id = message.from_user.id
-
+    
     # بررسی دشمن بودن - بات 8 با تاخیر 0.006 ثانیه
     if user_id in enemy_cache and fosh_cache:
         selected = choice(fosh_cache)
