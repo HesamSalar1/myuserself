@@ -118,6 +118,7 @@ class UnifiedBotLauncher:
         
         # لیست همه admin_id ها
         self.all_admin_ids = {config['admin_id'] for config in self.bot_configs.values()}
+        logger.info(f"🔐 لیست ادمین‌های مجاز: {list(self.all_admin_ids)}")
 
     def setup_database(self, bot_id, db_path):
         """تنظیم پایگاه داده برای هر بات"""
@@ -398,13 +399,20 @@ class UnifiedBotLauncher:
 
     def is_admin(self, user_id):
         """بررسی اینکه آیا کاربر ادمین است یا نه"""
-        return user_id in self.all_admin_ids
+        is_admin = user_id in self.all_admin_ids
+        if is_admin:
+            logger.debug(f"کاربر {user_id} ادمین است")
+        else:
+            logger.debug(f"کاربر {user_id} ادمین نیست - لیست ادمین‌ها: {list(self.all_admin_ids)}")
+        return is_admin
 
     def get_bot_for_admin(self, user_id):
         """پیدا کردن شماره بات برای ادمین مشخص"""
         for bot_id, config in self.bot_configs.items():
             if config['admin_id'] == user_id:
+                logger.debug(f"بات {bot_id} برای ادمین {user_id} پیدا شد")
                 return bot_id
+        logger.debug(f"هیچ باتی برای ادمین {user_id} پیدا نشد")
         return None
 
     async def create_bot(self, bot_id, config):
@@ -424,16 +432,42 @@ class UnifiedBotLauncher:
             
             # تعریف هندلرها - همه کامندها برای همه ادمین‌ها
             def is_admin_user(_, __, message):
-                return message.from_user and self.is_admin(message.from_user.id)
+                if not message.from_user:
+                    return False
+                user_id = message.from_user.id
+                is_admin = user_id in self.all_admin_ids
+                if is_admin:
+                    logger.info(f"✅ ادمین تشخیص داده شد: {user_id} برای بات {bot_id}")
+                else:
+                    logger.debug(f"❌ کاربر {user_id} ادمین نیست - ادمین‌های مجاز: {self.all_admin_ids}")
+                return is_admin
             
             admin_filter = filters.create(is_admin_user)
             
             @app.on_message(filters.command("start") & admin_filter)
             async def start_command(client, message):
                 try:
-                    await message.reply_text(f"🤖 **ربات {bot_id} آماده است!**\n\n📋 برای مشاهده کامندها: `/help`\n🆔 Admin: `{admin_id}`")
+                    user_id = message.from_user.id
+                    await message.reply_text(f"🤖 **ربات {bot_id} آماده است!**\n\n📋 برای مشاهده کامندها: `/help`\n🆔 Admin: `{admin_id}`\n👤 شما: `{user_id}`\n✅ تشخیص ادمین موفق")
                 except Exception as e:
                     logger.error(f"خطا در start command: {e}")
+
+            @app.on_message(filters.command("testadmin") & admin_filter)
+            async def test_admin_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    user_bot = self.get_bot_for_admin(user_id)
+                    admin_list = list(self.all_admin_ids)
+                    
+                    text = f"🔍 **تست تشخیص ادمین:**\n\n"
+                    text += f"👤 شما: `{user_id}`\n"
+                    text += f"🤖 بات مربوطه: `{user_bot or 'یافت نشد'}`\n"
+                    text += f"📋 لیست کامل ادمین‌ها: `{admin_list}`\n"
+                    text += f"✅ وضعیت: ادمین تشخیص داده شده"
+                    
+                    await message.reply_text(text)
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
             # کامند اضافه کردن فحش (تمام انواع رسانه)
             @app.on_message(filters.command("addfosh") & admin_filter)
