@@ -11,7 +11,7 @@ build = ["npm", "run", "build"]
 run = ["npm", "run", "start"]
 
 [workflows]
-runButton = "مدیر مرکزی بات‌ها"
+runButton = "لانچر واحد همه بات‌ها"
 
 [[workflows.workflow]]
 name = "Project"
@@ -107,6 +107,15 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3 main.py"
+
+[[workflows.workflow]]
+name = "لانچر واحد همه بات‌ها"
+author = 43944953
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 unified_bot_launcher.py"
 
 [[ports]]
 localPort = 3000
