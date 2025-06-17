@@ -202,7 +202,57 @@ class UnifiedBotLauncher:
                 """
                 await message.reply_text(info_text.strip())
 
-            @app.on_message(filters.text & filters.private & ~filters.command(["start", "help", "info"]))
+            # دستورات مدیریتی ادمین (فقط برای بات 1)
+            if bot_id == 1:
+                @app.on_message(filters.command("status") & filters.user(self.admin_id))
+                async def admin_status_command(client, message):
+                    try:
+                        status = self.get_status()
+                        status_text = f"""
+📊 **وضعیت لانچر واحد:**
+
+🤖 تعداد کل بات‌ها: {status['total_bots']}
+✅ بات‌های فعال: {status['running_bots']}
+❌ بات‌های خطا: {status['error_bots']}
+
+📋 **جزئیات بات‌ها:**
+"""
+                        
+                        for bot_info in status['bots']:
+                            emoji = "✅" if bot_info['status'] == 'running' else "❌"
+                            status_text += f"{emoji} بات {bot_info['id']}: {bot_info['status']}\n"
+                        
+                        await message.reply_text(status_text.strip())
+                        
+                    except Exception as e:
+                        await message.reply_text(f"❌ خطا: {e}")
+
+                @app.on_message(filters.command("restart") & filters.user(self.admin_id))
+                async def admin_restart_command(client, message):
+                    try:
+                        if len(message.command) < 2:
+                            await message.reply_text("⚠️ استفاده: /restart [شماره_بات]\nمثال: /restart 2")
+                            return
+                        
+                        bot_id = int(message.command[1])
+                        if bot_id not in self.bot_configs:
+                            await message.reply_text(f"❌ بات {bot_id} یافت نشد")
+                            return
+                        
+                        await message.reply_text(f"🔄 راه‌اندازی مجدد بات {bot_id}...")
+                        
+                        success = await self.restart_bot(bot_id)
+                        if success:
+                            await message.reply_text(f"✅ بات {bot_id} مجدداً راه‌اندازی شد")
+                        else:
+                            await message.reply_text(f"❌ خطا در راه‌اندازی مجدد بات {bot_id}")
+                        
+                    except ValueError:
+                        await message.reply_text("❌ شماره بات نامعتبر")
+                    except Exception as e:
+                        await message.reply_text(f"❌ خطا: {e}")
+
+            @app.on_message(filters.text & filters.private & ~filters.command(["start", "help", "info", "status", "restart"]))
             async def handle_text_message(client, message):
                 try:
                     user_id = message.from_user.id
@@ -282,37 +332,91 @@ class UnifiedBotLauncher:
             
             await client.start()
             bot_info['status'] = 'running'
+            bot_info['start_time'] = datetime.now()
             
             logger.info(f"✅ بات {bot_id} آماده و در حال اجرا!")
             
-            # نگه داشتن بات زنده
-            await client.idle()
+            # مانیتورینگ و نگه داشتن بات زنده
+            while self.running and bot_info['status'] == 'running':
+                try:
+                    # بررسی وضعیت اتصال
+                    if not client.is_connected:
+                        logger.warning(f"⚠️ بات {bot_id} اتصال قطع شده - تلاش برای اتصال مجدد...")
+                        await client.start()
+                    
+                    await asyncio.sleep(10)  # بررسی هر 10 ثانیه
+                    
+                except Exception as monitor_error:
+                    logger.error(f"❌ خطا در مانیتورینگ بات {bot_id}: {monitor_error}")
+                    await asyncio.sleep(5)
             
         except Exception as e:
             logger.error(f"❌ خطا در شروع بات {bot_id}: {e}")
             if bot_id in self.bots:
                 self.bots[bot_id]['status'] = 'error'
+                
+                # تلاش برای راه‌اندازی مجدد خودکار
+                logger.info(f"🔄 تلاش برای راه‌اندازی مجدد خودکار بات {bot_id} در 30 ثانیه...")
+                await asyncio.sleep(30)
+                if self.running:
+                    await self.restart_bot(bot_id)
+
+    async def stop_single_bot(self, bot_id):
+        """متوقف کردن یک بات"""
+        try:
+            if bot_id in self.bots:
+                bot_info = self.bots[bot_id]
+                if bot_info['status'] == 'running':
+                    logger.info(f"⏹️ متوقف کردن بات {bot_id}...")
+                    await bot_info['client'].stop()
+                    bot_info['status'] = 'stopped'
+                    logger.info(f"✅ بات {bot_id} متوقف شد")
+        except Exception as e:
+            logger.error(f"❌ خطا در متوقف کردن بات {bot_id}: {e}")
 
     async def stop_all_bots(self):
         """متوقف کردن همه بات‌ها"""
         logger.info("🛑 متوقف کردن همه بات‌ها...")
         self.running = False
         
-        for bot_id, bot_info in self.bots.items():
-            try:
-                if bot_info['status'] == 'running':
-                    logger.info(f"⏹️ متوقف کردن بات {bot_id}...")
-                    await bot_info['client'].stop()
-                    bot_info['status'] = 'stopped'
-                    logger.info(f"✅ بات {bot_id} متوقف شد")
-            except Exception as e:
-                logger.error(f"❌ خطا در متوقف کردن بات {bot_id}: {e}")
+        tasks = []
+        for bot_id in list(self.bots.keys()):
+            tasks.append(self.stop_single_bot(bot_id))
+        
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def restart_bot(self, bot_id):
+        """راه‌اندازی مجدد یک بات"""
+        try:
+            logger.info(f"🔄 راه‌اندازی مجدد بات {bot_id}...")
+            
+            # متوقف کردن بات فعلی
+            await self.stop_single_bot(bot_id)
+            await asyncio.sleep(2)
+            
+            # ایجاد مجدد بات
+            if bot_id in self.bot_configs:
+                config = self.bot_configs[bot_id]
+                bot = await self.create_bot(bot_id, config)
+                if bot:
+                    # شروع مجدد بات
+                    asyncio.create_task(self.start_single_bot(bot_id))
+                    logger.info(f"✅ بات {bot_id} مجدداً راه‌اندازی شد")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"❌ خطا در راه‌اندازی مجدد بات {bot_id}: {e}")
+            return False
 
     def get_status(self):
         """دریافت وضعیت همه بات‌ها"""
         status = {
             'total_bots': len(self.bot_configs),
             'running_bots': len([b for b in self.bots.values() if b['status'] == 'running']),
+            'error_bots': len([b for b in self.bots.values() if b['status'] == 'error']),
             'bots': []
         }
         
