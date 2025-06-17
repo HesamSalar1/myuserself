@@ -611,7 +611,7 @@ class UnifiedBotLauncher:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
             # کامندهای دوستان
-            @app.on_message(filters.command("setfriend") & filters.user(admin_id) & filters.reply)
+            @app.on_message(filters.command("setfriend") & admin_filter & filters.reply)
             async def set_friend_command(client, message):
                 try:
                     replied = message.reply_to_message
@@ -620,15 +620,15 @@ class UnifiedBotLauncher:
                     first_name = replied.from_user.first_name
 
                     if self.add_friend(bot_id, user_id, username, first_name):
-                        await message.edit_text(f"😊 کاربر به لیست دوستان بات {bot_id} اضافه شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
+                        await message.reply_text(f"😊 کاربر به لیست دوستان بات {bot_id} اضافه شد:\n**نام:** {first_name}\n**آیدی:** `{user_id}`")
                         self.log_action(bot_id, "add_friend", user_id, f"{first_name} (@{username})")
                     else:
-                        await message.edit_text(f"⚠️ این کاربر قبلاً در لیست دوستان است")
+                        await message.reply_text(f"⚠️ این کاربر قبلاً در لیست دوستان است")
 
                 except Exception as e:
-                    await message.edit_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
-            @app.on_message(filters.command("delfriend") & filters.user(admin_id) & filters.reply)
+            @app.on_message(filters.command("delfriend") & admin_filter & filters.reply)
             async def del_friend_command(client, message):
                 try:
                     replied = message.reply_to_message
@@ -636,20 +636,20 @@ class UnifiedBotLauncher:
                     first_name = replied.from_user.first_name
 
                     if self.remove_friend(bot_id, user_id):
-                        await message.edit_text(f"✅ کاربر از لیست دوستان بات {bot_id} حذف شد:\n**نام:** {first_name}")
+                        await message.reply_text(f"✅ کاربر از لیست دوستان بات {bot_id} حذف شد:\n**نام:** {first_name}")
                         self.log_action(bot_id, "del_friend", user_id, f"{first_name}")
                     else:
-                        await message.edit_text(f"⚠️ این کاربر در لیست دوستان یافت نشد")
+                        await message.reply_text(f"⚠️ این کاربر در لیست دوستان یافت نشد")
 
                 except Exception as e:
-                    await message.edit_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
-            @app.on_message(filters.command("listfriend") & filters.user(admin_id))
+            @app.on_message(filters.command("listfriend") & admin_filter)
             async def list_friend_command(client, message):
                 try:
                     friend_list = self.get_friend_list(bot_id)
                     if not friend_list:
-                        await message.edit_text(f"📝 لیست دوستان بات {bot_id} خالی است.")
+                        await message.reply_text(f"📝 لیست دوستان بات {bot_id} خالی است.")
                         return
 
                     text = f"😊 **لیست دوستان بات {bot_id}:**\n\n"
@@ -660,22 +660,22 @@ class UnifiedBotLauncher:
                             break
 
                     text += f"\n📊 **تعداد کل:** {len(friend_list)} دوست"
-                    await message.edit_text(text)
+                    await message.reply_text(text)
 
                 except Exception as e:
-                    await message.edit_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
-            @app.on_message(filters.command("clearfriend") & filters.user(admin_id))
+            @app.on_message(filters.command("clearfriend") & admin_filter)
             async def clear_friend_command(client, message):
                 try:
                     count = self.clear_friend_list(bot_id)
-                    await message.edit_text(f"✅ تمام دوستان بات {bot_id} حذف شدند.\n📊 تعداد حذف شده: {count} نفر")
-                    self.log_action(bot_id, "clear_friend", admin_id, f"حذف {count} دوست")
+                    await message.reply_text(f"✅ تمام دوستان بات {bot_id} حذف شدند.\n📊 تعداد حذف شده: {count} نفر")
+                    self.log_action(bot_id, "clear_friend", message.from_user.id, f"حذف {count} دوست")
                 except Exception as e:
-                    await message.edit_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
             # کامند اضافه کردن کلمه دوستانه (تمام انواع رسانه)
-            @app.on_message(filters.command("addword") & filters.user(admin_id))
+            @app.on_message(filters.command("addword") & admin_filter)
             async def add_word_command(client, message):
                 try:
                     if message.reply_to_message:
@@ -713,50 +713,50 @@ class UnifiedBotLauncher:
 
                         if media_type or word_text:
                             if self.add_friend_word(bot_id, word_text, media_type, file_id):
-                                await message.edit_text(f"✅ کلمه دوستانه اضافه شد ({media_type or 'متن'}) - بات {bot_id}")
-                                self.log_action(bot_id, "add_word", admin_id, f"{media_type or word_text}")
+                                await message.reply_text(f"✅ کلمه دوستانه اضافه شد ({media_type or 'متن'}) - بات {bot_id}")
+                                self.log_action(bot_id, "add_word", message.from_user.id, f"{media_type or word_text}")
                             else:
-                                await message.edit_text("❌ خطا در اضافه کردن کلمه")
+                                await message.reply_text("❌ خطا در اضافه کردن کلمه")
                         else:
-                            await message.edit_text("⚠️ نوع رسانه پشتیبانی نمی‌شود")
+                            await message.reply_text("⚠️ نوع رسانه پشتیبانی نمی‌شود")
                     else:
                         if len(message.command) < 2:
-                            await message.edit_text("⚠️ لطفاً یک کلمه وارد کنید یا روی پیام ریپلای کنید.\n💡 استفاده: `/addword سلام دوست عزیز`")
+                            await message.reply_text("⚠️ لطفاً یک کلمه وارد کنید یا روی پیام ریپلای کنید.\n💡 استفاده: `/addword سلام دوست عزیز`")
                             return
 
                         word = " ".join(message.command[1:])
                         if self.add_friend_word(bot_id, word):
-                            await message.edit_text(f"✅ کلمه دوستانه اضافه شد - بات {bot_id}:\n`{word}`")
-                            self.log_action(bot_id, "add_word", admin_id, word[:50])
+                            await message.reply_text(f"✅ کلمه دوستانه اضافه شد - بات {bot_id}:\n`{word}`")
+                            self.log_action(bot_id, "add_word", message.from_user.id, word[:50])
                         else:
-                            await message.edit_text("❌ خطا در اضافه کردن کلمه")
+                            await message.reply_text("❌ خطا در اضافه کردن کلمه")
 
                 except Exception as e:
-                    await message.edit_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
-            @app.on_message(filters.command("delword") & filters.user(admin_id))
+            @app.on_message(filters.command("delword") & admin_filter)
             async def del_word_command(client, message):
                 try:
                     if len(message.command) < 2:
-                        await message.edit_text("⚠️ لطفاً کلمه مورد نظر را وارد کنید.\n💡 استفاده: `/delword کلمه`")
+                        await message.reply_text("⚠️ لطفاً کلمه مورد نظر را وارد کنید.\n💡 استفاده: `/delword کلمه`")
                         return
 
                     word = " ".join(message.command[1:])
                     if self.remove_friend_word(bot_id, word):
-                        await message.edit_text(f"✅ کلمه دوستانه حذف شد - بات {bot_id}:\n`{word}`")
-                        self.log_action(bot_id, "del_word", admin_id, word[:50])
+                        await message.reply_text(f"✅ کلمه دوستانه حذف شد - بات {bot_id}:\n`{word}`")
+                        self.log_action(bot_id, "del_word", message.from_user.id, word[:50])
                     else:
-                        await message.edit_text(f"⚠️ این کلمه در لیست یافت نشد:\n`{word}`")
+                        await message.reply_text(f"⚠️ این کلمه در لیست یافت نشد:\n`{word}`")
 
                 except Exception as e:
-                    await message.edit_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
-            @app.on_message(filters.command("listword") & filters.user(admin_id))
+            @app.on_message(filters.command("listword") & admin_filter)
             async def list_word_command(client, message):
                 try:
                     word_list = self.get_friend_words(bot_id)
                     if not word_list:
-                        await message.edit_text(f"📝 لیست کلمات دوستانه بات {bot_id} خالی است.\n💡 با `/addword` کلمه اضافه کنید.")
+                        await message.reply_text(f"📝 لیست کلمات دوستانه بات {bot_id} خالی است.\n💡 با `/addword` کلمه اضافه کنید.")
                         return
 
                     text = f"💬 **لیست کلمات دوستانه بات {bot_id}:**\n\n"
@@ -771,22 +771,22 @@ class UnifiedBotLauncher:
                             break
 
                     text += f"\n📊 **تعداد کل:** {len(word_list)} کلمه"
-                    await message.edit_text(text)
+                    await message.reply_text(text)
 
                 except Exception as e:
-                    await message.edit_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
-            @app.on_message(filters.command("clearword") & filters.user(admin_id))
+            @app.on_message(filters.command("clearword") & admin_filter)
             async def clear_word_command(client, message):
                 try:
                     count = self.clear_friend_words(bot_id)
-                    await message.edit_text(f"✅ تمام کلمات دوستانه بات {bot_id} حذف شدند.\n📊 تعداد حذف شده: {count} مورد")
-                    self.log_action(bot_id, "clear_word", admin_id, f"حذف {count} کلمه")
+                    await message.reply_text(f"✅ تمام کلمات دوستانه بات {bot_id} حذف شدند.\n📊 تعداد حذف شده: {count} مورد")
+                    self.log_action(bot_id, "clear_word", message.from_user.id, f"حذف {count} کلمه")
                 except Exception as e:
-                    await message.edit_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
             # کامند آمار
-            @app.on_message(filters.command("stats") & filters.user(admin_id))
+            @app.on_message(filters.command("stats") & admin_filter)
             async def stats_command(client, message):
                 try:
                     stats = self.get_stats(bot_id)
@@ -799,39 +799,39 @@ class UnifiedBotLauncher:
                     text += f"🤖 **وضعیت پاسخگویی:** {'فعال ✅' if config['auto_reply_enabled'] else 'غیرفعال ❌'}\n"
                     text += f"⏰ **آخرین بروزرسانی:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
-                    await message.edit_text(text)
-                    self.log_action(bot_id, "stats_view", admin_id, "نمایش آمار")
+                    await message.reply_text(text)
+                    self.log_action(bot_id, "stats_view", message.from_user.id, "نمایش آمار")
 
                 except Exception as e:
-                    await message.edit_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
             # کامند فعال/غیرفعال پاسخگویی
-            @app.on_message(filters.command(["autoreply", "toggle", "runself"]) & filters.user(admin_id))
+            @app.on_message(filters.command(["autoreply", "toggle", "runself"]) & admin_filter)
             async def toggle_auto_reply(client, message):
                 try:
                     self.bot_configs[bot_id]['auto_reply_enabled'] = True
-                    await message.edit_text(f"🤖 **پاسخگویی خودکار بات {bot_id} فعال شد ✅**")
-                    self.log_action(bot_id, "toggle_auto_reply", admin_id, "فعال")
+                    await message.reply_text(f"🤖 **پاسخگویی خودکار بات {bot_id} فعال شد ✅**")
+                    self.log_action(bot_id, "toggle_auto_reply", message.from_user.id, "فعال")
 
                 except Exception as e:
-                    await message.edit_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
-            @app.on_message(filters.command("offself") & filters.user(admin_id))
+            @app.on_message(filters.command("offself") & admin_filter)
             async def off_auto_reply(client, message):
                 try:
                     self.bot_configs[bot_id]['auto_reply_enabled'] = False
-                    await message.edit_text(f"🤖 **پاسخگویی خودکار بات {bot_id} غیرفعال شد ❌**")
-                    self.log_action(bot_id, "toggle_auto_reply", admin_id, "غیرفعال")
+                    await message.reply_text(f"🤖 **پاسخگویی خودکار بات {bot_id} غیرفعال شد ❌**")
+                    self.log_action(bot_id, "toggle_auto_reply", message.from_user.id, "غیرفعال")
 
                 except Exception as e:
-                    await message.edit_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
             # کامند ارسال همگانی
-            @app.on_message(filters.command("broadcast") & filters.user(admin_id))
+            @app.on_message(filters.command("broadcast") & admin_filter)
             async def broadcast_command(client, message):
                 try:
                     if len(message.command) < 2 and not message.reply_to_message:
-                        await message.edit_text("⚠️ لطفاً پیام مورد نظر را وارد کنید یا روی پیام ریپلای کنید.\n💡 استفاده: `/broadcast سلام به همه`")
+                        await message.reply_text("⚠️ لطفاً پیام مورد نظر را وارد کنید یا روی پیام ریپلای کنید.\n💡 استفاده: `/broadcast سلام به همه`")
                         return
 
                     if message.reply_to_message:
@@ -839,7 +839,7 @@ class UnifiedBotLauncher:
                     else:
                         text = " ".join(message.command[1:])
 
-                    await message.edit_text(f"📤 شروع ارسال همگانی از بات {bot_id}...")
+                    await message.reply_text(f"📤 شروع ارسال همگانی از بات {bot_id}...")
 
                     success = 0
                     fail = 0
@@ -871,14 +871,15 @@ class UnifiedBotLauncher:
                     result_text += f"❌ **ناموفق:** {fail} گروه\n"
                     result_text += f"📊 **کل:** {success + fail} گروه"
 
-                    await message.edit_text(result_text)
-                    self.log_action(bot_id, "broadcast", admin_id, f"موفق:{success}, ناموفق:{fail}")
+                    # ارسال نتیجه در پیام جدید
+                    await client.send_message(message.chat.id, result_text)
+                    self.log_action(bot_id, "broadcast", message.from_user.id, f"موفق:{success}, ناموفق:{fail}")
 
                 except Exception as e:
-                    await message.edit_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
             # راهنما
-            @app.on_message(filters.command("help") & filters.user(admin_id))
+            @app.on_message(filters.command("help") & admin_filter)
             async def help_command(client, message):
                 try:
                     text = f"""🤖 **راهنمای جامع ربات مدیریت هوشمند دوست و دشمن - بات {bot_id}**
@@ -920,14 +921,14 @@ class UnifiedBotLauncher:
 • `/start` - راه‌اندازی مجدد ربات
 • `/help` - نمایش این راهنما"""
 
-                    await message.edit_text(text)
+                    await message.reply_text(text)
 
                 except Exception as e:
-                    await message.edit_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
             # دستورات مدیریتی ادمین (فقط برای بات 1)
             if bot_id == 1:
-                @app.on_message(filters.command("status") & filters.user(admin_id))
+                @app.on_message(filters.command("status") & admin_filter)
                 async def admin_status_command(client, message):
                     try:
                         status = self.get_status()
@@ -945,41 +946,41 @@ class UnifiedBotLauncher:
                             emoji = "✅" if bot_info['status'] == 'running' else "❌"
                             status_text += f"{emoji} بات {bot_info['id']}: {bot_info['status']}\n"
                         
-                        await message.edit_text(status_text.strip())
+                        await message.reply_text(status_text.strip())
                         
                     except Exception as e:
-                        await message.edit_text(f"❌ خطا: {e}")
+                        await message.reply_text(f"❌ خطا: {e}")
 
-                @app.on_message(filters.command("restart") & filters.user(admin_id))
+                @app.on_message(filters.command("restart") & admin_filter)
                 async def admin_restart_command(client, message):
                     try:
                         if len(message.command) < 2:
-                            await message.edit_text("⚠️ استفاده: /restart [شماره_بات]\nمثال: /restart 2")
+                            await message.reply_text("⚠️ استفاده: /restart [شماره_بات]\nمثال: /restart 2")
                             return
                         
                         target_bot_id = int(message.command[1])
                         if target_bot_id not in self.bot_configs:
-                            await message.edit_text(f"❌ بات {target_bot_id} یافت نشد")
+                            await message.reply_text(f"❌ بات {target_bot_id} یافت نشد")
                             return
                         
-                        await message.edit_text(f"🔄 راه‌اندازی مجدد بات {target_bot_id}...")
+                        await message.reply_text(f"🔄 راه‌اندازی مجدد بات {target_bot_id}...")
                         
                         success = await self.restart_bot(target_bot_id)
                         if success:
-                            await message.edit_text(f"✅ بات {target_bot_id} مجدداً راه‌اندازی شد")
+                            await message.reply_text(f"✅ بات {target_bot_id} مجدداً راه‌اندازی شد")
                         else:
-                            await message.edit_text(f"❌ خطا در راه‌اندازی مجدد بات {target_bot_id}")
+                            await message.reply_text(f"❌ خطا در راه‌اندازی مجدد بات {target_bot_id}")
                         
                     except ValueError:
-                        await message.edit_text("❌ شماره بات نامعتبر")
+                        await message.reply_text("❌ شماره بات نامعتبر")
                     except Exception as e:
-                        await message.edit_text(f"❌ خطا: {e}")
+                        await message.reply_text(f"❌ خطا: {e}")
 
             # پاسخگویی خودکار
             @app.on_message(
                 ~filters.me & 
                 ~filters.channel & 
-                ~filters.user(admin_id) &
+                ~admin_filter &
                 ~filters.service &
                 filters.group
             )
