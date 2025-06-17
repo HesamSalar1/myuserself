@@ -860,8 +860,12 @@ async def update_cache_async():
         word_cache = word_list
         
         last_cache_update = datetime.now().timestamp()
-    except:
-        pass
+        
+        # لاگ برای دیباگ
+        logger.info(f"کش بات ۶ بروزرسانی شد - دشمنان: {len(enemy_cache)}, دوستان: {len(friend_cache)}, فحش: {len(fosh_cache)}, کلمات: {len(word_cache)}")
+        
+    except Exception as e:
+        logger.error(f"خطا در بروزرسانی کش بات ۶: {e}")
 
 # تابع ارسال فوری پاسخ
 async def send_instant_reply(message, selected_content):
@@ -886,6 +890,11 @@ async def send_instant_reply(message, selected_content):
                 await method(file_id)
         elif content_text:
             await message.reply_text(content_text)
+            
+        # لاگ کردن عملیات پاسخگویی
+        user_name = message.from_user.first_name or "نامشخص"
+        log_action("auto_reply", message.from_user.id, f"پاسخ به {user_name}")
+        
     except Exception as e:
         logger.error(f"خطا در ارسال پاسخ: {e}")
 
@@ -905,15 +914,25 @@ async def auto_reply_handler(client, message: Message):
     user_id = message.from_user.id
     
     # بررسی فوری دشمن بودن - بات 6 بدون تاخیر
-    if user_id in enemy_cache and fosh_cache:
-        selected = choice(fosh_cache)
-        asyncio.create_task(send_instant_reply(message, selected))
-        return
+    enemy_list = get_enemy_list()
+    enemy_ids = {row[0] for row in enemy_list}
+    
+    if user_id in enemy_ids:
+        fosh_list = get_fosh_list()
+        if fosh_list:
+            selected = choice(fosh_list)
+            asyncio.create_task(send_instant_reply(message, selected))
+            return
 
     # بررسی فوری دوست بودن - بات 6 بدون تاخیر
-    if user_id in friend_cache and word_cache:
-        selected = choice(word_cache)
-        asyncio.create_task(send_instant_reply(message, selected))
+    friend_list = get_friend_list()
+    friend_ids = {row[0] for row in friend_list}
+    
+    if user_id in friend_ids:
+        word_list = get_friend_words()
+        if word_list:
+            selected = choice(word_list)
+            asyncio.create_task(send_instant_reply(message, selected))
 
 # تسک پس‌زمینه برای بروزرسانی کش
 async def cache_updater():
