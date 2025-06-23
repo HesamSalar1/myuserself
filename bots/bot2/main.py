@@ -843,6 +843,16 @@ async def send_delayed_reply(message, selected_content, delay):
 )
 async def auto_reply_handler(client, message: Message):
     """هندلر پاسخگویی با تاخیر کوتاه"""
+    # بررسی وضعیت اکو
+    try:
+        import sys
+        sys.path.append('..')
+        from echo_control import is_echo_active
+        if is_echo_active():
+            return
+    except:
+        pass
+        
     if not auto_reply_enabled or not message.from_user:
         return
 
