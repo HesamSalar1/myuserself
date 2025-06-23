@@ -846,7 +846,7 @@ async def auto_reply_handler(client, message: Message):
     # بررسی وضعیت اکو
     try:
         import sys
-        sys.path.append('..')
+        sys.path.append('.')
         from echo_control import is_echo_active
         if is_echo_active():
             return

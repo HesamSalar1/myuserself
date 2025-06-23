@@ -914,11 +914,15 @@ class UnifiedBotLauncher:
 
             # کامند اکو برای بات 3 (فقط دشمنان می‌توانند استفاده کنند)
             if bot_id == 3:
-                @app.on_message(filters.command("echo") & ~admin_filter & filters.group)
+                @app.on_message(filters.command("echo") & filters.group)
                 async def echo_command(client, message):
                     try:
                         user_id = message.from_user.id if message.from_user else None
                         if not user_id:
+                            return
+                        
+                        # اگر ادمین است، هیچ کاری نکن
+                        if user_id in self.all_admin_ids:
                             return
                         
                         # بررسی اینکه کاربر دشمن باشد
@@ -930,23 +934,21 @@ class UnifiedBotLauncher:
                         
                         # فعال کردن حالت اکو
                         import sys
-                        sys.path.append('.')
+                        sys.path.append('./bots')
                         from echo_control import set_echo_active
                         set_echo_active(True)
                         
-                        # تشخیص پیام مورد نظر برای اکو
-                        target_message = None
+                        # استخراج متن بعد از /echo
+                        echo_text = None
+                        if len(message.command) > 1:
+                            # متن بعد از /echo
+                            echo_text = " ".join(message.command[1:])
                         
-                        if message.reply_to_message:
-                            # اگر روی پیامی ریپلای شده، همان پیام را اکو کن
-                            target_message = message.reply_to_message
-                        else:
-                            # اگر ریپلای نشده، خود پیام کامند را اکو کن
-                            target_message = message
-                        
-                        # اکو کردن پیام
-                        if target_message:
-                            try:
+                        try:
+                            if message.reply_to_message:
+                                # اگر روی پیامی ریپلای شده، همان پیام را اکو کن
+                                target_message = message.reply_to_message
+                                
                                 if target_message.text:
                                     await client.send_message(
                                         message.chat.id,
@@ -1007,13 +1009,17 @@ class UnifiedBotLauncher:
                                         caption=target_message.caption,
                                         reply_to_message_id=target_message.reply_to_message_id if target_message.reply_to_message else None
                                     )
-                                
-                                # غیرفعال کردن حالت اکو بعد از اکو
-                                set_echo_active(False)
-                                
-                            except Exception as echo_error:
-                                logger.error(f"خطا در اکو کردن پیام: {echo_error}")
-                                set_echo_active(False)
+                            elif echo_text:
+                                # اگر متن بعد از /echo وجود دارد، آن را اکو کن
+                                await client.send_message(message.chat.id, echo_text)
+                            
+                            # غیرفعال کردن حالت اکو بعد از اکو
+                            await asyncio.sleep(0.1)  # کمی تاخیر برای اطمینان از ارسال
+                            set_echo_active(False)
+                            
+                        except Exception as echo_error:
+                            logger.error(f"خطا در اکو کردن پیام: {echo_error}")
+                            set_echo_active(False)
                     
                     except Exception as e:
                         logger.error(f"خطا در کامند اکو: {e}")
@@ -1143,7 +1149,7 @@ class UnifiedBotLauncher:
                 # بررسی وضعیت اکو - اگر اکو فعال است، پاسخگویی خودکار نکن
                 try:
                     import sys
-                    sys.path.append('.')
+                    sys.path.append('./bots')
                     from echo_control import is_echo_active
                     if is_echo_active():
                         return

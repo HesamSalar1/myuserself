@@ -45,7 +45,7 @@ app = Client(
 
 # import ماژول کنترل اکو مشترک
 import sys
-sys.path.append('.')
+sys.path.append('..')
 from echo_control import set_echo_active, is_echo_active
 
 # متغیرهای کنترل

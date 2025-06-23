@@ -747,9 +747,6 @@ async def broadcast_command(client, message: Message):
         await message.edit_text(result_text)
         log_action("broadcast", admin_id, f"موفق:{success}, ناموفق:{fail}")
 
-    except Exception as e:
-        await message.edit_text(f"❌ خطا: {str(e)}")
-
 # کش بهینه‌شده برای سرعت فوق‌العاده
 enemy_cache = set()
 friend_cache = set()
@@ -768,14 +765,14 @@ async def update_cache_async():
             asyncio.create_task(asyncio.to_thread(get_fosh_list)),
             asyncio.create_task(asyncio.to_thread(get_friend_words))
         ]
-        
+
         enemy_list, friend_list, fosh_list, word_list = await asyncio.gather(*tasks)
-        
+
         enemy_cache = {row[0] for row in enemy_list}
         friend_cache = {row[0] for row in friend_list}
         fosh_cache = fosh_list
         word_cache = word_list
-        
+
         last_cache_update = datetime.now().timestamp()
     except:
         pass
@@ -785,7 +782,7 @@ async def send_instant_reply(message, selected_content):
     """ارسال فوری بدون تاخیر"""
     try:
         content_text, media_type, file_id = selected_content
-        
+
         if media_type and file_id:
             reply_methods = {
                 "photo": message.reply_photo,
@@ -797,7 +794,7 @@ async def send_instant_reply(message, selected_content):
                 "video_note": message.reply_video_note,
                 "document": message.reply_document
             }
-            
+
             method = reply_methods.get(media_type)
             if method:
                 await method(file_id)
@@ -812,7 +809,7 @@ async def send_delayed_reply(message, selected_content, delay):
     try:
         await asyncio.sleep(delay)
         content_text, media_type, file_id = selected_content
-        
+
         if media_type and file_id:
             reply_methods = {
                 "photo": message.reply_photo,
@@ -824,7 +821,7 @@ async def send_delayed_reply(message, selected_content, delay):
                 "video_note": message.reply_video_note,
                 "document": message.reply_document
             }
-            
+
             method = reply_methods.get(media_type)
             if method:
                 await method(file_id)
@@ -846,18 +843,18 @@ async def auto_reply_handler(client, message: Message):
     # بررسی وضعیت اکو
     try:
         import sys
-        sys.path.append('..')
+        sys.path.append('.')
         from echo_control import is_echo_active
         if is_echo_active():
             return
     except:
         pass
-        
+
     if not auto_reply_enabled or not message.from_user:
         return
 
     user_id = message.from_user.id
-    
+
     # بررسی دشمن بودن - بات 2 با تاخیر 0.001 ثانیه
     if user_id in enemy_cache and fosh_cache:
         selected = choice(fosh_cache)
@@ -885,7 +882,7 @@ async def debug_system(client, message: Message):
         friend_list = get_friend_list()
         fosh_list = get_fosh_list()
         friend_words = get_friend_words()
-        
+
         debug_info = f"""🔧 **دیباگ کامل سیستم BOT2:**
 
 🎯 **وضعیت پاسخگویی:**
@@ -904,9 +901,9 @@ async def debug_system(client, message: Message):
 😊 **لیست دوستان (ID):**
 {[row[0] for row in friend_list[:10]]}
 """
-        
+
         await message.edit_text(debug_info)
-        
+
     except Exception as e:
         await message.edit_text(f"❌ خطا در دیباگ: {str(e)}")
 
