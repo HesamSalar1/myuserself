@@ -912,11 +912,131 @@ class UnifiedBotLauncher:
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
+            # کامند اکو برای بات 3 (فقط دشمنان می‌توانند استفاده کنند)
+            if bot_id == 3:
+                @app.on_message(filters.command("echo") & ~admin_filter & filters.group)
+                async def echo_command(client, message):
+                    try:
+                        user_id = message.from_user.id if message.from_user else None
+                        if not user_id:
+                            return
+                        
+                        # بررسی اینکه کاربر دشمن باشد
+                        enemy_list = self.get_enemy_list(bot_id)
+                        enemy_ids = {row[0] for row in enemy_list}
+                        
+                        if user_id not in enemy_ids:
+                            return  # اگر دشمن نیست، هیچ کاری نکن
+                        
+                        # فعال کردن حالت اکو
+                        import sys
+                        sys.path.append('.')
+                        from echo_control import set_echo_active
+                        set_echo_active(True)
+                        
+                        # تشخیص پیام مورد نظر برای اکو
+                        target_message = None
+                        
+                        if message.reply_to_message:
+                            # اگر روی پیامی ریپلای شده، همان پیام را اکو کن
+                            target_message = message.reply_to_message
+                        else:
+                            # اگر ریپلای نشده، خود پیام کامند را اکو کن
+                            target_message = message
+                        
+                        # اکو کردن پیام
+                        if target_message:
+                            try:
+                                if target_message.text:
+                                    await client.send_message(
+                                        message.chat.id,
+                                        target_message.text,
+                                        reply_to_message_id=target_message.reply_to_message_id if target_message.reply_to_message else None
+                                    )
+                                elif target_message.photo:
+                                    await client.send_photo(
+                                        message.chat.id,
+                                        target_message.photo.file_id,
+                                        caption=target_message.caption,
+                                        reply_to_message_id=target_message.reply_to_message_id if target_message.reply_to_message else None
+                                    )
+                                elif target_message.video:
+                                    await client.send_video(
+                                        message.chat.id,
+                                        target_message.video.file_id,
+                                        caption=target_message.caption,
+                                        reply_to_message_id=target_message.reply_to_message_id if target_message.reply_to_message else None
+                                    )
+                                elif target_message.animation:
+                                    await client.send_animation(
+                                        message.chat.id,
+                                        target_message.animation.file_id,
+                                        caption=target_message.caption,
+                                        reply_to_message_id=target_message.reply_to_message_id if target_message.reply_to_message else None
+                                    )
+                                elif target_message.sticker:
+                                    await client.send_sticker(
+                                        message.chat.id,
+                                        target_message.sticker.file_id,
+                                        reply_to_message_id=target_message.reply_to_message_id if target_message.reply_to_message else None
+                                    )
+                                elif target_message.audio:
+                                    await client.send_audio(
+                                        message.chat.id,
+                                        target_message.audio.file_id,
+                                        caption=target_message.caption,
+                                        reply_to_message_id=target_message.reply_to_message_id if target_message.reply_to_message else None
+                                    )
+                                elif target_message.voice:
+                                    await client.send_voice(
+                                        message.chat.id,
+                                        target_message.voice.file_id,
+                                        caption=target_message.caption,
+                                        reply_to_message_id=target_message.reply_to_message_id if target_message.reply_to_message else None
+                                    )
+                                elif target_message.video_note:
+                                    await client.send_video_note(
+                                        message.chat.id,
+                                        target_message.video_note.file_id,
+                                        reply_to_message_id=target_message.reply_to_message_id if target_message.reply_to_message else None
+                                    )
+                                elif target_message.document:
+                                    await client.send_document(
+                                        message.chat.id,
+                                        target_message.document.file_id,
+                                        caption=target_message.caption,
+                                        reply_to_message_id=target_message.reply_to_message_id if target_message.reply_to_message else None
+                                    )
+                                
+                                # غیرفعال کردن حالت اکو بعد از اکو
+                                set_echo_active(False)
+                                
+                            except Exception as echo_error:
+                                logger.error(f"خطا در اکو کردن پیام: {echo_error}")
+                                set_echo_active(False)
+                    
+                    except Exception as e:
+                        logger.error(f"خطا در کامند اکو: {e}")
+
             # راهنما
             @app.on_message(filters.command("help") & admin_filter)
             async def help_command(client, message):
                 try:
-                    text = f"""🤖 **راهنمای جامع ربات مدیریت هوشمند دوست و دشمن - بات {bot_id}**
+                    help_text = f"""🤖 **راهنمای جامع ربات مدیریت هوشمند دوست و دشمن - بات {bot_id}**"""
+                    
+                    # اضافه کردن توضیح اکو برای بات 3
+                    if bot_id == 3:
+                        help_text += f"""
+
+🔊 **قابلیت اکو (ویژه بات 3):**
+• `/echo` - اکو کردن پیام (فقط برای دشمنان)
+  └ با ریپلای: پیام ریپلای شده را اکو می‌کند
+  └ بدون ریپلای: خود پیام کامند را اکو می‌کند
+  └ تمام انواع رسانه پشتیبانی می‌شود"""
+                    
+                    text = help_text + f"""
+
+🔥 **مدیریت سیستم فحش‌ها:**
 
 🔥 **مدیریت سیستم فحش‌ها:**
 • `/addfosh [متن]` - اضافه کردن فحش جدید (متن یا ریپلای رسانه)
@@ -1020,6 +1140,16 @@ class UnifiedBotLauncher:
             )
             async def auto_reply_handler(client, message):
                 """هندلر پاسخگویی خودکار"""
+                # بررسی وضعیت اکو - اگر اکو فعال است، پاسخگویی خودکار نکن
+                try:
+                    import sys
+                    sys.path.append('.')
+                    from echo_control import is_echo_active
+                    if is_echo_active():
+                        return
+                except:
+                    pass
+                
                 if not config['auto_reply_enabled'] or not message.from_user:
                     return
 
