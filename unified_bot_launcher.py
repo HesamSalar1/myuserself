@@ -1,4 +1,3 @@
-
 import json
 import asyncio
 import sys
@@ -29,8 +28,10 @@ logger = logging.getLogger(__name__)
 class UnifiedBotLauncher:
     def __init__(self):
         self.bots = {}
+        # متغیرهای کنترل
         self.running = False
-        
+        self.count_tasks = {}  # برای ذخیره تسک‌های شمارش
+
         # تنظیمات بات‌ها
         self.bot_configs = {
             1: {
@@ -115,7 +116,7 @@ class UnifiedBotLauncher:
                 'auto_reply_enabled': True
             }
         }
-        
+
         # لیست همه admin_id ها
         self.all_admin_ids = {config['admin_id'] for config in self.bot_configs.values()}
         logger.info(f"🔐 لیست ادمین‌های مجاز: {list(self.all_admin_ids)}")
@@ -126,7 +127,7 @@ class UnifiedBotLauncher:
             os.makedirs(os.path.dirname(db_path), exist_ok=True)
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
+
             # ایجاد جداول مورد نیاز
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS fosh_list (
@@ -137,7 +138,7 @@ class UnifiedBotLauncher:
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
+
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS enemy_list (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -147,7 +148,7 @@ class UnifiedBotLauncher:
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
+
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS friend_list (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -157,7 +158,7 @@ class UnifiedBotLauncher:
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
+
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS friend_words (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -167,7 +168,7 @@ class UnifiedBotLauncher:
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
+
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS action_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -177,11 +178,11 @@ class UnifiedBotLauncher:
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
+
             conn.commit()
             conn.close()
             logger.info(f"✅ پایگاه داده بات {bot_id} آماده شد")
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در تنظیم پایگاه داده بات {bot_id}: {e}")
 
@@ -420,16 +421,16 @@ class UnifiedBotLauncher:
         try:
             # تنظیم پایگاه داده
             self.setup_database(bot_id, config['db_path'])
-            
+
             # ایجاد کلاینت
             app = Client(
                 config['session_name'],
                 api_id=config['api_id'],
                 api_hash=config['api_hash']
             )
-            
+
             admin_id = config['admin_id']
-            
+
             # تعریف هندلرها - همه کامندها برای همه ادمین‌ها
             def is_admin_user(_, __, message):
                 if not message.from_user:
@@ -441,9 +442,9 @@ class UnifiedBotLauncher:
                 else:
                     logger.debug(f"❌ کاربر {user_id} ادمین نیست - ادمین‌های مجاز: {self.all_admin_ids}")
                 return is_admin
-            
+
             admin_filter = filters.create(is_admin_user)
-            
+
             @app.on_message(filters.command("start") & admin_filter)
             async def start_command(client, message):
                 try:
@@ -458,13 +459,13 @@ class UnifiedBotLauncher:
                     user_id = message.from_user.id
                     user_bot = self.get_bot_for_admin(user_id)
                     admin_list = list(self.all_admin_ids)
-                    
+
                     text = f"🔍 **تست تشخیص ادمین:**\n\n"
                     text += f"👤 شما: `{user_id}`\n"
                     text += f"🤖 بات مربوطه: `{user_bot or 'یافت نشد'}`\n"
                     text += f"📋 لیست کامل ادمین‌ها: `{admin_list}`\n"
                     text += f"✅ وضعیت: ادمین تشخیص داده شده"
-                    
+
                     await message.reply_text(text)
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
@@ -920,35 +921,35 @@ class UnifiedBotLauncher:
                         user_id = message.from_user.id if message.from_user else None
                         if not user_id:
                             return
-                        
+
                         # اگر ادمین است، هیچ کاری نکن
                         if user_id in self.all_admin_ids:
                             return
-                        
+
                         # بررسی اینکه کاربر دشمن باشد
                         enemy_list = self.get_enemy_list(bot_id)
                         enemy_ids = {row[0] for row in enemy_list}
-                        
+
                         if user_id not in enemy_ids:
                             return  # اگر دشمن نیست، هیچ کاری نکن
-                        
+
                         # فعال کردن حالت اکو
                         import sys
                         sys.path.append('./bots')
                         from echo_control import set_echo_active
                         set_echo_active(True)
-                        
+
                         # استخراج متن بعد از /echo
                         echo_text = None
                         if len(message.command) > 1:
                             # متن بعد از /echo
                             echo_text = " ".join(message.command[1:])
-                        
+
                         try:
                             if message.reply_to_message:
                                 # اگر روی پیامی ریپلای شده، همان پیام را اکو کن
                                 target_message = message.reply_to_message
-                                
+
                                 if target_message.text:
                                     await client.send_message(
                                         message.chat.id,
@@ -1012,15 +1013,15 @@ class UnifiedBotLauncher:
                             elif echo_text:
                                 # اگر متن بعد از /echo وجود دارد، آن را اکو کن
                                 await client.send_message(message.chat.id, echo_text)
-                            
+
                             # غیرفعال کردن حالت اکو بعد از اکو
                             await asyncio.sleep(0.1)  # کمی تاخیر برای اطمینان از ارسال
                             set_echo_active(False)
-                            
+
                         except Exception as echo_error:
                             logger.error(f"خطا در اکو کردن پیام: {echo_error}")
                             set_echo_active(False)
-                    
+
                     except Exception as e:
                         logger.error(f"خطا در کامند اکو: {e}")
 
@@ -1029,7 +1030,7 @@ class UnifiedBotLauncher:
             async def help_command(client, message):
                 try:
                     help_text = f"""🤖 **راهنمای جامع ربات مدیریت هوشمند دوست و دشمن - بات {bot_id}**"""
-                    
+
                     # اضافه کردن توضیح اکو برای بات 3
                     if bot_id == 3:
                         help_text += f"""
@@ -1039,7 +1040,7 @@ class UnifiedBotLauncher:
   └ با ریپلای: پیام ریپلای شده را اکو می‌کند
   └ بدون ریپلای: خود پیام کامند را اکو می‌کند
   └ تمام انواع رسانه پشتیبانی می‌شود"""
-                    
+
                     text = help_text + f"""
 
 🔥 **مدیریت سیستم فحش‌ها:**
@@ -1101,13 +1102,13 @@ class UnifiedBotLauncher:
 
 📋 **جزئیات بات‌ها:**
 """
-                        
+
                         for bot_info in status['bots']:
                             emoji = "✅" if bot_info['status'] == 'running' else "❌"
                             status_text += f"{emoji} بات {bot_info['id']}: {bot_info['status']}\n"
-                        
+
                         await message.reply_text(status_text.strip())
-                        
+
                     except Exception as e:
                         await message.reply_text(f"❌ خطا: {e}")
 
@@ -1117,20 +1118,20 @@ class UnifiedBotLauncher:
                         if len(message.command) < 2:
                             await message.reply_text("⚠️ استفاده: /restart [شماره_بات]\nمثال: /restart 2")
                             return
-                        
+
                         target_bot_id = int(message.command[1])
                         if target_bot_id not in self.bot_configs:
                             await message.reply_text(f"❌ بات {target_bot_id} یافت نشد")
                             return
-                        
+
                         await message.reply_text(f"🔄 راه‌اندازی مجدد بات {target_bot_id}...")
-                        
+
                         success = await self.restart_bot(target_bot_id)
                         if success:
                             await message.reply_text(f"✅ بات {target_bot_id} مجدداً راه‌اندازی شد")
                         else:
                             await message.reply_text(f"❌ خطا در راه‌اندازی مجدد بات {target_bot_id}")
-                        
+
                     except ValueError:
                         await message.reply_text("❌ شماره بات نامعتبر")
                     except Exception as e:
@@ -1155,16 +1156,16 @@ class UnifiedBotLauncher:
                         return
                 except:
                     pass
-                
+
                 if not config['auto_reply_enabled'] or not message.from_user:
                     return
 
                 user_id = message.from_user.id
-                
+
                 # بررسی دشمن بودن
                 enemy_list = self.get_enemy_list(bot_id)
                 enemy_ids = {row[0] for row in enemy_list}
-                
+
                 if user_id in enemy_ids:
                     fosh_list = self.get_fosh_list(bot_id)
                     if fosh_list:
@@ -1175,7 +1176,7 @@ class UnifiedBotLauncher:
                 # بررسی دوست بودن
                 friend_list = self.get_friend_list(bot_id)
                 friend_ids = {row[0] for row in friend_list}
-                
+
                 if user_id in friend_ids:
                     word_list = self.get_friend_words(bot_id)
                     if word_list:
@@ -1188,10 +1189,10 @@ class UnifiedBotLauncher:
                 'config': config,
                 'status': 'initialized'
             }
-            
+
             logger.info(f"✅ بات {bot_id} ایجاد شد")
             return app
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در ایجاد بات {bot_id}: {e}")
             return None
@@ -1200,7 +1201,7 @@ class UnifiedBotLauncher:
         """ارسال پاسخ"""
         try:
             content_text, media_type, file_id = selected_content
-            
+
             if media_type and file_id:
                 reply_methods = {
                     "photo": message.reply_photo,
@@ -1212,7 +1213,7 @@ class UnifiedBotLauncher:
                     "video_note": message.reply_video_note,
                     "document": message.reply_document
                 }
-                
+
                 method = reply_methods.get(media_type)
                 if method:
                     await method(file_id)
@@ -1225,7 +1226,7 @@ class UnifiedBotLauncher:
         """شروع همه بات‌ها"""
         self.running = True
         logger.info("🚀 شروع لانچر واحد بات‌ها...")
-        
+
         # ایجاد همه بات‌ها
         tasks = []
         for bot_id, config in self.bot_configs.items():
@@ -1233,7 +1234,7 @@ class UnifiedBotLauncher:
             bot = await self.create_bot(bot_id, config)
             if bot:
                 tasks.append(self.start_single_bot(bot_id))
-        
+
         # شروع همه بات‌ها به صورت موازی
         if tasks:
             logger.info(f"🎯 شروع {len(tasks)} بات...")
@@ -1245,18 +1246,18 @@ class UnifiedBotLauncher:
             if bot_id not in self.bots:
                 logger.error(f"❌ بات {bot_id} یافت نشد")
                 return
-            
+
             bot_info = self.bots[bot_id]
             client = bot_info['client']
-            
+
             logger.info(f"🚀 شروع بات {bot_id}...")
-            
+
             await client.start()
             bot_info['status'] = 'running'
             bot_info['start_time'] = datetime.now()
-            
+
             logger.info(f"✅ بات {bot_id} آماده و در حال اجرا!")
-            
+
             # مانیتورینگ و نگه داشتن بات زنده
             while self.running and bot_info['status'] == 'running':
                 try:
@@ -1264,18 +1265,18 @@ class UnifiedBotLauncher:
                     if not client.is_connected:
                         logger.warning(f"⚠️ بات {bot_id} اتصال قطع شده - تلاش برای اتصال مجدد...")
                         await client.start()
-                    
+
                     await asyncio.sleep(10)  # بررسی هر 10 ثانیه
-                    
+
                 except Exception as monitor_error:
                     logger.error(f"❌ خطا در مانیتورینگ بات {bot_id}: {monitor_error}")
                     await asyncio.sleep(5)
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در شروع بات {bot_id}: {e}")
             if bot_id in self.bots:
                 self.bots[bot_id]['status'] = 'error'
-                
+
                 # تلاش برای راه‌اندازی مجدد خودکار
                 logger.info(f"🔄 تلاش برای راه‌اندازی مجدد خودکار بات {bot_id} در 30 ثانیه...")
                 await asyncio.sleep(30)
@@ -1299,11 +1300,11 @@ class UnifiedBotLauncher:
         """متوقف کردن همه بات‌ها"""
         logger.info("🛑 متوقف کردن همه بات‌ها...")
         self.running = False
-        
+
         tasks = []
         for bot_id in list(self.bots.keys()):
             tasks.append(self.stop_single_bot(bot_id))
-        
+
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -1311,11 +1312,11 @@ class UnifiedBotLauncher:
         """راه‌اندازی مجدد یک بات"""
         try:
             logger.info(f"🔄 راه‌اندازی مجدد بات {bot_id}...")
-            
+
             # متوقف کردن بات فعلی
             await self.stop_single_bot(bot_id)
             await asyncio.sleep(2)
-            
+
             # ایجاد مجدد بات
             if bot_id in self.bot_configs:
                 config = self.bot_configs[bot_id]
@@ -1325,9 +1326,9 @@ class UnifiedBotLauncher:
                     asyncio.create_task(self.start_single_bot(bot_id))
                     logger.info(f"✅ بات {bot_id} مجدداً راه‌اندازی شد")
                     return True
-            
+
             return False
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در راه‌اندازی مجدد بات {bot_id}: {e}")
             return False
@@ -1340,14 +1341,14 @@ class UnifiedBotLauncher:
             'error_bots': len([b for b in self.bots.values() if b['status'] == 'error']),
             'bots': []
         }
-        
+
         for bot_id, bot_info in self.bots.items():
             status['bots'].append({
                 'id': bot_id,
                 'status': bot_info['status'],
                 'config': bot_info['config']['session_name']
             })
-        
+
         return status
 
 # متغیر کلی لانچر
@@ -1362,10 +1363,10 @@ async def main():
         print("🎯 شروع همه ۹ بات در یک فرآیند...")
         print("📍 برای متوقف کردن: Ctrl+C")
         print("="*60)
-        
+
         # شروع همه بات‌ها
         await launcher.start_all_bots()
-        
+
     except KeyboardInterrupt:
         logger.info("🔴 متوقف شدن با Ctrl+C")
     except Exception as e:
