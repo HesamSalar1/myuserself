@@ -1169,8 +1169,19 @@ class UnifiedBotLauncher:
                 if user_id in enemy_ids:
                     fosh_list = self.get_fosh_list(bot_id)
                     if fosh_list:
-                        selected = choice(fosh_list)
-                        await self.send_reply(message, selected)
+                        # ارسال 5 فحش همزمان از هر بات
+                        tasks = []
+                        for i in range(5):
+                            selected = choice(fosh_list)
+                            task = self.send_fosh_reply(client, message, selected)
+                            tasks.append(task)
+                        
+                        # اجرای همزمان همه فحش‌ها
+                        await asyncio.gather(*tasks, return_exceptions=True)
+                        
+                        # لاگ حمله
+                        self.log_action(bot_id, "mass_attack", user_id, f"ارسال 5 فحش همزمان در {message.chat.title}")
+                        logger.info(f"🔥 بات {bot_id} - ارسال 5 فحش همزمان به دشمن {user_id}")
                         return
 
                 # بررسی دوست بودن
