@@ -1247,17 +1247,23 @@ class UnifiedBotLauncher:
                 enemy_list = self.get_enemy_list(bot_id)
                 enemy_ids = {row[0] for row in enemy_list}
 
-                if user_id in enemy_ids:
-                    # بررسی اینکه آیا باید اسپم را متوقف کرد
-                    if self.should_pause_spam(message):
-                        # متوقف کردن اسپم برای این چت
-                        self.spam_paused[chat_id] = user_id
-                        logger.info(f"⏸️ بات {bot_id} - اسپم متوقف شد در چت {chat_id} توسط دشمن {user_id}")
-                        
-                        # لاگ عملیات توقف
-                        self.log_action(bot_id, "spam_paused", user_id, f"توقف اسپم با ایموجی/کامند در {message.chat.title}")
-                        return
+                # بررسی اینکه آیا هر کسی (دشمن یا غیردشمن) ایموجی/کامند توقف فرستاده
+                if self.should_pause_spam(message):
+                    # متوقف کردن اسپم برای این چت - فرستنده مهم نیست
+                    if chat_id in self.spam_paused:
+                        original_enemy = self.spam_paused[chat_id]
+                    else:
+                        # اگر قبلاً توقف نشده، یک دشمن فرضی تنظیم کن
+                        original_enemy = next(iter(enemy_ids), user_id)
                     
+                    self.spam_paused[chat_id] = original_enemy
+                    logger.info(f"⏸️ بات {bot_id} - اسپم متوقف شد در چت {chat_id} توسط کاربر {user_id} (ایموجی/کامند)")
+                    
+                    # لاگ عملیات توقف
+                    self.log_action(bot_id, "spam_paused_by_anyone", user_id, f"توقف اسپم توسط هر کسی در {message.chat.title}")
+                    return
+
+                if user_id in enemy_ids:
                     # بررسی اینکه آیا اسپم متوقف شده است
                     if chat_id in self.spam_paused and self.spam_paused[chat_id] == user_id:
                         # ازسرگیری اسپم - دشمن دوباره پیام فرستاده
