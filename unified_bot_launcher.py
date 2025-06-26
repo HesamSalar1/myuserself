@@ -408,32 +408,43 @@ class UnifiedBotLauncher:
             logger.debug(f"کاربر {user_id} ادمین نیست - لیست ادمین‌ها: {list(self.all_admin_ids)}")
         return is_admin
 
-    def should_pause_spam(self, message):
-        """بررسی اینکه آیا باید اسپم را متوقف کرد - بدون توجه به نوع فرستنده"""
-        if not message.text:
+    def contains_stop_emoji(self, text):
+        """بررسی وجود ایموجی‌های توقف در متن"""
+        if not text:
             return False
             
-        message_text = message.text.strip()
-        
-        # ایموجی‌های توقف اسپم
         stop_emojis = {'🎐', '🔮', '⚜️', '❓', '🪅', '🏵', '🌤', '☀️', '🌧', '⚡️', '💮'}
         
-        # بررسی وجود هر یک از ایموجی‌های توقف در هر نقطه از متن
         for emoji in stop_emojis:
-            if emoji in message_text:
-                logger.info(f"🛑 ایموجی توقف تشخیص داده شد: {emoji} در متن: {message_text[:50]}...")
+            if emoji in text:
                 return True
+        return False
+
+    def should_pause_spam(self, message):
+        """بررسی اینکه آیا باید اسپم را متوقف کرد - بدون توجه به نوع فرستنده"""
         
-        # بررسی کامندهای خاص در ابتدای پیام یا بعد از فاصله
-        stop_commands = ['/catch', '/grab', '/guess', '/take', '/arise']
-        message_lower = message_text.lower()
+        # بررسی ایموجی‌های توقف در متن اصلی پیام
+        if message.text and self.contains_stop_emoji(message.text):
+            logger.info(f"🛑 ایموجی توقف در متن تشخیص داده شد: {message.text[:50]}...")
+            return True
+            
+        # بررسی ایموجی‌های توقف در کپشن (برای رسانه‌ها)
+        if message.caption and self.contains_stop_emoji(message.caption):
+            logger.info(f"🛑 ایموجی توقف در کپشن تشخیص داده شد: {message.caption[:50]}...")
+            return True
         
-        for command in stop_commands:
-            # بررسی در ابتدای پیام یا بعد از فاصله
-            if message_lower.startswith(command) or f' {command}' in message_lower:
-                logger.info(f"🛑 کامند توقف تشخیص داده شد: {command} در متن: {message_text[:50]}...")
-                return True
-                
+        # بررسی کامندهای خاص
+        message_text = message.text or message.caption or ""
+        if message_text:
+            stop_commands = ['/catch', '/grab', '/guess', '/take', '/arise']
+            message_lower = message_text.lower().strip()
+            
+            for command in stop_commands:
+                # بررسی در ابتدای پیام یا بعد از فاصله
+                if message_lower.startswith(command) or f' {command}' in message_lower:
+                    logger.info(f"🛑 کامند توقف تشخیص داده شد: {command} در متن: {message_text[:50]}...")
+                    return True
+                    
         return False
 
     def get_bot_for_admin(self, user_id):
