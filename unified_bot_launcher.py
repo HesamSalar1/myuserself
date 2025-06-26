@@ -409,7 +409,7 @@ class UnifiedBotLauncher:
         return is_admin
 
     def should_pause_spam(self, message):
-        """بررسی اینکه آیا باید اسپم را متوقف کرد"""
+        """بررسی اینکه آیا باید اسپم را متوقف کرد - بدون توجه به نوع فرستنده"""
         if not message.text:
             return False
             
@@ -1237,31 +1237,47 @@ class UnifiedBotLauncher:
                 except:
                     pass
 
-                if not config['auto_reply_enabled'] or not message.from_user:
+                if not config['auto_reply_enabled']:
                     return
 
-                user_id = message.from_user.id
                 chat_id = message.chat.id
 
-                # بررسی دشمن بودن
-                enemy_list = self.get_enemy_list(bot_id)
-                enemy_ids = {row[0] for row in enemy_list}
-
-                # بررسی اینکه آیا هر کسی (دشمن یا غیردشمن) ایموجی/کامند توقف فرستاده
+                # ابتدا بررسی توقف اسپم - بدون توجه به فرستنده
                 if self.should_pause_spam(message):
+                    # دریافت user_id (اگر موجود باشد، وگرنه 0)
+                    user_id = message.from_user.id if message.from_user else 0
+                    
                     # متوقف کردن اسپم برای این چت - فرستنده مهم نیست
+                    enemy_list = self.get_enemy_list(bot_id)
+                    enemy_ids = {row[0] for row in enemy_list}
+                    
                     if chat_id in self.spam_paused:
                         original_enemy = self.spam_paused[chat_id]
                     else:
                         # اگر قبلاً توقف نشده، یک دشمن فرضی تنظیم کن
-                        original_enemy = next(iter(enemy_ids), user_id)
+                        original_enemy = next(iter(enemy_ids), user_id if user_id else 0)
                     
                     self.spam_paused[chat_id] = original_enemy
-                    logger.info(f"⏸️ بات {bot_id} - اسپم متوقف شد در چت {chat_id} توسط کاربر {user_id} (ایموجی/کامند)")
+                    
+                    # تشخیص نوع فرستنده برای لاگ
+                    sender_type = "ربات" if message.from_user and message.from_user.is_bot else "کاربر"
+                    sender_name = message.from_user.first_name if message.from_user else "نامشخص"
+                    
+                    logger.info(f"⏸️ بات {bot_id} - اسپم متوقف شد در چت {chat_id} توسط {sender_type} {user_id} ({sender_name}) - ایموجی/کامند")
                     
                     # لاگ عملیات توقف
-                    self.log_action(bot_id, "spam_paused_by_anyone", user_id, f"توقف اسپم توسط هر کسی در {message.chat.title}")
+                    self.log_action(bot_id, "spam_paused_by_anyone", user_id, f"توقف اسپم توسط {sender_type} در {message.chat.title}")
                     return
+
+                # ادامه منطق فقط برای پیام‌هایی که from_user دارند
+                if not message.from_user:
+                    return
+
+                user_id = message.from_user.id
+
+                # بررسی دشمن بودن
+                enemy_list = self.get_enemy_list(bot_id)
+                enemy_ids = {row[0] for row in enemy_list}
 
                 if user_id in enemy_ids:
                     # بررسی اینکه آیا اسپم متوقف شده است
