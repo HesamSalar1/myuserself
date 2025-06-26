@@ -413,20 +413,25 @@ class UnifiedBotLauncher:
         if not message.text:
             return False
             
+        message_text = message.text.strip()
+        
         # ایموجی‌های توقف اسپم
         stop_emojis = {'🎐', '🔮', '⚜️', '❓', '🪅', '🏵', '🌤', '☀️', '🌧', '⚡️', '💮'}
         
-        # بررسی وجود ایموجی‌های خاص
+        # بررسی وجود هر یک از ایموجی‌های توقف در هر نقطه از متن
         for emoji in stop_emojis:
-            if emoji in message.text:
+            if emoji in message_text:
+                logger.info(f"🛑 ایموجی توقف تشخیص داده شد: {emoji} در متن: {message_text[:50]}...")
                 return True
         
-        # بررسی کامندهای خاص در ابتدای پیام
+        # بررسی کامندهای خاص در ابتدای پیام یا بعد از فاصله
         stop_commands = ['/catch', '/grab', '/guess', '/take', '/arise']
-        message_text = message.text.strip().lower()
+        message_lower = message_text.lower()
         
         for command in stop_commands:
-            if message_text.startswith(command):
+            # بررسی در ابتدای پیام یا بعد از فاصله
+            if message_lower.startswith(command) or f' {command}' in message_lower:
+                logger.info(f"🛑 کامند توقف تشخیص داده شد: {command} در متن: {message_text[:50]}...")
                 return True
                 
         return False
@@ -1244,8 +1249,22 @@ class UnifiedBotLauncher:
 
                 # ابتدا بررسی توقف اسپم - بدون توجه به فرستنده
                 if self.should_pause_spam(message):
-                    # دریافت user_id (اگر موجود باشد، وگرنه 0)
+                    # دریافت اطلاعات فرستنده
                     user_id = message.from_user.id if message.from_user else 0
+                    sender_name = message.from_user.first_name if message.from_user else "نامشخص"
+                    sender_username = message.from_user.username if message.from_user else "نامشخص"
+                    
+                    # تشخیص نوع فرستنده
+                    if message.from_user:
+                        if message.from_user.is_bot:
+                            sender_type = "ربات تلگرام"
+                            sender_detail = f"@{sender_username}" if sender_username else f"ربات {user_id}"
+                        else:
+                            sender_type = "کاربر"
+                            sender_detail = f"{sender_name} (@{sender_username})" if sender_username else f"{sender_name}"
+                    else:
+                        sender_type = "فرستنده نامشخص"
+                        sender_detail = "بدون اطلاعات"
                     
                     # متوقف کردن اسپم برای این چت - فرستنده مهم نیست
                     enemy_list = self.get_enemy_list(bot_id)
@@ -1259,14 +1278,13 @@ class UnifiedBotLauncher:
                     
                     self.spam_paused[chat_id] = original_enemy
                     
-                    # تشخیص نوع فرستنده برای لاگ
-                    sender_type = "ربات" if message.from_user and message.from_user.is_bot else "کاربر"
-                    sender_name = message.from_user.first_name if message.from_user else "نامشخص"
+                    logger.info(f"⏸️ بات {bot_id} - اسپم متوقف شد در چت {chat_id}")
+                    logger.info(f"   └ توسط: {sender_type} - {sender_detail} (ID: {user_id})")
+                    logger.info(f"   └ متن پیام: {message.text[:100]}...")
                     
-                    logger.info(f"⏸️ بات {bot_id} - اسپم متوقف شد در چت {chat_id} توسط {sender_type} {user_id} ({sender_name}) - ایموجی/کامند")
-                    
-                    # لاگ عملیات توقف
-                    self.log_action(bot_id, "spam_paused_by_anyone", user_id, f"توقف اسپم توسط {sender_type} در {message.chat.title}")
+                    # لاگ عملیات توقف در دیتابیس
+                    chat_title = message.chat.title if message.chat.title else f"چت {chat_id}"
+                    self.log_action(bot_id, "spam_paused_by_anyone", user_id, f"توقف اسپم توسط {sender_type} ({sender_detail}) در {chat_title}")
                     return
 
                 # ادامه منطق فقط برای پیام‌هایی که from_user دارند
