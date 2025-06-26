@@ -1381,9 +1381,9 @@ class UnifiedBotLauncher:
 
                 method = reply_methods.get(media_type)
                 if method:
-                    await method(message.chat.id, file_id, reply_to_message_id=message.message_id)
+                    await method(message.chat.id, file_id, reply_to_message_id=message.id)
             elif content_text:
-                await client.send_message(message.chat.id, content_text, reply_to_message_id=message.message_id)
+                await client.send_message(message.chat.id, content_text, reply_to_message_id=message.id)
         except Exception as e:
             logger.error(f"خطا در ارسال فحش: {e}")
 
