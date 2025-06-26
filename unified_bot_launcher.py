@@ -1169,19 +1169,33 @@ class UnifiedBotLauncher:
                 if user_id in enemy_ids:
                     fosh_list = self.get_fosh_list(bot_id)
                     if fosh_list:
-                        # ارسال 5 فحش همزمان از هر بات
-                        tasks = []
-                        for i in range(5):
+                        # مرحله 1: ارسال 2 فحش بلافاصله
+                        tasks_immediate = []
+                        for i in range(2):
                             selected = choice(fosh_list)
                             task = self.send_fosh_reply(client, message, selected)
-                            tasks.append(task)
+                            tasks_immediate.append(task)
                         
-                        # اجرای همزمان همه فحش‌ها
-                        await asyncio.gather(*tasks, return_exceptions=True)
+                        await asyncio.gather(*tasks_immediate, return_exceptions=True)
+                        
+                        # مرحله 2: تاخیر 1 ثانیه و ارسال 2 فحش دیگر
+                        await asyncio.sleep(1)
+                        tasks_delayed1 = []
+                        for i in range(2):
+                            selected = choice(fosh_list)
+                            task = self.send_fosh_reply(client, message, selected)
+                            tasks_delayed1.append(task)
+                        
+                        await asyncio.gather(*tasks_delayed1, return_exceptions=True)
+                        
+                        # مرحله 3: تاخیر 1 ثانیه دیگر و ارسال آخرین فحش
+                        await asyncio.sleep(1)
+                        selected = choice(fosh_list)
+                        await self.send_fosh_reply(client, message, selected)
                         
                         # لاگ حمله
-                        self.log_action(bot_id, "mass_attack", user_id, f"ارسال 5 فحش همزمان در {message.chat.title}")
-                        logger.info(f"🔥 بات {bot_id} - ارسال 5 فحش همزمان به دشمن {user_id}")
+                        self.log_action(bot_id, "timed_attack", user_id, f"ارسال 5 فحش با زمان‌بندی در {message.chat.title}")
+                        logger.info(f"🔥 بات {bot_id} - ارسال 5 فحش با زمان‌بندی (2+2+1) به دشمن {user_id}")
                         return
 
                 # بررسی دوست بودن
