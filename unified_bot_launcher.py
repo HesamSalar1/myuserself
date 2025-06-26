@@ -1284,8 +1284,8 @@ class UnifiedBotLauncher:
                             
                             await asyncio.gather(*tasks_immediate, return_exceptions=True)
                             
-                            # مرحله 2: تاخیر 1 ثانیه و ارسال 2 فحش دیگر
-                            await asyncio.sleep(1)
+                            # مرحله 2: تاخیر 2 ثانیه و ارسال 2 فحش دیگر
+                            await asyncio.sleep(2)
                             tasks_delayed1 = []
                             for i in range(2):
                                 selected = choice(fosh_list)
@@ -1301,7 +1301,7 @@ class UnifiedBotLauncher:
                             
                             # لاگ حمله
                             self.log_action(bot_id, "timed_attack", user_id, f"ارسال 5 فحش با زمان‌بندی در {message.chat.title}")
-                            logger.info(f"🔥 بات {bot_id} - ارسال 5 فحش با زمان‌بندی (2+2+1) به دشمن {user_id}")
+                            logger.info(f"🔥 بات {bot_id} - ارسال 5 فحش با زمان‌بندی (2+2s+1s) به دشمن {user_id}")
                     return
 
                 # بررسی دوست بودن
