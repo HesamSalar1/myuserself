@@ -31,6 +31,7 @@ class UnifiedBotLauncher:
         # متغیرهای کنترل
         self.running = False
         self.count_tasks = {}  # برای ذخیره تسک‌های شمارش
+        self.spam_paused = {}  # برای توقف اسپم در چت‌های خاص {chat_id: user_id}
 
         # تنظیمات بات‌ها
         self.bot_configs = {
@@ -406,6 +407,29 @@ class UnifiedBotLauncher:
         else:
             logger.debug(f"کاربر {user_id} ادمین نیست - لیست ادمین‌ها: {list(self.all_admin_ids)}")
         return is_admin
+
+    def should_pause_spam(self, message):
+        """بررسی اینکه آیا باید اسپم را متوقف کرد"""
+        if not message.text:
+            return False
+            
+        # ایموجی‌های توقف اسپم
+        stop_emojis = {'🎐', '🔮', '⚜️', '❓', '🪅', '🏵', '🌤', '☀️', '🌧', '⚡️', '💮'}
+        
+        # بررسی وجود ایموجی‌های خاص
+        for emoji in stop_emojis:
+            if emoji in message.text:
+                return True
+        
+        # بررسی کامندهای خاص در ابتدای پیام
+        stop_commands = ['/catch', '/grab', '/guess', '/take', '/arise']
+        message_text = message.text.strip().lower()
+        
+        for command in stop_commands:
+            if message_text.startswith(command):
+                return True
+                
+        return False
 
     def get_bot_for_admin(self, user_id):
         """پیدا کردن شماره بات برای ادمین مشخص"""
@@ -1025,6 +1049,53 @@ class UnifiedBotLauncher:
                     except Exception as e:
                         logger.error(f"خطا در کامند اکو: {e}")
 
+            # کامند مدیریت توقف اسپم
+            @app.on_message(filters.command("pausestatus") & admin_filter)
+            async def pause_status_command(client, message):
+                try:
+                    if not self.spam_paused:
+                        await message.reply_text(f"✅ **وضعیت اسپم بات {bot_id}:** فعال در همه چت‌ها")
+                        return
+                    
+                    text = f"⏸️ **چت‌های متوقف شده برای بات {bot_id}:**\n\n"
+                    for chat_id, user_id in self.spam_paused.items():
+                        try:
+                            chat_info = await client.get_chat(chat_id)
+                            chat_name = chat_info.title or f"چت {chat_id}"
+                        except:
+                            chat_name = f"چت {chat_id}"
+                        
+                        text += f"🔸 {chat_name}\n   └ توسط دشمن: `{user_id}`\n"
+                    
+                    await message.reply_text(text)
+                    
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("resumespam") & admin_filter)
+            async def resume_spam_command(client, message):
+                try:
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ استفاده: `/resumespam [chat_id]`\nمثال: `/resumespam -1001234567890`")
+                        return
+                    
+                    try:
+                        chat_id = int(message.command[1])
+                    except ValueError:
+                        await message.reply_text("❌ شناسه چت نامعتبر")
+                        return
+                    
+                    if chat_id in self.spam_paused:
+                        user_id = self.spam_paused[chat_id]
+                        del self.spam_paused[chat_id]
+                        await message.reply_text(f"▶️ **اسپم بات {bot_id} در چت `{chat_id}` ازسرگیری شد**\n👤 دشمن قبلی: `{user_id}`")
+                        self.log_action(bot_id, "manual_resume", message.from_user.id, f"ازسرگیری دستی اسپم در چت {chat_id}")
+                    else:
+                        await message.reply_text(f"✅ اسپم در چت `{chat_id}` قبلاً فعال بوده")
+                        
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
             # راهنما
             @app.on_message(filters.command("help") & admin_filter)
             async def help_command(client, message):
@@ -1080,7 +1151,16 @@ class UnifiedBotLauncher:
 • `/offself` - غیرفعال کردن پاسخگویی
 • `/stats` - نمایش آمار کامل سیستم
 • `/start` - راه‌اندازی مجدد ربات
-• `/help` - نمایش این راهنما"""
+• `/help` - نمایش این راهنما
+
+⏸️ **کنترل هوشمند اسپم:**
+• `/pausestatus` - نمایش وضعیت توقف اسپم در چت‌ها
+• `/resumespam [chat_id]` - ازسرگیری دستی اسپم در چت مشخص
+
+🛑 **توقف خودکار اسپم:**
+• ایموجی‌های توقف: 🎐🔮⚜️❓🪅🏵🌤☀️🌧⚡️💮
+• کامندهای توقف: `/catch` `/grab` `/guess` `/take` `/arise`
+└ اسپم تا پیام بعدی دشمن متوقف می‌شود"""
 
                     await message.reply_text(text)
 
@@ -1161,42 +1241,62 @@ class UnifiedBotLauncher:
                     return
 
                 user_id = message.from_user.id
+                chat_id = message.chat.id
 
                 # بررسی دشمن بودن
                 enemy_list = self.get_enemy_list(bot_id)
                 enemy_ids = {row[0] for row in enemy_list}
 
                 if user_id in enemy_ids:
-                    fosh_list = self.get_fosh_list(bot_id)
-                    if fosh_list:
-                        # مرحله 1: ارسال 2 فحش بلافاصله
-                        tasks_immediate = []
-                        for i in range(2):
-                            selected = choice(fosh_list)
-                            task = self.send_fosh_reply(client, message, selected)
-                            tasks_immediate.append(task)
+                    # بررسی اینکه آیا باید اسپم را متوقف کرد
+                    if self.should_pause_spam(message):
+                        # متوقف کردن اسپم برای این چت
+                        self.spam_paused[chat_id] = user_id
+                        logger.info(f"⏸️ بات {bot_id} - اسپم متوقف شد در چت {chat_id} توسط دشمن {user_id}")
                         
-                        await asyncio.gather(*tasks_immediate, return_exceptions=True)
-                        
-                        # مرحله 2: تاخیر 1 ثانیه و ارسال 2 فحش دیگر
-                        await asyncio.sleep(1)
-                        tasks_delayed1 = []
-                        for i in range(2):
-                            selected = choice(fosh_list)
-                            task = self.send_fosh_reply(client, message, selected)
-                            tasks_delayed1.append(task)
-                        
-                        await asyncio.gather(*tasks_delayed1, return_exceptions=True)
-                        
-                        # مرحله 3: تاخیر 1 ثانیه دیگر و ارسال آخرین فحش
-                        await asyncio.sleep(1)
-                        selected = choice(fosh_list)
-                        await self.send_fosh_reply(client, message, selected)
-                        
-                        # لاگ حمله
-                        self.log_action(bot_id, "timed_attack", user_id, f"ارسال 5 فحش با زمان‌بندی در {message.chat.title}")
-                        logger.info(f"🔥 بات {bot_id} - ارسال 5 فحش با زمان‌بندی (2+2+1) به دشمن {user_id}")
+                        # لاگ عملیات توقف
+                        self.log_action(bot_id, "spam_paused", user_id, f"توقف اسپم با ایموجی/کامند در {message.chat.title}")
                         return
+                    
+                    # بررسی اینکه آیا اسپم متوقف شده است
+                    if chat_id in self.spam_paused and self.spam_paused[chat_id] == user_id:
+                        # ازسرگیری اسپم - دشمن دوباره پیام فرستاده
+                        del self.spam_paused[chat_id]
+                        logger.info(f"▶️ بات {bot_id} - ازسرگیری اسپم در چت {chat_id} - دشمن {user_id} دوباره پیام فرستاد")
+                        self.log_action(bot_id, "spam_resumed", user_id, f"ازسرگیری اسپم در {message.chat.title}")
+                    
+                    # اگر اسپم متوقف نیست، حمله کن
+                    if chat_id not in self.spam_paused:
+                        fosh_list = self.get_fosh_list(bot_id)
+                        if fosh_list:
+                            # مرحله 1: ارسال 2 فحش بلافاصله
+                            tasks_immediate = []
+                            for i in range(2):
+                                selected = choice(fosh_list)
+                                task = self.send_fosh_reply(client, message, selected)
+                                tasks_immediate.append(task)
+                            
+                            await asyncio.gather(*tasks_immediate, return_exceptions=True)
+                            
+                            # مرحله 2: تاخیر 1 ثانیه و ارسال 2 فحش دیگر
+                            await asyncio.sleep(1)
+                            tasks_delayed1 = []
+                            for i in range(2):
+                                selected = choice(fosh_list)
+                                task = self.send_fosh_reply(client, message, selected)
+                                tasks_delayed1.append(task)
+                            
+                            await asyncio.gather(*tasks_delayed1, return_exceptions=True)
+                            
+                            # مرحله 3: تاخیر 1 ثانیه دیگر و ارسال آخرین فحش
+                            await asyncio.sleep(1)
+                            selected = choice(fosh_list)
+                            await self.send_fosh_reply(client, message, selected)
+                            
+                            # لاگ حمله
+                            self.log_action(bot_id, "timed_attack", user_id, f"ارسال 5 فحش با زمان‌بندی در {message.chat.title}")
+                            logger.info(f"🔥 بات {bot_id} - ارسال 5 فحش با زمان‌بندی (2+2+1) به دشمن {user_id}")
+                    return
 
                 # بررسی دوست بودن
                 friend_list = self.get_friend_list(bot_id)
