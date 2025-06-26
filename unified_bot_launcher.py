@@ -1275,33 +1275,8 @@ class UnifiedBotLauncher:
                     if chat_id not in self.spam_paused:
                         fosh_list = self.get_fosh_list(bot_id)
                         if fosh_list:
-                            # مرحله 1: ارسال 2 فحش بلافاصله
-                            tasks_immediate = []
-                            for i in range(2):
-                                selected = choice(fosh_list)
-                                task = self.send_fosh_reply(client, message, selected)
-                                tasks_immediate.append(task)
-                            
-                            await asyncio.gather(*tasks_immediate, return_exceptions=True)
-                            
-                            # مرحله 2: تاخیر 2 ثانیه و ارسال 2 فحش دیگر
-                            await asyncio.sleep(2)
-                            tasks_delayed1 = []
-                            for i in range(2):
-                                selected = choice(fosh_list)
-                                task = self.send_fosh_reply(client, message, selected)
-                                tasks_delayed1.append(task)
-                            
-                            await asyncio.gather(*tasks_delayed1, return_exceptions=True)
-                            
-                            # مرحله 3: تاخیر 1 ثانیه دیگر و ارسال آخرین فحش
-                            await asyncio.sleep(1)
-                            selected = choice(fosh_list)
-                            await self.send_fosh_reply(client, message, selected)
-                            
-                            # لاگ حمله
-                            self.log_action(bot_id, "timed_attack", user_id, f"ارسال 5 فحش با زمان‌بندی در {message.chat.title}")
-                            logger.info(f"🔥 بات {bot_id} - ارسال 5 فحش با زمان‌بندی (2+2s+1s) به دشمن {user_id}")
+                            # حمله مرحله‌ای: هر بات یکی یکی فحش می‌فرستد
+                            asyncio.create_task(self.staged_attack(client, message, user_id, fosh_list, bot_id))
                     return
 
                 # بررسی دوست بودن
@@ -1482,6 +1457,52 @@ class UnifiedBotLauncher:
 
         return status
     
+    async def staged_attack(self, client, message, user_id, fosh_list, bot_id):
+        """حمله مرحله‌ای - 5 مرحله با فاصله زمانی"""
+        try:
+            chat_id = message.chat.id
+            
+            # مرحله 1: فوری
+            if chat_id not in self.spam_paused:
+                selected = choice(fosh_list)
+                await self.send_fosh_reply(client, message, selected)
+                logger.info(f"🔥 بات {bot_id} - مرحله 1: فحش به دشمن {user_id}")
+            
+            # مرحله 2: بعد از 1 ثانیه
+            await asyncio.sleep(1)
+            if chat_id not in self.spam_paused:
+                selected = choice(fosh_list)
+                await self.send_fosh_reply(client, message, selected)
+                logger.info(f"🔥 بات {bot_id} - مرحله 2: فحش به دشمن {user_id}")
+            
+            # مرحله 3: بعد از 1 ثانیه دیگر  
+            await asyncio.sleep(1)
+            if chat_id not in self.spam_paused:
+                selected = choice(fosh_list)
+                await self.send_fosh_reply(client, message, selected)
+                logger.info(f"🔥 بات {bot_id} - مرحله 3: فحش به دشمن {user_id}")
+            
+            # مرحله 4: بعد از 1 ثانیه دیگر
+            await asyncio.sleep(1)
+            if chat_id not in self.spam_paused:
+                selected = choice(fosh_list)
+                await self.send_fosh_reply(client, message, selected)
+                logger.info(f"🔥 بات {bot_id} - مرحله 4: فحش به دشمن {user_id}")
+            
+            # مرحله 5: بعد از 1 ثانیه دیگر
+            await asyncio.sleep(1)
+            if chat_id not in self.spam_paused:
+                selected = choice(fosh_list)
+                await self.send_fosh_reply(client, message, selected)
+                logger.info(f"🔥 بات {bot_id} - مرحله 5: فحش به دشمن {user_id}")
+            
+            # لاگ کامل حمله
+            self.log_action(bot_id, "staged_attack", user_id, f"حمله مرحله‌ای 5 فحش در {message.chat.title}")
+            logger.info(f"✅ بات {bot_id} - حمله مرحله‌ای کامل شد به دشمن {user_id}")
+            
+        except Exception as e:
+            logger.error(f"خطا در حمله مرحله‌ای بات {bot_id}: {e}")
+
     async def send_fosh_reply(self, client, message, selected_content):
         """ارسال فحش"""
         try:
