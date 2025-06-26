@@ -1350,6 +1350,31 @@ class UnifiedBotLauncher:
             })
 
         return status
+    
+    async def send_fosh_reply(self, client, message, selected_content):
+        """ارسال فحش"""
+        try:
+            content_text, media_type, file_id = selected_content
+
+            if media_type and file_id:
+                reply_methods = {
+                    "photo": client.send_photo,
+                    "video": client.send_video,
+                    "animation": client.send_animation,
+                    "sticker": client.send_sticker,
+                    "audio": client.send_audio,
+                    "voice": client.send_voice,
+                    "video_note": client.send_video_note,
+                    "document": client.send_document
+                }
+
+                method = reply_methods.get(media_type)
+                if method:
+                    await method(message.chat.id, file_id, reply_to_message_id=message.message_id)
+            elif content_text:
+                await client.send_message(message.chat.id, content_text, reply_to_message_id=message.message_id)
+        except Exception as e:
+            logger.error(f"خطا در ارسال فحش: {e}")
 
 # متغیر کلی لانچر
 launcher = UnifiedBotLauncher()
