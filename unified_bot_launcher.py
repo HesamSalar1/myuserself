@@ -1759,6 +1759,10 @@ class UnifiedBotLauncher:
                     break
                 
                 try:
+                    # محاسبه تاخیر بر اساس شماره بات (هر بات 0.01 ثانیه بعد از قبلی)
+                    bot_delay = (bot_id - 1) * 0.01
+                    await asyncio.sleep(bot_delay)
+                    
                     # انتخاب فحش تصادفی
                     selected = choice(fosh_list)
                     await self.send_fosh_reply(client, message, selected)
@@ -1768,8 +1772,10 @@ class UnifiedBotLauncher:
                     if fosh_count % 10 == 0:
                         logger.info(f"🔥 بات {bot_id} - ارسال {fosh_count} فحش به دشمن {user_id}")
                     
-                    # تاخیر بین فحش‌ها (1 ثانیه)
-                    await asyncio.sleep(1)
+                    # تاخیر تا تکمیل دور (2 ثانیه - تاخیر بات)
+                    # چون آخرین بات (بات 9) 0.08 ثانیه تاخیر داره، باقی مونده: 2 - 0.08 = 1.92 ثانیه
+                    remaining_delay = 2.0 - (8 * 0.01)  # 8 بات بعد از بات 1 = 0.08 ثانیه
+                    await asyncio.sleep(remaining_delay)
                     
                 except FloodWait as e:
                     # اگر تلگرام محدودیت زمانی اعمال کرد
