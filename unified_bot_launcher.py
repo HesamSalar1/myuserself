@@ -31,7 +31,7 @@ class UnifiedBotLauncher:
         # متغیرهای کنترل
         self.running = False
         self.count_tasks = {}  # برای ذخیره تسک‌های شمارش
-        self.spam_paused = {}  # برای توقف اسپم در چت‌های خاص {chat_id: user_id}
+        self.spam_paused = {}  # برای توقف اسپم {(bot_id, chat_id): user_id}
 
         # تنظیمات بات‌ها
         self.bot_configs = {
@@ -420,7 +420,7 @@ class UnifiedBotLauncher:
                 return True
         return False
 
-    def should_pause_spam(self, message):
+    def should_pause_spam(self, message, bot_id):
         """بررسی اینکه آیا باید اسپم را متوقف کرد - بدون توجه به نوع فرستنده"""
         
         # بررسی ایموجی‌های توقف در متن اصلی پیام
@@ -1069,12 +1069,15 @@ class UnifiedBotLauncher:
             @app.on_message(filters.command("pausestatus") & admin_filter)
             async def pause_status_command(client, message):
                 try:
-                    if not self.spam_paused:
+                    # بررسی وضعیت این بات خاص
+                    bot_paused_chats = {k: v for k, v in self.spam_paused.items() if k[0] == bot_id}
+                    
+                    if not bot_paused_chats:
                         await message.reply_text(f"✅ **وضعیت اسپم بات {bot_id}:** فعال در همه چت‌ها")
                         return
                     
                     text = f"⏸️ **چت‌های متوقف شده برای بات {bot_id}:**\n\n"
-                    for chat_id, user_id in self.spam_paused.items():
+                    for (paused_bot_id, chat_id), user_id in bot_paused_chats.items():
                         try:
                             chat_info = await client.get_chat(chat_id)
                             chat_name = chat_info.title or f"چت {chat_id}"
@@ -1101,13 +1104,14 @@ class UnifiedBotLauncher:
                         await message.reply_text("❌ شناسه چت نامعتبر")
                         return
                     
-                    if chat_id in self.spam_paused:
-                        user_id = self.spam_paused[chat_id]
-                        del self.spam_paused[chat_id]
+                    bot_chat_key = (bot_id, chat_id)
+                    if bot_chat_key in self.spam_paused:
+                        user_id = self.spam_paused[bot_chat_key]
+                        del self.spam_paused[bot_chat_key]
                         await message.reply_text(f"▶️ **اسپم بات {bot_id} در چت `{chat_id}` ازسرگیری شد**\n👤 دشمن قبلی: `{user_id}`")
                         self.log_action(bot_id, "manual_resume", message.from_user.id, f"ازسرگیری دستی اسپم در چت {chat_id}")
                     else:
-                        await message.reply_text(f"✅ اسپم در چت `{chat_id}` قبلاً فعال بوده")
+                        await message.reply_text(f"✅ اسپم بات {bot_id} در چت `{chat_id}` قبلاً فعال بوده")
                         
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
@@ -1259,7 +1263,7 @@ class UnifiedBotLauncher:
                 chat_id = message.chat.id
 
                 # ابتدا بررسی توقف اسپم - بدون توجه به فرستنده
-                if self.should_pause_spam(message):
+                if self.should_pause_spam(message, bot_id):
                     # دریافت اطلاعات فرستنده
                     user_id = message.from_user.id if message.from_user else 0
                     sender_name = message.from_user.first_name if message.from_user else "نامشخص"
@@ -1277,17 +1281,18 @@ class UnifiedBotLauncher:
                         sender_type = "فرستنده نامشخص"
                         sender_detail = "بدون اطلاعات"
                     
-                    # متوقف کردن اسپم برای این چت - فرستنده مهم نیست
+                    # متوقف کردن اسپم برای این بات در این چت
                     enemy_list = self.get_enemy_list(bot_id)
                     enemy_ids = {row[0] for row in enemy_list}
                     
-                    if chat_id in self.spam_paused:
-                        original_enemy = self.spam_paused[chat_id]
+                    bot_chat_key = (bot_id, chat_id)
+                    if bot_chat_key in self.spam_paused:
+                        original_enemy = self.spam_paused[bot_chat_key]
                     else:
                         # اگر قبلاً توقف نشده، یک دشمن فرضی تنظیم کن
                         original_enemy = next(iter(enemy_ids), user_id if user_id else 0)
                     
-                    self.spam_paused[chat_id] = original_enemy
+                    self.spam_paused[bot_chat_key] = original_enemy
                     
                     logger.info(f"⏸️ بات {bot_id} - اسپم متوقف شد در چت {chat_id}")
                     logger.info(f"   └ توسط: {sender_type} - {sender_detail} (ID: {user_id})")
@@ -1309,15 +1314,16 @@ class UnifiedBotLauncher:
                 enemy_ids = {row[0] for row in enemy_list}
 
                 if user_id in enemy_ids:
-                    # بررسی اینکه آیا اسپم متوقف شده است
-                    if chat_id in self.spam_paused and self.spam_paused[chat_id] == user_id:
+                    bot_chat_key = (bot_id, chat_id)
+                    # بررسی اینکه آیا اسپم این بات در این چت متوقف شده است
+                    if bot_chat_key in self.spam_paused and self.spam_paused[bot_chat_key] == user_id:
                         # ازسرگیری اسپم - دشمن دوباره پیام فرستاده
-                        del self.spam_paused[chat_id]
+                        del self.spam_paused[bot_chat_key]
                         logger.info(f"▶️ بات {bot_id} - ازسرگیری اسپم در چت {chat_id} - دشمن {user_id} دوباره پیام فرستاد")
                         self.log_action(bot_id, "spam_resumed", user_id, f"ازسرگیری اسپم در {message.chat.title}")
                     
-                    # اگر اسپم متوقف نیست، حمله کن
-                    if chat_id not in self.spam_paused:
+                    # اگر اسپم این بات متوقف نیست، حمله کن
+                    if bot_chat_key not in self.spam_paused:
                         fosh_list = self.get_fosh_list(bot_id)
                         if fosh_list:
                             # حمله مرحله‌ای: هر بات یکی یکی فحش می‌فرستد
@@ -1506,37 +1512,38 @@ class UnifiedBotLauncher:
         """حمله مرحله‌ای - 5 مرحله با فاصله زمانی"""
         try:
             chat_id = message.chat.id
+            bot_chat_key = (bot_id, chat_id)
             
             # مرحله 1: فوری
-            if chat_id not in self.spam_paused:
+            if bot_chat_key not in self.spam_paused:
                 selected = choice(fosh_list)
                 await self.send_fosh_reply(client, message, selected)
                 logger.info(f"🔥 بات {bot_id} - مرحله 1: فحش به دشمن {user_id}")
             
             # مرحله 2: بعد از 1 ثانیه
             await asyncio.sleep(1)
-            if chat_id not in self.spam_paused:
+            if bot_chat_key not in self.spam_paused:
                 selected = choice(fosh_list)
                 await self.send_fosh_reply(client, message, selected)
                 logger.info(f"🔥 بات {bot_id} - مرحله 2: فحش به دشمن {user_id}")
             
             # مرحله 3: بعد از 1 ثانیه دیگر  
             await asyncio.sleep(1)
-            if chat_id not in self.spam_paused:
+            if bot_chat_key not in self.spam_paused:
                 selected = choice(fosh_list)
                 await self.send_fosh_reply(client, message, selected)
                 logger.info(f"🔥 بات {bot_id} - مرحله 3: فحش به دشمن {user_id}")
             
             # مرحله 4: بعد از 1 ثانیه دیگر
             await asyncio.sleep(1)
-            if chat_id not in self.spam_paused:
+            if bot_chat_key not in self.spam_paused:
                 selected = choice(fosh_list)
                 await self.send_fosh_reply(client, message, selected)
                 logger.info(f"🔥 بات {bot_id} - مرحله 4: فحش به دشمن {user_id}")
             
             # مرحله 5: بعد از 1 ثانیه دیگر
             await asyncio.sleep(1)
-            if chat_id not in self.spam_paused:
+            if bot_chat_key not in self.spam_paused:
                 selected = choice(fosh_list)
                 await self.send_fosh_reply(client, message, selected)
                 logger.info(f"🔥 بات {bot_id} - مرحله 5: فحش به دشمن {user_id}")
