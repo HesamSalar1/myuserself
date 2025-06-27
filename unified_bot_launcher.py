@@ -1366,7 +1366,6 @@ class UnifiedBotLauncher:
             self.bots[bot_id] = {
                 'client': app,
                 'config': config,
-```python
                 'status': 'initialized'
             }
 
