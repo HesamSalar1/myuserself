@@ -702,8 +702,7 @@ class UnifiedBotLauncher:
             async def clear_enemy_command(client, message):
                 try:
                     count = self.clear_enemy_list(bot_id)
-                    ```python
-await message.reply_text(f"✅ تمام دشمنان بات {bot_id} حذف شدند.\n📊 تعداد حذف شده: {count} نفر")
+                    await message.reply_text(f"✅ تمام دشمنان بات {bot_id} حذف شدند.\n📊 تعداد حذف شده: {count} نفر")
                     self.log_action(bot_id, "clear_enemy", message.from_user.id, f"حذف {count} دشمن")
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
