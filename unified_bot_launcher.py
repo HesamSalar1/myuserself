@@ -1318,7 +1318,12 @@ class UnifiedBotLauncher:
 
                     logger.info(f"⏸️ بات {bot_id} - اسپم متوقف شد در چت {chat_id}")
                     logger.info(f"   └ توسط: {sender_type} - {sender_detail} (ID: {user_id})")
-                    logger.info(f"   └ متن پیام: {message.text[:100]}...")
+                    
+                    # نمایش محتوای پیام با بررسی امنیت
+                    message_content = message.text or message.caption or "[بدون متن]"
+                    if len(message_content) > 100:
+                        message_content = message_content[:100] + "..."
+                    logger.info(f"   └ محتوای پیام: {message_content}")
 
                     # لاگ عملیات توقف در دیتابیس
                     chat_title = message.chat.title if message.chat.title else f"چت {chat_id}"
