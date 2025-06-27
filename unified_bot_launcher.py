@@ -31,7 +31,7 @@ class UnifiedBotLauncher:
         # متغیرهای کنترل
         self.running = False
         self.count_tasks = {}  # برای ذخیره تسک‌های شمارش
-        self.spam_paused = {}  # برای توقف اسپم {(bot_id, chat_id): user_id}
+        self.global_paused = {}  # برای توقف کلی {chat_id: user_id} - وقتی ایموجی ممنوعه تشخیص داده شه
 
         # تنظیمات بات‌ها
         self.bot_configs = {
@@ -1091,23 +1091,21 @@ class UnifiedBotLauncher:
             @app.on_message(filters.command("pausestatus") & admin_filter)
             async def pause_status_command(client, message):
                 try:
-                    # بررسی وضعیت این بات خاص
-                    bot_paused_chats = {k: v for k, v in self.spam_paused.items() if k[0] == bot_id}
-
-                    if not bot_paused_chats:
-                        await message.reply_text(f"✅ **وضعیت اسپم بات {bot_id}:** فعال در همه چت‌ها")
+                    if not self.global_paused:
+                        await message.reply_text(f"✅ **وضعیت سیستم:** همه بات‌ها فعال در همه چت‌ها")
                         return
 
-                    text = f"⏸️ **چت‌های متوقف شده برای بات {bot_id}:**\n\n"
-                    for (paused_bot_id, chat_id), user_id in bot_paused_chats.items():
+                    text = f"⏸️ **چت‌های متوقف شده (کلی):**\n\n"
+                    for chat_id, user_id in self.global_paused.items():
                         try:
                             chat_info = await client.get_chat(chat_id)
                             chat_name = chat_info.title or f"چت {chat_id}"
                         except:
                             chat_name = f"چت {chat_id}"
 
-                        text += f"🔸 {chat_name}\n   └ توسط دشمن: `{user_id}`\n"
+                        text += f"🔸 {chat_name}\n   └ متوقف توسط: `{user_id}`\n"
 
+                    text += f"\n📌 **نحوه ازسرگیری:** دشمن باید پیام بفرسته"
                     await message.reply_text(text)
 
                 except Exception as e:
@@ -1126,14 +1124,13 @@ class UnifiedBotLauncher:
                         await message.reply_text("❌ شناسه چت نامعتبر")
                         return
 
-                    bot_chat_key = (bot_id, chat_id)
-                    if bot_chat_key in self.spam_paused:
-                        user_id = self.spam_paused[bot_chat_key]
-                        del self.spam_paused[bot_chat_key]
-                        await message.reply_text(f"▶️ **اسپم بات {bot_id} در چت `{chat_id}` ازسرگیری شد**\n👤 دشمن قبلی: `{user_id}`")
-                        self.log_action(bot_id, "manual_resume", message.from_user.id, f"ازسرگیری دستی اسپم در چت {chat_id}")
+                    if chat_id in self.global_paused:
+                        user_id = self.global_paused[chat_id]
+                        del self.global_paused[chat_id]
+                        await message.reply_text(f"▶️ **همه بات‌ها در چت `{chat_id}` ازسرگیری شدند**\n👤 متوقف شده توسط: `{user_id}`")
+                        self.log_action(bot_id, "manual_global_resume", message.from_user.id, f"ازسرگیری دستی کلی در چت {chat_id}")
                     else:
-                        await message.reply_text(f"✅ اسپم بات {bot_id} در چت `{chat_id}` قبلاً فعال بوده")
+                        await message.reply_text(f"✅ چت `{chat_id}` قبلاً فعال بوده")
 
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
@@ -1284,7 +1281,7 @@ class UnifiedBotLauncher:
 
                 chat_id = message.chat.id
 
-                # بررسی توقف اسپم فقط برای کامندهای خاص
+                # بررسی ایموجی/کامند ممنوعه برای همه کاربران
                 if self.should_pause_spam(message, bot_id):
                     # دریافت اطلاعات فرستنده
                     user_id = message.from_user.id if message.from_user else 0
@@ -1312,15 +1309,40 @@ class UnifiedBotLauncher:
                         message_content = message_content[:100] + "..."
                     logger.info(f"   └ محتوای پیام: {message_content}")
 
-                    # **فقط این پیام خاص نادیده گرفته می‌شود - هیچ اثری روی پیام‌های بعدی نداره**
-                    logger.info(f"⏸️ بات {bot_id} - این پیام نادیده گرفته شد (سیستم فعال می‌مونه)")
+                    # **توقف کلی همه بات‌ها در این چت تا پیام بعدی دشمن**
+                    self.global_paused[chat_id] = user_id
+                    logger.info(f"⏸️ همه بات‌ها در چت {chat_id} متوقف شدند تا پیام بعدی دشمن")
 
                     # لاگ عملیات در دیتابیس
                     chat_title = message.chat.title if message.chat.title else f"چت {chat_id}"
-                    self.log_action(bot_id, "message_ignored_forbidden", user_id, f"پیام نادیده توسط {sender_type} ({sender_detail}) در {chat_title}")
+                    self.log_action(bot_id, "global_pause_forbidden", user_id, f"توقف کلی توسط {sender_type} ({sender_detail}) در {chat_title}")
 
-                    # ❌ فقط این پیام رو نادیده بگیر، به همه پیام‌های بعدی جواب بده
+                    # ❌ هیچ واکنشی نشون نده و همه بات‌ها رو متوقف کن
                     return
+
+                # بررسی اینکه آیا این چت متوقف شده یا نه
+                if chat_id in self.global_paused:
+                    # اگر پیام از دشمن باشد، سیستم رو فعال کن
+                    if message.from_user:
+                        user_id = message.from_user.id
+                        enemy_list = self.get_enemy_list(bot_id)
+                        enemy_ids = {row[0] for row in enemy_list}
+                        
+                        if user_id in enemy_ids:
+                            # دشمن پیام فرستاده - ازسرگیری فعالیت
+                            paused_by = self.global_paused[chat_id]
+                            del self.global_paused[chat_id]
+                            logger.info(f"▶️ سیستم در چت {chat_id} ازسرگیری شد - دشمن {user_id} پیام فرستاد")
+                            logger.info(f"   └ قبلاً توسط کاربر {paused_by} متوقف شده بود")
+                            self.log_action(bot_id, "global_resume_by_enemy", user_id, f"ازسرگیری توسط دشمن {user_id}")
+                            # ادامه به منطق پاسخگویی
+                        else:
+                            # کاربر عادی پیام فرستاده - همچنان متوقف
+                            logger.debug(f"⏸️ چت {chat_id} همچنان متوقف - کاربر عادی {user_id} پیام فرستاد")
+                            return
+                    else:
+                        # پیام بدون فرستنده - همچنان متوقف
+                        return
 
                 # ادامه منطق فقط برای پیام‌هایی که from_user دارند
                 if not message.from_user:
