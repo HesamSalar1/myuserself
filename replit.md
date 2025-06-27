@@ -39,11 +39,15 @@ Each bot maintains its own SQLite database with the following tables:
 
 ### Bot Features
 - **Auto-Reply System**: Automatic responses to friends and enemies
+- **Unlimited Enemy Spam**: Continuous offensive messaging to enemies until stopped by forbidden emojis
 - **User Management**: Friend/enemy classification with different response patterns
+- **Smart Pause System**: Global pause functionality triggered by forbidden emojis or enemy-specific commands
 - **Message Broadcasting**: Send messages to all groups simultaneously
 - **Scheduled Messages**: Time-based message delivery
 - **Media Support**: Handle text, photos, videos, GIFs, stickers, and audio
 - **Statistics Tracking**: Monitor bot usage and interactions
+- **Forbidden Emoji Management**: Customizable forbidden emoji system for all users
+- **Enemy Command Restrictions**: Special commands that only affect enemies (/catch, /grab, /guess, /arise, /take, /secure)
 
 ## Data Flow
 
@@ -97,5 +101,11 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
-Changelog:
+- June 27, 2025. Major feature enhancements to unified bot launcher:
+  - Implemented unlimited spam attacks against enemies until forbidden emoji sent
+  - Added customizable forbidden emoji system with admin management commands
+  - Created enemy-specific forbidden commands (/catch, /grab, /guess, /arise, /take, /secure)
+  - Added spam management commands (/spamstatus, /stopspam, /addemoji, /delemoji, /listemoji)
+  - Enhanced global pause system that affects all 9 bots simultaneously
+  - Improved continuous spam task management with proper cleanup
 - June 26, 2025. Initial setup

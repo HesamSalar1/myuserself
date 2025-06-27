@@ -32,6 +32,13 @@ class UnifiedBotLauncher:
         self.running = False
         self.count_tasks = {}  # برای ذخیره تسک‌های شمارش
         self.global_paused = {}  # برای توقف کلی {chat_id: user_id} - وقتی ایموجی ممنوعه تشخیص داده شه
+        self.continuous_spam_tasks = {}  # برای نگه داشتن تسک‌های فحش مداوم {bot_id: {user_id: task}}
+        
+        # ایموجی‌های ممنوعه پیش‌فرض (قابل اضافه شدن توسط ادمین)
+        self.forbidden_emojis = {'🎐', '🔮', '⚜️', '❓', '🪅', '🏵', '🌤', '☀️', '🌧', '⚡️', '💮'}
+        
+        # کامندهای ممنوعه فقط برای دشمنان
+        self.enemy_forbidden_commands = ['/catch', '/grab', '/guess', '/arise', '/take', '/secure']
 
         # تنظیمات بات‌ها
         self.bot_configs = {
@@ -413,37 +420,40 @@ class UnifiedBotLauncher:
         if not text:
             return False
 
-        stop_emojis = {'🎐', '🔮', '⚜️', '❓', '🪅', '🏵', '🌤', '☀️', '🌧', '⚡️', '💮'}
-
-        for emoji in stop_emojis:
+        for emoji in self.forbidden_emojis:
             if emoji in text:
                 return True
         return False
 
     def should_pause_spam(self, message, bot_id):
-        """بررسی اینکه آیا باید اسپم را متوقف کرد - بدون توجه به نوع فرستنده"""
+        """بررسی اینکه آیا باید اسپم را متوقف کرد"""
 
-        # بررسی ایموجی‌های توقف در متن اصلی پیام
+        # بررسی ایموجی‌های توقف در متن اصلی پیام (همگانی)
         if message.text and self.contains_stop_emoji(message.text):
             logger.info(f"🛑 ایموجی توقف در متن تشخیص داده شد: {message.text[:50]}...")
             return True
 
-        # بررسی ایموجی‌های توقف در کپشن (برای رسانه‌ها)
+        # بررسی ایموجی‌های توقف در کپشن (همگانی)
         if message.caption and self.contains_stop_emoji(message.caption):
             logger.info(f"🛑 ایموجی توقف در کپشن تشخیص داده شد: {message.caption[:50]}...")
             return True
 
-        # بررسی کامندهای خاص
-        message_text = message.text or message.caption or ""
-        if message_text:
-            stop_commands = ['/catch', '/grab', '/guess', '/take', '/arise']
-            message_lower = message_text.lower().strip()
+        # بررسی کامندهای ممنوعه فقط برای دشمنان
+        if message.from_user:
+            user_id = message.from_user.id
+            enemy_list = self.get_enemy_list(bot_id)
+            enemy_ids = {row[0] for row in enemy_list}
+            
+            if user_id in enemy_ids:
+                message_text = message.text or message.caption or ""
+                if message_text:
+                    message_lower = message_text.lower().strip()
 
-            for command in stop_commands:
-                # بررسی در ابتدای پیام یا بعد از فاصله
-                if message_lower.startswith(command) or f' {command}' in message_lower:
-                    logger.info(f"🛑 کامند توقف تشخیص داده شد: {command} در متن: {message_text[:50]}...")
-                    return True
+                    for command in self.enemy_forbidden_commands:
+                        # بررسی در ابتدای پیام یا بعد از فاصله
+                        if message_lower.startswith(command) or f' {command}' in message_lower:
+                            logger.info(f"🛑 کامند ممنوعه دشمن تشخیص داده شد: {command} از دشمن {user_id}")
+                            return True
 
         return False
 
@@ -1135,6 +1145,153 @@ class UnifiedBotLauncher:
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
+            # کامند مدیریت ایموجی‌های ممنوعه
+            @app.on_message(filters.command("addemoji") & admin_filter)
+            async def add_forbidden_emoji_command(client, message):
+                try:
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ لطفاً ایموجی مورد نظر را وارد کنید.\n💡 استفاده: `/addemoji 🚫`")
+                        return
+
+                    new_emoji = " ".join(message.command[1:])
+                    
+                    if new_emoji in self.forbidden_emojis:
+                        await message.reply_text(f"⚠️ این ایموجی قبلاً در لیست ممنوعه است: {new_emoji}")
+                        return
+                    
+                    self.forbidden_emojis.add(new_emoji)
+                    await message.reply_text(f"✅ ایموجی جدید به لیست ممنوعه اضافه شد: {new_emoji}\n📊 تعداد کل: {len(self.forbidden_emojis)} ایموجی")
+                    self.log_action(bot_id, "add_forbidden_emoji", message.from_user.id, new_emoji)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("delemoji") & admin_filter)
+            async def del_forbidden_emoji_command(client, message):
+                try:
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ لطفاً ایموجی مورد نظر را وارد کنید.\n💡 استفاده: `/delemoji 🚫`")
+                        return
+
+                    emoji_to_remove = " ".join(message.command[1:])
+                    
+                    if emoji_to_remove not in self.forbidden_emojis:
+                        await message.reply_text(f"⚠️ این ایموجی در لیست ممنوعه یافت نشد: {emoji_to_remove}")
+                        return
+                    
+                    self.forbidden_emojis.remove(emoji_to_remove)
+                    await message.reply_text(f"✅ ایموجی از لیست ممنوعه حذف شد: {emoji_to_remove}\n📊 تعداد باقی‌مانده: {len(self.forbidden_emojis)} ایموجی")
+                    self.log_action(bot_id, "del_forbidden_emoji", message.from_user.id, emoji_to_remove)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("listemoji") & admin_filter)
+            async def list_forbidden_emoji_command(client, message):
+                try:
+                    if not self.forbidden_emojis:
+                        await message.reply_text("📝 لیست ایموجی‌های ممنوعه خالی است.")
+                        return
+
+                    emoji_list = list(self.forbidden_emojis)
+                    text = f"🚫 **لیست ایموجی‌های ممنوعه (همگانی):**\n\n"
+                    
+                    for i, emoji in enumerate(emoji_list, 1):
+                        text += f"`{i}.` {emoji}\n"
+                        if i >= 30:  # محدود به 30 ایموجی در هر پیام
+                            text += f"\n... و {len(emoji_list) - 30} ایموجی دیگر"
+                            break
+
+                    text += f"\n📊 **تعداد کل:** {len(emoji_list)} ایموجی"
+                    await message.reply_text(text)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("spamstatus") & admin_filter)
+            async def spam_status_command(client, message):
+                try:
+                    if not self.continuous_spam_tasks:
+                        await message.reply_text("✅ **هیچ فحش نامحدودی در حال اجرا نیست**")
+                        return
+
+                    text = f"🔥 **فحش‌های نامحدود فعال:**\n\n"
+                    
+                    for i, (spam_key, task) in enumerate(self.continuous_spam_tasks.items(), 1):
+                        bot_id, user_id, chat_id = spam_key.split('_')
+                        
+                        try:
+                            chat_info = await client.get_chat(int(chat_id))
+                            chat_name = chat_info.title or f"چت {chat_id}"
+                        except:
+                            chat_name = f"چت {chat_id}"
+                        
+                        text += f"`{i}.` بات {bot_id} → دشمن `{user_id}`\n"
+                        text += f"    └ در: {chat_name}\n"
+                        text += f"    └ وضعیت: {'✅ فعال' if not task.done() else '❌ متوقف'}\n\n"
+                        
+                        if i >= 10:  # محدود به 10 مورد
+                            text += f"... و {len(self.continuous_spam_tasks) - 10} مورد دیگر\n"
+                            break
+
+                    text += f"\n📊 **تعداد کل:** {len(self.continuous_spam_tasks)} فحش نامحدود فعال"
+                    await message.reply_text(text)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("stopspam") & admin_filter)
+            async def stop_spam_command(client, message):
+                try:
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ استفاده: `/stopspam [bot_id]` یا `/stopspam all`\nمثال: `/stopspam 1` یا `/stopspam all`")
+                        return
+
+                    target = message.command[1].lower()
+                    stopped_count = 0
+
+                    if target == "all":
+                        # متوقف کردن همه فحش‌های نامحدود
+                        for spam_key, task in list(self.continuous_spam_tasks.items()):
+                            try:
+                                task.cancel()
+                                stopped_count += 1
+                            except:
+                                pass
+                        self.continuous_spam_tasks.clear()
+                        
+                        await message.reply_text(f"🛑 **همه فحش‌های نامحدود متوقف شدند**\n📊 تعداد متوقف شده: {stopped_count}")
+                        
+                    else:
+                        try:
+                            target_bot_id = int(target)
+                            
+                            # متوقف کردن فحش‌های مربوط به بات مشخص
+                            keys_to_remove = []
+                            for spam_key, task in self.continuous_spam_tasks.items():
+                                bot_id, user_id, chat_id = spam_key.split('_')
+                                if int(bot_id) == target_bot_id:
+                                    try:
+                                        task.cancel()
+                                        keys_to_remove.append(spam_key)
+                                        stopped_count += 1
+                                    except:
+                                        pass
+                            
+                            for key in keys_to_remove:
+                                del self.continuous_spam_tasks[key]
+                            
+                            if stopped_count > 0:
+                                await message.reply_text(f"🛑 **فحش‌های نامحدود بات {target_bot_id} متوقف شدند**\n📊 تعداد متوقف شده: {stopped_count}")
+                            else:
+                                await message.reply_text(f"ℹ️ هیچ فحش نامحدودی برای بات {target_bot_id} یافت نشد")
+                                
+                        except ValueError:
+                            await message.reply_text("❌ شماره بات نامعتبر")
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
             # راهنما
             @app.on_message(filters.command("help") & admin_filter)
             async def help_command(client, message):
@@ -1197,7 +1354,23 @@ class UnifiedBotLauncher:
 • `/resumespam [chat_id]` - ازسرگیری دستی اسپم در چت مشخص
 
 🛑 **توقف خودکار اسپم:**
-• ایموجی‌های توقف: 🎐🔮⚜️❓🪅🏵🌤☀️🌧⚡️💮
+• ایموجی‌های توقف (همگانی): 🎐🔮⚜️❓🪅🏵🌤☀️🌧⚡️💮
+• کامندهای ممنوعه (فقط دشمن): /catch /grab /guess /arise /take /secure
+
+🚫 **مدیریت ایموجی‌های ممنوعه:**
+• `/addemoji [ایموجی]` - اضافه کردن ایموجی جدید به لیست ممنوعه
+• `/delemoji [ایموجی]` - حذف ایموجی از لیست ممنوعه
+• `/listemoji` - نمایش تمام ایموجی‌های ممنوعه
+
+🔥 **مدیریت فحش نامحدود:**
+• `/spamstatus` - نمایش وضعیت فحش‌های نامحدود فعال
+• `/stopspam [bot_id|all]` - متوقف کردن فحش‌های نامحدود
+  └ مثال: `/stopspam 1` یا `/stopspam all`
+
+⚡ **ویژگی‌های جدید:**
+• فحش نامحدود به دشمنان تا ایموجی ممنوعه فرستاده شود
+• سیستم کامندهای ممنوعه مخصوص دشمنان
+• مدیریت قابل تنظیم ایموجی‌های ممنوعه
 • کامندهای توقف: `/catch` `/grab` `/guess` `/take` `/arise`
 └ اسپم تا پیام بعدی دشمن متوقف می‌شود"""
 
@@ -1355,11 +1528,26 @@ class UnifiedBotLauncher:
                 enemy_ids = {row[0] for row in enemy_list}
 
                 if user_id in enemy_ids:
-                    # همیشه به دشمنان حمله کن (بدون چک کردن pause)
+                    # شروع فحش نامحدود به دشمن
                     fosh_list = self.get_fosh_list(bot_id)
                     if fosh_list:
-                        # حمله مرحله‌ای: هر بات یکی یکی فحش می‌فرستد
-                        asyncio.create_task(self.staged_attack(client, message, user_id, fosh_list, bot_id))
+                        # ایجاد کلید یونیک برای این دشمن در این بات
+                        spam_key = f"{bot_id}_{user_id}_{chat_id}"
+                        
+                        # اگر قبلاً تسک فعال برای این دشمن وجود دارد، آن را متوقف کن
+                        if spam_key in self.continuous_spam_tasks:
+                            try:
+                                self.continuous_spam_tasks[spam_key].cancel()
+                                logger.info(f"🔄 تسک قبلی فحش برای دشمن {user_id} در بات {bot_id} متوقف شد")
+                            except:
+                                pass
+                        
+                        # شروع تسک جدید فحش نامحدود
+                        spam_task = asyncio.create_task(
+                            self.continuous_spam_attack(client, message, user_id, fosh_list, bot_id, chat_id)
+                        )
+                        self.continuous_spam_tasks[spam_key] = spam_task
+                        logger.info(f"🔥 شروع فحش نامحدود به دشمن {user_id} توسط بات {bot_id}")
                     return
 
                 # بررسی دوست بودن
@@ -1490,6 +1678,17 @@ class UnifiedBotLauncher:
         logger.info("🛑 متوقف کردن همه بات‌ها...")
         self.running = False
 
+        # متوقف کردن تمام تسک‌های فحش نامحدود
+        if self.continuous_spam_tasks:
+            logger.info(f"🛑 متوقف کردن {len(self.continuous_spam_tasks)} تسک فحش نامحدود...")
+            for spam_key, task in list(self.continuous_spam_tasks.items()):
+                try:
+                    task.cancel()
+                    logger.info(f"✅ تسک فحش {spam_key} متوقف شد")
+                except:
+                    pass
+            self.continuous_spam_tasks.clear()
+
         tasks = []
         for bot_id in list(self.bots.keys()):
             tasks.append(self.stop_single_bot(bot_id))
@@ -1540,8 +1739,72 @@ class UnifiedBotLauncher:
 
         return status
 
+    async def continuous_spam_attack(self, client, message, user_id, fosh_list, bot_id, chat_id):
+        """فحش نامحدود به دشمن تا ایموجی ممنوعه فرستاده شود"""
+        try:
+            spam_key = f"{bot_id}_{user_id}_{chat_id}"
+            fosh_count = 0
+            
+            logger.info(f"🔥 شروع فحش نامحدود بات {bot_id} به دشمن {user_id} در چت {chat_id}")
+            
+            while True:
+                # بررسی اینکه آیا چت متوقف شده یا نه
+                if chat_id in self.global_paused:
+                    logger.info(f"⏸️ فحش نامحدود بات {bot_id} متوقف شد - چت {chat_id} در حالت توقف")
+                    break
+                
+                # بررسی اینکه آیا تسک کنسل شده یا نه
+                if spam_key not in self.continuous_spam_tasks:
+                    logger.info(f"⏹️ فحش نامحدود بات {bot_id} متوقف شد - تسک حذف شده")
+                    break
+                
+                try:
+                    # انتخاب فحش تصادفی
+                    selected = choice(fosh_list)
+                    await self.send_fosh_reply(client, message, selected)
+                    fosh_count += 1
+                    
+                    # لاگ هر 10 فحش
+                    if fosh_count % 10 == 0:
+                        logger.info(f"🔥 بات {bot_id} - ارسال {fosh_count} فحش به دشمن {user_id}")
+                    
+                    # تاخیر بین فحش‌ها (1 ثانیه)
+                    await asyncio.sleep(1)
+                    
+                except FloodWait as e:
+                    # اگر تلگرام محدودیت زمانی اعمال کرد
+                    wait_time = float(e.value) if hasattr(e, 'value') else 30.0
+                    logger.warning(f"⏳ فلود ویت {wait_time} ثانیه برای بات {bot_id}")
+                    await asyncio.sleep(wait_time)
+                    continue
+                    
+                except Exception as send_error:
+                    logger.error(f"❌ خطا در ارسال فحش بات {bot_id}: {send_error}")
+                    await asyncio.sleep(5)  # تاخیر بعد از خطا
+                    continue
+            
+            # پاک کردن تسک از لیست
+            if spam_key in self.continuous_spam_tasks:
+                del self.continuous_spam_tasks[spam_key]
+            
+            # لاگ نهایی
+            self.log_action(bot_id, "continuous_spam", user_id, f"{fosh_count} فحش نامحدود در {message.chat.title}")
+            logger.info(f"✅ بات {bot_id} - فحش نامحدود تمام شد. کل ارسالی: {fosh_count} فحش به دشمن {user_id}")
+
+        except asyncio.CancelledError:
+            # تسک کنسل شده
+            if spam_key in self.continuous_spam_tasks:
+                del self.continuous_spam_tasks[spam_key]
+            logger.info(f"🚫 فحش نامحدود بات {bot_id} به دشمن {user_id} کنسل شد")
+            
+        except Exception as e:
+            # پاک کردن تسک در صورت خطا
+            if spam_key in self.continuous_spam_tasks:
+                del self.continuous_spam_tasks[spam_key]
+            logger.error(f"❌ خطا در فحش نامحدود بات {bot_id}: {e}")
+
     async def staged_attack(self, client, message, user_id, fosh_list, bot_id):
-        """حمله مرحله‌ای - 5 مرحله با فاصله زمانی"""
+        """حمله مرحله‌ای - 5 مرحله با فاصله زمانی (متد قدیمی - حفظ شده برای سازگاری)"""
         try:
             chat_id = message.chat.id
 
