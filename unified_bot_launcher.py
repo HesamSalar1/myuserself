@@ -1364,9 +1364,9 @@ class UnifiedBotLauncher:
 
             # ذخیره بات
             self.bots[bot_id] = {
-                'client:
-                app,
+                'client': app,
                 'config': config,
+```python
                 'status': 'initialized'
             }
 
