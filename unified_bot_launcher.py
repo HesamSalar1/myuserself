@@ -1312,27 +1312,14 @@ class UnifiedBotLauncher:
                         message_content = message_content[:100] + "..."
                     logger.info(f"   └ محتوای پیام: {message_content}")
 
-                    # **توقف دائمی اسپم در این چت تا پیام بعدی دشمن**
-                    bot_chat_key = (bot_id, chat_id)
-                    # اگر این پیام از دشمن است، توقف اسپم رو ثبت کن
-                    enemy_list = self.get_enemy_list(bot_id)
-                    enemy_ids = {row[0] for row in enemy_list}
-                    
-                    if user_id in enemy_ids:
-                        # دشمن خودش کامند توقف فرستاده - اسپم متوقف می‌شه تا پیام بعدی اون
-                        self.spam_paused[bot_chat_key] = user_id
-                        logger.info(f"⏸️ بات {bot_id} - اسپم متوقف شد در چت {chat_id} توسط دشمن {user_id}")
-                    else:
-                        # کسی غیر از دشمن کامند توقف فرستاده - تمام دشمن‌ها رو پیدا کن و برای هرکدوم توقف ثبت کن
-                        for enemy_id, _, _, _ in enemy_list:
-                            enemy_chat_key = (bot_id, chat_id)
-                            self.spam_paused[enemy_chat_key] = enemy_id
-                        logger.info(f"⏸️ بات {bot_id} - اسپم متوقف شد در چت {chat_id} برای همه دشمن‌ها")
+                    # **توقف موقت اسپم - فقط برای این پیام, ادامه پاسخگویی نرمال**
+                    logger.info(f"⏸️ بات {bot_id} - توقف موقت در چت {chat_id} (بدون متوقف کردن کل سیستم)")
 
                     # لاگ عملیات توقف در دیتابیس
                     chat_title = message.chat.title if message.chat.title else f"چت {chat_id}"
-                    self.log_action(bot_id, "spam_paused_by_command", user_id, f"توقف اسپم توسط کامند {sender_type} ({sender_detail}) در {chat_title}")
+                    self.log_action(bot_id, "spam_paused_by_command", user_id, f"توقف موقت توسط کامند {sender_type} ({sender_detail}) در {chat_title}")
 
+                    # فقط این پیام رو نادیده بگیر، به پیام‌های بعدی جواب بده
                     return
 
                 # ادامه منطق فقط برای پیام‌هایی که from_user دارند
@@ -1346,20 +1333,11 @@ class UnifiedBotLauncher:
                 enemy_ids = {row[0] for row in enemy_list}
 
                 if user_id in enemy_ids:
-                    bot_chat_key = (bot_id, chat_id)
-                    # بررسی اینکه آیا اسپم این بات در این چت متوقف شده است
-                    if bot_chat_key in self.spam_paused and self.spam_paused[bot_chat_key] == user_id:
-                        # ازسرگیری اسپم - دشمن دوباره پیام فرستاده
-                        del self.spam_paused[bot_chat_key]
-                        logger.info(f"▶️ بات {bot_id} - ازسرگیری اسپم در چت {chat_id} - دشمن {user_id} دوباره پیام فرستاد")
-                        self.log_action(bot_id, "spam_resumed", user_id, f"ازسرگیری اسپم در {message.chat.title}")
-
-                    # اگر اسپم این بات متوقف نیست، حمله کن
-                    if bot_chat_key not in self.spam_paused:
-                        fosh_list = self.get_fosh_list(bot_id)
-                        if fosh_list:
-                            # حمله مرحله‌ای: هر بات یکی یکی فحش می‌فرستد
-                            asyncio.create_task(self.staged_attack(client, message, user_id, fosh_list, bot_id))
+                    # همیشه به دشمنان حمله کن (بدون چک کردن pause)
+                    fosh_list = self.get_fosh_list(bot_id)
+                    if fosh_list:
+                        # حمله مرحله‌ای: هر بات یکی یکی فحش می‌فرستد
+                        asyncio.create_task(self.staged_attack(client, message, user_id, fosh_list, bot_id))
                     return
 
                 # بررسی دوست بودن
