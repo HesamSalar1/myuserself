@@ -1544,38 +1544,41 @@ class UnifiedBotLauncher:
         """حمله مرحله‌ای - 5 مرحله با فاصله زمانی"""
         try:
             chat_id = message.chat.id
-            bot_chat_key = (bot_id, chat_id)
+
+            # بررسی اینکه آیا چت متوقف شده یا نه
+            if chat_id in self.global_paused:
+                logger.info(f"⏸️ حمله مرحله‌ای بات {bot_id} متوقف شد - چت {chat_id} در حالت توقف")
+                return
 
             # مرحله 1: فوری
-            if bot_chat_key not in self.spam_paused:
-                selected = choice(fosh_list)
-                await self.send_fosh_reply(client, message, selected)
-                logger.info(f"🔥 بات {bot_id} - مرحله 1: فحش به دشمن {user_id}")
+            selected = choice(fosh_list)
+            await self.send_fosh_reply(client, message, selected)
+            logger.info(f"🔥 بات {bot_id} - مرحله 1: فحش به دشمن {user_id}")
 
             # مرحله 2: بعد از 1 ثانیه
             await asyncio.sleep(1)
-            if bot_chat_key not in self.spam_paused:
+            if chat_id not in self.global_paused:
                 selected = choice(fosh_list)
                 await self.send_fosh_reply(client, message, selected)
                 logger.info(f"🔥 بات {bot_id} - مرحله 2: فحش به دشمن {user_id}")
 
             # مرحله 3: بعد از 1 ثانیه دیگر  
             await asyncio.sleep(1)
-            if bot_chat_key not in self.spam_paused:
+            if chat_id not in self.global_paused:
                 selected = choice(fosh_list)
                 await self.send_fosh_reply(client, message, selected)
                 logger.info(f"🔥 بات {bot_id} - مرحله 3: فحش به دشمن {user_id}")
 
             # مرحله 4: بعد از 1 ثانیه دیگر
             await asyncio.sleep(1)
-            if bot_chat_key not in self.spam_paused:
+            if chat_id not in self.global_paused:
                 selected = choice(fosh_list)
                 await self.send_fosh_reply(client, message, selected)
                 logger.info(f"🔥 بات {bot_id} - مرحله 4: فحش به دشمن {user_id}")
 
             # مرحله 5: بعد از 1 ثانیه دیگر
             await asyncio.sleep(1)
-            if bot_chat_key not in self.spam_paused:
+            if chat_id not in self.global_paused:
                 selected = choice(fosh_list)
                 await self.send_fosh_reply(client, message, selected)
                 logger.info(f"🔥 بات {bot_id} - مرحله 5: فحش به دشمن {user_id}")
