@@ -702,7 +702,8 @@ class UnifiedBotLauncher:
             async def clear_enemy_command(client, message):
                 try:
                     count = self.clear_enemy_list(bot_id)
-                    await message.reply_text(f"✅ تمام دشمنان بات {bot_id} حذف شدند.\n📊 تعداد حذف شده: {count} نفر")
+                    ```python
+await message.reply_text(f"✅ تمام دشمنان بات {bot_id} حذف شدند.\n📊 تعداد حذف شده: {count} نفر")
                     self.log_action(bot_id, "clear_enemy", message.from_user.id, f"حذف {count} دشمن")
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
@@ -1284,7 +1285,7 @@ class UnifiedBotLauncher:
 
                 chat_id = message.chat.id
 
-                # ابتدا بررسی توقف اسپم - بدون توجه به فرستنده
+                # بررسی توقف اسپم فقط برای کامندهای خاص
                 if self.should_pause_spam(message, bot_id):
                     # دریافت اطلاعات فرستنده
                     user_id = message.from_user.id if message.from_user else 0
@@ -1303,22 +1304,9 @@ class UnifiedBotLauncher:
                         sender_type = "فرستنده نامشخص"
                         sender_detail = "بدون اطلاعات"
 
-                    # متوقف کردن اسپم برای این بات در این چت
-                    enemy_list = self.get_enemy_list(bot_id)
-                    enemy_ids = {row[0] for row in enemy_list}
-
-                    bot_chat_key = (bot_id, chat_id)
-                    if bot_chat_key in self.spam_paused:
-                        original_enemy = self.spam_paused[bot_chat_key]
-                    else:
-                        # اگر قبلاً توقف نشده، یک دشمن فرضی تنظیم کن
-                        original_enemy = next(iter(enemy_ids), user_id if user_id else 0)
-
-                    self.spam_paused[bot_chat_key] = original_enemy
-
-                    logger.info(f"⏸️ بات {bot_id} - اسپم متوقف شد در چت {chat_id}")
+                    logger.info(f"🛑 بات {bot_id} - کامند توقف تشخیص داده شد در چت {chat_id}")
                     logger.info(f"   └ توسط: {sender_type} - {sender_detail} (ID: {user_id})")
-                    
+
                     # نمایش محتوای پیام با بررسی امنیت
                     message_content = message.text or message.caption or "[بدون متن]"
                     if len(message_content) > 100:
@@ -1327,7 +1315,9 @@ class UnifiedBotLauncher:
 
                     # لاگ عملیات توقف در دیتابیس
                     chat_title = message.chat.title if message.chat.title else f"چت {chat_id}"
-                    self.log_action(bot_id, "spam_paused_by_anyone", user_id, f"توقف اسپم توسط {sender_type} ({sender_detail}) در {chat_title}")
+                    self.log_action(bot_id, "spam_paused_by_command", user_id, f"توقف اسپم توسط کامند {sender_type} ({sender_detail}) در {chat_title}")
+
+                    # فقط لاگ توقف، بدون متوقف کردن دائمی اسپم
                     return
 
                 # ادامه منطق فقط برای پیام‌هایی که from_user دارند
