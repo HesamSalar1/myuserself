@@ -101,6 +101,11 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- June 28, 2025. Admin logging system optimization:
+  - Removed excessive admin detection logging messages
+  - Simplified is_admin() function to eliminate debug spam
+  - Cleaned up get_bot_for_admin() logging for better performance
+  - Reduced flooding message detection logging noise
 - June 28, 2025. Critical emoji detection system fixes:
   - Fixed forbidden emoji detection for all users (non-enemies and Telegram bots)
   - Resolved Unicode variation selector issues (e.g., ⚡️ vs ⚡)

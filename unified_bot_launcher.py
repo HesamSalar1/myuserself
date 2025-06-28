@@ -477,12 +477,7 @@ class UnifiedBotLauncher:
 
     def is_admin(self, user_id):
         """بررسی اینکه آیا کاربر ادمین است یا نه"""
-        is_admin = user_id in self.all_admin_ids
-        if is_admin:
-            logger.debug(f"کاربر {user_id} ادمین است")
-        else:
-            logger.debug(f"کاربر {user_id} ادمین نیست - لیست ادمین‌ها: {list(self.all_admin_ids)}")
-        return is_admin
+        return user_id in self.all_admin_ids
 
     def normalize_emoji(self, emoji):
         """نرمال‌سازی ایموجی برای مقایسه دقیق‌تر"""
@@ -573,7 +568,6 @@ class UnifiedBotLauncher:
 
         # اگر 2 یا بیشتر کلمه کلیدی فلودینگ وجود داشته باشد (حساسیت بیشتر)
         if flood_count >= 2:
-            logger.debug(f"🚫 پیام فلودینگ تشخیص داده شد با {flood_count} کلیدواژه")
             return True
 
         return False
@@ -582,9 +576,7 @@ class UnifiedBotLauncher:
         """پیدا کردن شماره بات برای ادمین مشخص"""
         for bot_id, config in self.bot_configs.items():
             if config['admin_id'] == user_id:
-                logger.debug(f"بات {bot_id} برای ادمین {user_id} پیدا شد")
                 return bot_id
-        logger.debug(f"هیچ باتی برای ادمین {user_id} پیدا نشد")
         return None
 
     async def create_bot(self, bot_id, config):
