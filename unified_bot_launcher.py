@@ -45,17 +45,17 @@ class UnifiedBotLauncher:
         # ادمین اصلی لانچر
         self.launcher_admin = 5533325167
         
-        # ادمین‌های هر بات (فقط ادمین لانچر در ابتدا - بقیه با دستور setbotadmin اضافه می‌شوند)
+        # ادمین‌های هر بات (ایدی‌های جداگانه برای کنترل هر بات)
         self.bot_admins = {
-            1: self.launcher_admin,  # ادمین بات 1
-            2: self.launcher_admin,  # ادمین بات 2
-            3: self.launcher_admin,  # ادمین بات 3
-            4: self.launcher_admin,  # ادمین بات 4
-            5: self.launcher_admin,  # ادمین بات 5
-            6: self.launcher_admin,  # ادمین بات 6
-            7: self.launcher_admin,  # ادمین بات 7
-            8: self.launcher_admin,  # ادمین بات 8
-            9: self.launcher_admin,  # ادمین بات 9
+            1: 1111111111,  # ادمین بات 1
+            2: 2222222222,  # ادمین بات 2
+            3: 3333333333,  # ادمین بات 3
+            4: 4444444444,  # ادمین بات 4
+            5: 5555555555,  # ادمین بات 5
+            6: 6666666666,  # ادمین بات 6
+            7: 7777777777,  # ادمین بات 7
+            8: 8888888888,  # ادمین بات 8
+            9: 9999999999,  # ادمین بات 9
         }
         
         # تنظیمات تاخیر برای هر بات (ثانیه)
@@ -92,7 +92,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot1/my_bot1",
                 'db_path': "bots/bot1/bot1_data.db",
                 'log_path': "bots/bot1/bot1.log",
-                'admin_id': self.launcher_admin,  # ادمین اختصاصی بات 1
+                'admin_id': 1111111111,  # ادمین اختصاصی بات 1
                 'auto_reply_enabled': False  # پیش‌فرض خاموش
             },
             2: {
@@ -101,7 +101,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot2/my_bot2",
                 'db_path': "bots/bot2/bot2_data.db",
                 'log_path': "bots/bot2/bot2.log",
-                'admin_id': self.launcher_admin,  # ادمین اختصاصی بات 2
+                'admin_id': 2222222222,  # ادمین اختصاصی بات 2
                 'auto_reply_enabled': False  # پیش‌فرض خاموش
             },
             3: {
@@ -110,7 +110,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot3/my_bot3",
                 'db_path': "bots/bot3/bot3_data.db",
                 'log_path': "bots/bot3/bot3.log",
-                'admin_id': self.launcher_admin,  # ادمین اختصاصی بات 3
+                'admin_id': 3333333333,  # ادمین اختصاصی بات 3
                 'auto_reply_enabled': False  # پیش‌فرض خاموش
             },
             4: {
@@ -119,7 +119,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot4/my_bot4",
                 'db_path': "bots/bot4/bot4_data.db",
                 'log_path': "bots/bot4/bot4.log",
-                'admin_id': self.launcher_admin,  # ادمین اختصاصی بات 4
+                'admin_id': 4444444444,  # ادمین اختصاصی بات 4
                 'auto_reply_enabled': False  # پیش‌فرض خاموش
             },
             5: {
@@ -128,7 +128,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot5/my_bot5",
                 'db_path': "bots/bot5/bot5_data.db",
                 'log_path': "bots/bot5/bot5.log",
-                'admin_id': self.launcher_admin,  # ادمین اختصاصی بات 5
+                'admin_id': 5555555555,  # ادمین اختصاصی بات 5
                 'auto_reply_enabled': False  # پیش‌فرض خاموش
             },
             6: {
@@ -137,7 +137,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot6/my_bot6",
                 'db_path': "bots/bot6/bot6_data.db",
                 'log_path': "bots/bot6/bot6.log",
-                'admin_id': self.launcher_admin,  # ادمین اختصاصی بات 6
+                'admin_id': 6666666666,  # ادمین اختصاصی بات 6
                 'auto_reply_enabled': False  # پیش‌فرض خاموش
             },
             7: {
@@ -146,7 +146,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot7/my_bot7",
                 'db_path': "bots/bot7/bot7_data.db",
                 'log_path': "bots/bot7/bot7.log",
-                'admin_id': self.launcher_admin,  # ادمین اختصاصی بات 7
+                'admin_id': 7777777777,  # ادمین اختصاصی بات 7
                 'auto_reply_enabled': False  # پیش‌فرض خاموش
             },
             8: {
@@ -155,7 +155,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot8/my_bot8",
                 'db_path': "bots/bot8/bot8_data.db",
                 'log_path': "bots/bot8/bot8.log",
-                'admin_id': self.launcher_admin,  # ادمین اختصاصی بات 8
+                'admin_id': 8888888888,  # ادمین اختصاصی بات 8
                 'auto_reply_enabled': False  # پیش‌فرض خاموش
             },
             9: {
@@ -164,7 +164,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot9/my_bot9",
                 'db_path': "bots/bot9/bot9_data.db",
                 'log_path': "bots/bot9/bot9.log",
-                'admin_id': self.launcher_admin,  # ادمین اختصاصی بات 9
+                'admin_id': 9999999999,  # ادمین اختصاصی بات 9
                 'auto_reply_enabled': False  # پیش‌فرض خاموش
             }
         }
@@ -570,20 +570,6 @@ class UnifiedBotLauncher:
                 'running': bot_id in self.bots and self.bots[bot_id] is not None
             }
         return None
-    
-    def set_bot_admin(self, bot_id, admin_id):
-        """تنظیم ادمین برای بات مشخص (فقط ادمین لانچر)"""
-        if bot_id in self.bot_admins:
-            old_admin = self.bot_admins[bot_id]
-            self.bot_admins[bot_id] = admin_id
-            self.bot_configs[bot_id]['admin_id'] = admin_id
-            
-            # بروزرسانی لیست کل ادمین‌ها
-            self.all_admin_ids = {self.launcher_admin} | set(self.bot_admins.values())
-            
-            logger.info(f"🔄 ادمین بات {bot_id} از {old_admin} به {admin_id} تغییر کرد")
-            return True
-        return False
 
     def normalize_emoji(self, emoji):
         """نرمال‌سازی ایموجی برای مقایسه دقیق‌تر"""
@@ -1653,40 +1639,6 @@ class UnifiedBotLauncher:
                         text += "⏹️ این بات به دشمنان پاسخ نمی‌دهد"
                     
                     await message.reply_text(text)
-
-                except Exception as e:
-                    await message.reply_text(f"❌ خطا: {str(e)}")
-
-            # کامند تنظیم ادمین بات (فقط ادمین لانچر)
-            @app.on_message(filters.command("setbotadmin") & admin_filter)
-            async def set_bot_admin_command(client, message):
-                try:
-                    user_id = message.from_user.id
-                    
-                    # فقط ادمین لانچر
-                    if not self.is_launcher_admin(user_id):
-                        await message.reply_text("❌ فقط ادمین لانچر مجوز تنظیم ادمین بات‌ها را دارد")
-                        return
-                    
-                    if len(message.command) < 3:
-                        await message.reply_text("⚠️ استفاده: `/setbotadmin [شماره_بات] [ایدی_ادمین]`\n💡 مثال: `/setbotadmin 1 123456789`")
-                        return
-
-                    try:
-                        target_bot_id = int(message.command[1])
-                        new_admin_id = int(message.command[2])
-                        
-                        if target_bot_id < 1 or target_bot_id > 9:
-                            await message.reply_text("❌ شماره بات باید بین 1 تا 9 باشد")
-                            return
-                        
-                        if self.set_bot_admin(target_bot_id, new_admin_id):
-                            await message.reply_text(f"✅ **ادمین بات {target_bot_id} تنظیم شد**\n👤 ادمین جدید: `{new_admin_id}`\n🔄 این کاربر حالا کنترل کامل بات {target_bot_id} را دارد")
-                        else:
-                            await message.reply_text("❌ خطا در تنظیم ادمین بات")
-                            
-                    except ValueError:
-                        await message.reply_text("❌ شماره بات یا ایدی ادمین نامعتبر")
 
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
