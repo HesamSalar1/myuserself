@@ -1936,10 +1936,32 @@ class UnifiedBotLauncher:
                     if fosh_count % 10 == 0:
                         logger.info(f"🔥 بات {bot_id} - ارسال {fosh_count} فحش به دشمن {user_id}")
                     
-                    # تاخیر تا تکمیل دور (2 ثانیه - تاخیر بات)
+                    # تاخیر تا تکمیل دور (2 ثانیه - تاخیر بات) ولی با چک کردن توقف
                     # چون آخرین بات (بات 9) 0.80 ثانیه تاخیر داره، باقی مونده: 2 - 0.80 = 1.20 ثانیه
                     remaining_delay = 2.0 - (8 * 0.10)  # 8 بات بعد از بات 1 = 0.80 ثانیه
-                    await asyncio.sleep(remaining_delay)
+                    
+                    # تقسیم تاخیر به قطعات کوچک برای چک کردن سریع‌تر توقف
+                    sleep_intervals = 10  # 10 قطعه
+                    interval_time = remaining_delay / sleep_intervals
+                    
+                    should_break = False
+                    for _ in range(sleep_intervals):
+                        await asyncio.sleep(interval_time)
+                        
+                        # چک کردن توقف در هر قطعه
+                        if chat_id in self.global_paused:
+                            logger.info(f"⏸️ فحش نامحدود بات {bot_id} متوقف شد - چت {chat_id} در حالت توقف (حین انتظار)")
+                            should_break = True
+                            break
+                        
+                        if spam_key not in self.continuous_spam_tasks:
+                            logger.info(f"⏹️ فحش نامحدود بات {bot_id} متوقف شد - تسک حذف شده (حین انتظار)")
+                            should_break = True
+                            break
+                    
+                    # اگر در loop داخلی break شد، از loop اصلی هم break کن
+                    if should_break:
+                        break
                     
                 except FloodWait as e:
                     # اگر تلگرام محدودیت زمانی اعمال کرد
