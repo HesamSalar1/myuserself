@@ -3,6 +3,7 @@ import asyncio
 import sys
 import sqlite3
 import logging
+import time
 from datetime import datetime
 import os
 from pathlib import Path
@@ -44,6 +45,17 @@ class UnifiedBotLauncher:
         
         # کامندهای ممنوعه فقط برای دشمنان
         self.enemy_forbidden_commands = ['/catch', '/grab', '/guess', '/arise', '/take', '/secure']
+        
+        # سیستم rate limiting مشترک برای جلوگیری از ارسال همزمان
+        self.global_rate_limiter = asyncio.Lock()
+        self.last_message_time = {}  # {chat_id: timestamp}
+        self.min_global_delay = 0.5  # حداقل تاخیر بین پیام‌های همه بات‌ها در یک چت
+        self.bot_message_queues = {}  # صف پیام برای هر بات
+        
+        # سیستم محدودیت همزمان برای جلوگیری از spam flooding
+        self.concurrent_message_limit = 1  # فقط یک بات در هر لحظه در یک چت
+        self.active_senders = {}  # {chat_id: set of bot_ids}
+        self.chat_locks = {}  # {chat_id: asyncio.Lock}
 
         # ادمین اصلی لانچر (کنترل همه بات‌ها)
         self.launcher_admin_id = 5533325167
@@ -1593,7 +1605,52 @@ class UnifiedBotLauncher:
             async def get_delay_command(client, message):
                 try:
                     current_delay = self.get_spam_delay(bot_id)
-                    await message.reply_text(f"⏱️ **تاخیر فعلی فحش بات {bot_id}:**\n\n🕒 {current_delay} ثانیه\n\n💡 برای تغییر از `/setdelay [ثانیه]` استفاده کنید")
+                    await message.reply_text(f"⏱️ **تاخیر فعلی فحش بات {bot_id}:**\n\n🕒 {current_delay} ثانیه\n🌐 تاخیر عمومی: {self.min_global_delay} ثانیه\n\n💡 برای تغییر از `/setdelay [ثانیه]` استفاده کنید")
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("setglobaldelay") & admin_filter)
+            async def set_global_delay_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    if not self.is_launcher_admin(user_id):
+                        await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
+                        return
+                    
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ استفاده: /setglobaldelay [ثانیه]\nمثال: /setglobaldelay 1.0")
+                        return
+                    
+                    try:
+                        delay_seconds = float(message.command[1])
+                        if delay_seconds < 0.1:
+                            await message.reply_text("❌ حداقل تاخیر عمومی 0.1 ثانیه است")
+                            return
+                        
+                        self.min_global_delay = delay_seconds
+                        await message.reply_text(f"✅ تاخیر عمومی تنظیم شد: {delay_seconds} ثانیه\n\n📝 این تاخیر بین پیام‌های همه بات‌ها در هر چت اعمال می‌شود")
+                        
+                    except ValueError:
+                        await message.reply_text("❌ لطفاً عدد معتبر وارد کنید")
+                        
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("ratelimit") & admin_filter)
+            async def rate_limit_status_command(client, message):
+                try:
+                    active_chats = len(self.last_message_time)
+                    active_locks = len(self.chat_locks)
+                    
+                    text = f"📊 **وضعیت Rate Limiting:**\n\n"
+                    text += f"🌐 تاخیر عمومی: {self.min_global_delay} ثانیه\n"
+                    text += f"💬 چت‌های فعال: {active_chats}\n"
+                    text += f"🔒 Lock های فعال: {active_locks}\n"
+                    text += f"🔥 تسک‌های فحش فعال: {len(self.continuous_spam_tasks)}\n\n"
+                    text += f"📝 سیستم rate limiting جلوگیری از ارسال همزمان پیام‌ها توسط بات‌های مختلف را می‌کند"
+                    
+                    await message.reply_text(text)
+                    
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
@@ -2026,7 +2083,7 @@ class UnifiedBotLauncher:
                     word_list = self.get_friend_words(bot_id)
                     if word_list:
                         selected = choice(word_list)
-                        await self.send_reply(message, selected)
+                        await self.send_coordinated_reply(message, selected, bot_id)
 
             # ذخیره بات
             self.bots[bot_id] = {
@@ -2041,6 +2098,38 @@ class UnifiedBotLauncher:
         except Exception as e:
             logger.error(f"❌ خطا در ایجاد بات {bot_id}: {e}")
             return None
+
+    async def send_coordinated_reply(self, message, selected_content, bot_id):
+        """ارسال پاسخ با کنترل rate limiting مشترک"""
+        chat_id = message.chat.id
+        
+        # ایجاد lock برای چت در صورت عدم وجود
+        if chat_id not in self.chat_locks:
+            self.chat_locks[chat_id] = asyncio.Lock()
+        
+        async with self.chat_locks[chat_id]:
+            try:
+                # بررسی آخرین زمان ارسال پیام در این چت
+                current_time = time.time()
+                
+                if chat_id in self.last_message_time:
+                    time_since_last = current_time - self.last_message_time[chat_id]
+                    if time_since_last < self.min_global_delay:
+                        # انتظار تا رسیدن به حداقل تاخیر
+                        wait_time = self.min_global_delay - time_since_last
+                        await asyncio.sleep(wait_time)
+                
+                # ارسال پاسخ
+                await self.send_reply(message, selected_content)
+                
+                # ثبت زمان ارسال
+                self.last_message_time[chat_id] = time.time()
+                
+                logger.debug(f"📤 بات {bot_id} پاسخ دوستانه در چت {chat_id} ارسال کرد")
+                
+            except Exception as e:
+                logger.error(f"❌ خطا در ارسال پاسخ هماهنگ بات {bot_id}: {e}")
+                raise
 
     async def send_reply(self, message, selected_content):
         """ارسال پاسخ"""
@@ -2238,7 +2327,7 @@ class UnifiedBotLauncher:
                 try:
                     # انتخاب فحش تصادفی
                     selected = choice(fosh_list)
-                    await self.send_fosh_reply(client, message, selected)
+                    await self.send_coordinated_message(client, message, selected, bot_id)
                     fosh_count += 1
                     
                     # لاگ هر 10 فحش
@@ -2352,6 +2441,38 @@ class UnifiedBotLauncher:
 
         except Exception as e:
             logger.error(f"خطا در حمله مرحله‌ای بات {bot_id}: {e}")
+
+    async def send_coordinated_message(self, client, message, selected_content, bot_id):
+        """ارسال پیام با کنترل rate limiting مشترک"""
+        chat_id = message.chat.id
+        
+        # ایجاد lock برای چت در صورت عدم وجود
+        if chat_id not in self.chat_locks:
+            self.chat_locks[chat_id] = asyncio.Lock()
+        
+        async with self.chat_locks[chat_id]:
+            try:
+                # بررسی آخرین زمان ارسال پیام در این چت
+                current_time = time.time()
+                
+                if chat_id in self.last_message_time:
+                    time_since_last = current_time - self.last_message_time[chat_id]
+                    if time_since_last < self.min_global_delay:
+                        # انتظار تا رسیدن به حداقل تاخیر
+                        wait_time = self.min_global_delay - time_since_last
+                        await asyncio.sleep(wait_time)
+                
+                # ارسال پیام
+                await self.send_fosh_reply(client, message, selected_content)
+                
+                # ثبت زمان ارسال
+                self.last_message_time[chat_id] = time.time()
+                
+                logger.debug(f"📤 بات {bot_id} پیام در چت {chat_id} ارسال کرد")
+                
+            except Exception as e:
+                logger.error(f"❌ خطا در ارسال پیام هماهنگ بات {bot_id}: {e}")
+                raise
 
     async def send_fosh_reply(self, client, message, selected_content):
         """ارسال فحش"""

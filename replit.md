@@ -101,6 +101,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- June 28, 2025. Global Rate Limiting System Implementation:
+  - Fixed concurrent messaging issue where multiple bots sent messages simultaneously
+  - Added global rate limiting with shared locks across all bots per chat
+  - Implemented coordinated message sending to prevent message flooding
+  - New commands: /setglobaldelay, /ratelimit for rate limiting management
+  - Added chat-specific asyncio locks to prevent race conditions
+  - Enhanced message timing coordination between all 9 bots
+  - Default global delay: 0.5 seconds minimum between any bot messages in same chat
 - June 28, 2025. Configurable Spam Delay System Implementation:
   - Added customizable delay settings for enemy attack frequency
   - New Telegram commands: /setdelay [seconds] and /getdelay
