@@ -42,48 +42,6 @@ class UnifiedBotLauncher:
         # کامندهای ممنوعه فقط برای دشمنان
         self.enemy_forbidden_commands = ['/catch', '/grab', '/guess', '/arise', '/take', '/secure']
 
-        # ادمین اصلی لانچر
-        self.launcher_admin = 5533325167
-        
-        # ادمین‌های هر بات (ایدی‌های جداگانه برای کنترل هر بات)
-        self.bot_admins = {
-            1: 1111111111,  # ادمین بات 1
-            2: 2222222222,  # ادمین بات 2
-            3: 3333333333,  # ادمین بات 3
-            4: 4444444444,  # ادمین بات 4
-            5: 5555555555,  # ادمین بات 5
-            6: 6666666666,  # ادمین بات 6
-            7: 7777777777,  # ادمین بات 7
-            8: 8888888888,  # ادمین بات 8
-            9: 9999999999,  # ادمین بات 9
-        }
-        
-        # تنظیمات تاخیر برای هر بات (ثانیه)
-        self.bot_delays = {
-            1: 2.0,  # 2 ثانیه پیش‌فرض
-            2: 2.0,
-            3: 2.0,
-            4: 2.0,
-            5: 2.0,
-            6: 2.0,
-            7: 2.0,
-            8: 2.0,
-            9: 2.0
-        }
-        
-        # وضعیت فعال/غیرفعال هر بات (پیش‌فرض خاموش)
-        self.bot_enabled = {
-            1: False,
-            2: False,
-            3: False,
-            4: False,
-            5: False,
-            6: False,
-            7: False,
-            8: False,
-            9: False
-        }
-
         # تنظیمات بات‌ها
         self.bot_configs = {
             1: {
@@ -92,8 +50,8 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot1/my_bot1",
                 'db_path': "bots/bot1/bot1_data.db",
                 'log_path': "bots/bot1/bot1.log",
-                'admin_id': 1111111111,  # ادمین اختصاصی بات 1
-                'auto_reply_enabled': False  # پیش‌فرض خاموش
+                'admin_id': 7143723023,
+                'auto_reply_enabled': True
             },
             2: {
                 'api_id': 29262538,
@@ -101,8 +59,8 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot2/my_bot2",
                 'db_path': "bots/bot2/bot2_data.db",
                 'log_path': "bots/bot2/bot2.log",
-                'admin_id': 2222222222,  # ادمین اختصاصی بات 2
-                'auto_reply_enabled': False  # پیش‌فرض خاموش
+                'admin_id': 7419698159,
+                'auto_reply_enabled': True
             },
             3: {
                 'api_id': 21555907,
@@ -110,8 +68,8 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot3/my_bot3",
                 'db_path': "bots/bot3/bot3_data.db",
                 'log_path': "bots/bot3/bot3.log",
-                'admin_id': 3333333333,  # ادمین اختصاصی بات 3
-                'auto_reply_enabled': False  # پیش‌فرض خاموش
+                'admin_id': 7607882302,
+                'auto_reply_enabled': True
             },
             4: {
                 'api_id': 15508294,
@@ -119,8 +77,8 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot4/my_bot4",
                 'db_path': "bots/bot4/bot4_data.db",
                 'log_path': "bots/bot4/bot4.log",
-                'admin_id': 4444444444,  # ادمین اختصاصی بات 4
-                'auto_reply_enabled': False  # پیش‌فرض خاموش
+                'admin_id': 7850529246,
+                'auto_reply_enabled': True
             },
             5: {
                 'api_id': 15508294,
@@ -128,8 +86,8 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot5/my_bot5",
                 'db_path': "bots/bot5/bot5_data.db",
                 'log_path': "bots/bot5/bot5.log",
-                'admin_id': 5555555555,  # ادمین اختصاصی بات 5
-                'auto_reply_enabled': False  # پیش‌فرض خاموش
+                'admin_id': 7850529246,
+                'auto_reply_enabled': True
             },
             6: {
                 'api_id': 15508294,
@@ -137,8 +95,8 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot6/my_bot6",
                 'db_path': "bots/bot6/bot6_data.db",
                 'log_path': "bots/bot6/bot6.log",
-                'admin_id': 6666666666,  # ادمین اختصاصی بات 6
-                'auto_reply_enabled': False  # پیش‌فرض خاموش
+                'admin_id': 7850529246,
+                'auto_reply_enabled': True
             },
             7: {
                 'api_id': 15508294,
@@ -146,8 +104,8 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot7/my_bot7",
                 'db_path': "bots/bot7/bot7_data.db",
                 'log_path': "bots/bot7/bot7.log",
-                'admin_id': 7777777777,  # ادمین اختصاصی بات 7
-                'auto_reply_enabled': False  # پیش‌فرض خاموش
+                'admin_id': 7850529246,
+                'auto_reply_enabled': True
             },
             8: {
                 'api_id': 15508294,
@@ -155,8 +113,8 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot8/my_bot8",
                 'db_path': "bots/bot8/bot8_data.db",
                 'log_path': "bots/bot8/bot8.log",
-                'admin_id': 8888888888,  # ادمین اختصاصی بات 8
-                'auto_reply_enabled': False  # پیش‌فرض خاموش
+                'admin_id': 7850529246,
+                'auto_reply_enabled': True
             },
             9: {
                 'api_id': 15508294,
@@ -164,16 +122,14 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot9/my_bot9",
                 'db_path': "bots/bot9/bot9_data.db",
                 'log_path': "bots/bot9/bot9.log",
-                'admin_id': 9999999999,  # ادمین اختصاصی بات 9
-                'auto_reply_enabled': False  # پیش‌فرض خاموش
+                'admin_id': 7850529246,
+                'auto_reply_enabled': True
             }
         }
 
-        # لیست همه admin_id ها (شامل ادمین لانچر و ادمین‌های بات‌ها)
-        self.all_admin_ids = {self.launcher_admin} | set(self.bot_admins.values())
-        logger.info(f"🔐 ادمین لانچر: {self.launcher_admin}")
-        logger.info(f"🔐 ادمین‌های بات‌ها: {self.bot_admins}")
-        logger.info(f"🔐 پیش‌فرض همه بات‌ها: خاموش (نیاز به فعال‌سازی دستی)")
+        # لیست همه admin_id ها
+        self.all_admin_ids = {config['admin_id'] for config in self.bot_configs.values()}
+        logger.info(f"🔐 لیست ادمین‌های مجاز: {list(self.all_admin_ids)}")
 
     def setup_database(self, bot_id, db_path):
         """تنظیم پایگاه داده برای هر بات"""
@@ -527,49 +483,6 @@ class UnifiedBotLauncher:
         else:
             logger.debug(f"کاربر {user_id} ادمین نیست - لیست ادمین‌ها: {list(self.all_admin_ids)}")
         return is_admin
-    
-    def is_launcher_admin(self, user_id):
-        """بررسی اینکه آیا کاربر ادمین لانچر است یا نه"""
-        return user_id == self.launcher_admin
-    
-    def is_bot_admin(self, user_id, bot_id):
-        """بررسی اینکه آیا کاربر ادمین بات مشخص است یا نه"""
-        return user_id == self.bot_admins.get(bot_id) or self.is_launcher_admin(user_id)
-    
-    def get_user_bot_id(self, user_id):
-        """پیدا کردن شماره بات که کاربر ادمین آن است"""
-        for bot_id, admin_id in self.bot_admins.items():
-            if admin_id == user_id:
-                return bot_id
-        return None
-    
-    def toggle_bot_status(self, bot_id, enabled):
-        """فعال/غیرفعال کردن بات"""
-        if bot_id in self.bot_enabled:
-            self.bot_enabled[bot_id] = enabled
-            status = "فعال" if enabled else "غیرفعال"
-            logger.info(f"🔄 بات {bot_id} {status} شد")
-            return True
-        return False
-    
-    def set_bot_delay(self, bot_id, delay):
-        """تنظیم تاخیر بات"""
-        if bot_id in self.bot_delays and delay > 0:
-            self.bot_delays[bot_id] = float(delay)
-            logger.info(f"⏱️ تاخیر بات {bot_id} به {delay} ثانیه تنظیم شد")
-            return True
-        return False
-    
-    def get_bot_status(self, bot_id):
-        """دریافت وضعیت بات"""
-        if bot_id in self.bot_enabled:
-            return {
-                'enabled': self.bot_enabled[bot_id],
-                'delay': self.bot_delays[bot_id],
-                'admin': self.bot_admins[bot_id],
-                'running': bot_id in self.bots and self.bots[bot_id] is not None
-            }
-        return None
 
     def normalize_emoji(self, emoji):
         """نرمال‌سازی ایموجی برای مقایسه دقیق‌تر"""
@@ -1534,213 +1447,16 @@ class UnifiedBotLauncher:
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
-            # کامندهای کنترل دستی بات‌ها
-            @app.on_message(filters.command("boton") & admin_filter)
-            async def bot_on_command(client, message):
-                try:
-                    user_id = message.from_user.id
-                    
-                    # بررسی مجوز
-                    if not (self.is_launcher_admin(user_id) or self.is_bot_admin(user_id, bot_id)):
-                        await message.reply_text("❌ شما مجوز کنترل این بات را ندارید")
-                        return
-                    
-                    # فعال کردن بات
-                    if self.toggle_bot_status(bot_id, True):
-                        status = self.get_bot_status(bot_id)
-                        await message.reply_text(f"✅ **بات {bot_id} فعال شد**\n⏱️ تاخیر: {status['delay']} ثانیه\n👤 ادمین: `{status['admin']}`\n🤖 حالا به دشمنان پاسخ می‌دهد")
-                        logger.info(f"🔄 بات {bot_id} توسط {user_id} فعال شد")
-                    else:
-                        await message.reply_text("❌ خطا در فعال کردن بات")
-
-                except Exception as e:
-                    await message.reply_text(f"❌ خطا: {str(e)}")
-
-            @app.on_message(filters.command("botoff") & admin_filter)
-            async def bot_off_command(client, message):
-                try:
-                    user_id = message.from_user.id
-                    
-                    # بررسی مجوز
-                    if not (self.is_launcher_admin(user_id) or self.is_bot_admin(user_id, bot_id)):
-                        await message.reply_text("❌ شما مجوز کنترل این بات را ندارید")
-                        return
-                    
-                    # غیرفعال کردن بات
-                    if self.toggle_bot_status(bot_id, False):
-                        status = self.get_bot_status(bot_id)
-                        await message.reply_text(f"⏹️ **بات {bot_id} غیرفعال شد**\n👤 ادمین: `{status['admin']}`\n🛑 دیگر به دشمنان پاسخ نمی‌دهد")
-                        logger.info(f"🔄 بات {bot_id} توسط {user_id} غیرفعال شد")
-                    else:
-                        await message.reply_text("❌ خطا در غیرفعال کردن بات")
-
-                except Exception as e:
-                    await message.reply_text(f"❌ خطا: {str(e)}")
-
-            @app.on_message(filters.command("setdelay") & admin_filter)
-            async def set_delay_command(client, message):
-                try:
-                    user_id = message.from_user.id
-                    
-                    # بررسی مجوز
-                    if not (self.is_launcher_admin(user_id) or self.is_bot_admin(user_id, bot_id)):
-                        await message.reply_text("❌ شما مجوز کنترل این بات را ندارید")
-                        return
-                    
-                    if len(message.command) < 2:
-                        await message.reply_text("⚠️ لطفاً مقدار تاخیر را وارد کنید.\n💡 استفاده: `/setdelay 5.0`\n⏱️ حداقل: 0.5 ثانیه، حداکثر: 30 ثانیه")
-                        return
-
-                    try:
-                        delay = float(message.command[1])
-                        
-                        if delay < 0.5 or delay > 30:
-                            await message.reply_text("❌ تاخیر باید بین 0.5 تا 30 ثانیه باشد")
-                            return
-                        
-                        if self.set_bot_delay(bot_id, delay):
-                            await message.reply_text(f"✅ **تاخیر بات {bot_id} تنظیم شد**\n⏱️ تاخیر جدید: {delay} ثانیه\n📝 فاصله زمانی پاسخ به دشمنان")
-                        else:
-                            await message.reply_text("❌ خطا در تنظیم تاخیر")
-                            
-                    except ValueError:
-                        await message.reply_text("❌ مقدار تاخیر نامعتبر. لطفاً عدد وارد کنید")
-
-                except Exception as e:
-                    await message.reply_text(f"❌ خطا: {str(e)}")
-
-            @app.on_message(filters.command("botstatus") & admin_filter)
-            async def bot_status_command(client, message):
-                try:
-                    user_id = message.from_user.id
-                    
-                    # بررسی مجوز
-                    if not (self.is_launcher_admin(user_id) or self.is_bot_admin(user_id, bot_id)):
-                        await message.reply_text("❌ شما مجوز مشاهده وضعیت این بات را ندارید")
-                        return
-                    
-                    status = self.get_bot_status(bot_id)
-                    if not status:
-                        await message.reply_text("❌ خطا در دریافت وضعیت بات")
-                        return
-                    
-                    status_emoji = "🟢" if status['enabled'] else "🔴"
-                    running_emoji = "✅" if status['running'] else "❌"
-                    
-                    text = f"📊 **وضعیت بات {bot_id}:**\n\n"
-                    text += f"{status_emoji} **پاسخگویی:** {'فعال' if status['enabled'] else 'غیرفعال'}\n"
-                    text += f"{running_emoji} **اتصال:** {'متصل' if status['running'] else 'قطع'}\n"
-                    text += f"⏱️ **تاخیر:** {status['delay']} ثانیه\n"
-                    text += f"👤 **ادمین:** `{status['admin']}`\n\n"
-                    
-                    if status['enabled']:
-                        text += "✅ این بات به دشمنان پاسخ می‌دهد"
-                    else:
-                        text += "⏹️ این بات به دشمنان پاسخ نمی‌دهد"
-                    
-                    await message.reply_text(text)
-
-                except Exception as e:
-                    await message.reply_text(f"❌ خطا: {str(e)}")
-
-            # کامند کنترل همه بات‌ها (فقط ادمین لانچر)
-            @app.on_message(filters.command("allbots") & admin_filter)
-            async def all_bots_command(client, message):
-                try:
-                    user_id = message.from_user.id
-                    
-                    # فقط ادمین لانچر
-                    if not self.is_launcher_admin(user_id):
-                        await message.reply_text("❌ فقط ادمین لانچر مجوز کنترل همه بات‌ها را دارد")
-                        return
-                    
-                    if len(message.command) < 2:
-                        await message.reply_text("⚠️ استفاده: `/allbots [on/off/status]`\n💡 مثال: `/allbots on` یا `/allbots status`")
-                        return
-
-                    action = message.command[1].lower()
-                    
-                    if action == "on":
-                        # فعال کردن همه بات‌ها
-                        enabled_count = 0
-                        for bot_id in range(1, 10):
-                            if self.toggle_bot_status(bot_id, True):
-                                enabled_count += 1
-                        
-                        await message.reply_text(f"✅ **همه بات‌ها فعال شدند**\n📊 تعداد: {enabled_count} بات\n🔥 حالا همه به دشمنان پاسخ می‌دهند")
-                        
-                    elif action == "off":
-                        # غیرفعال کردن همه بات‌ها
-                        disabled_count = 0
-                        for bot_id in range(1, 10):
-                            if self.toggle_bot_status(bot_id, False):
-                                disabled_count += 1
-                        
-                        await message.reply_text(f"⏹️ **همه بات‌ها غیرفعال شدند**\n📊 تعداد: {disabled_count} بات\n🛑 هیچ بات به دشمنان پاسخ نمی‌دهد")
-                        
-                    elif action == "status":
-                        # نمایش وضعیت همه بات‌ها
-                        text = "📊 **وضعیت همه بات‌ها:**\n\n"
-                        enabled_count = 0
-                        running_count = 0
-                        
-                        for bot_id in range(1, 10):
-                            status = self.get_bot_status(bot_id)
-                            if status:
-                                status_emoji = "🟢" if status['enabled'] else "🔴"
-                                running_emoji = "✅" if status['running'] else "❌"
-                                
-                                if status['enabled']:
-                                    enabled_count += 1
-                                if status['running']:
-                                    running_count += 1
-                                
-                                text += f"{status_emoji} **بات {bot_id}:** {'فعال' if status['enabled'] else 'غیرفعال'} ({status['delay']}s) {running_emoji}\n"
-                        
-                        text += f"\n📈 **خلاصه:**\n"
-                        text += f"🟢 فعال: {enabled_count}/9\n"
-                        text += f"✅ متصل: {running_count}/9"
-                        
-                        await message.reply_text(text)
-                    else:
-                        await message.reply_text("❌ عمل نامعتبر. استفاده کنید: on, off, status")
-
-                except Exception as e:
-                    await message.reply_text(f"❌ خطا: {str(e)}")
-
             # راهنما
             @app.on_message(filters.command("help") & admin_filter)
             async def help_command(client, message):
                 try:
-                    user_id = message.from_user.id
-                    is_launcher_admin = self.is_launcher_admin(user_id)
-                    is_this_bot_admin = self.is_bot_admin(user_id, bot_id)
-                    user_bot_id = self.get_user_bot_id(user_id)
-                    
                     help_text = f"""🤖 **راهنمای جامع سیستم ۹ بات هوشمند - بات {bot_id}**
-
-🔐 **وضعیت دسترسی شما:**
-• شماره بات شما: {user_bot_id or 'ندارید'}
-• مجوز لانچر: {'✅ دارید' if is_launcher_admin else '❌ ندارید'}
-• مجوز این بات: {'✅ دارید' if is_this_bot_admin else '❌ ندارید'}
-
-⚙️ **کنترل دستی بات‌ها:**
-• `/boton` - فعال کردن این بات
-• `/botoff` - غیرفعال کردن این بات
-• `/setdelay [ثانیه]` - تنظیم تاخیر پاسخ (0.5-30 ثانیه)
-• `/botstatus` - نمایش وضعیت این بات"""
-                    
-                    if is_launcher_admin:
-                        help_text += f"""
-• `/allbots on/off/status` - کنترل همه بات‌ها (فقط ادمین لانچر)"""
-                    
-                    help_text += f"""
 
 🔥 **سیستم فحش نامحدود:**
 • فحش خودکار و مداوم به دشمنان تا دریافت ایموجی توقف
 • توقف هوشمند با ایموجی‌های ممنوعه: 🔮💎⚡🎯🏆❤️💰🎁
-• مانیتورینگ real-time تعداد فحش‌های ارسالی
-• **نکته مهم:** بات‌ها پیش‌فرض خاموش هستند - باید دستی فعال شوند"""
+• مانیتورینگ real-time تعداد فحش‌های ارسالی"""
 
                     # اضافه کردن توضیح اکو برای بات 3
                     if bot_id == 3:
@@ -1836,18 +1552,6 @@ class UnifiedBotLauncher:
 📢 **سیستم ارسال همگانی:**
 • `/broadcast [پیام]` - ارسال همگانی متن به تمام گروه‌ها
 • پشتیبانی از ارسال رسانه با ریپلای در broadcast
-
-⚙️ **کنترل دستی بات (جدید):**
-• `/boton` - فعال کردن بات (پاسخگویی به دشمنان)
-• `/botoff` - غیرفعال کردن بات
-• `/setdelay [ثانیه]` - تنظیم تاخیر پاسخ (0.5-30 ثانیه)
-• `/botstatus` - نمایش وضعیت کامل این بات"""
-                    
-                    if is_launcher_admin:
-                        help_text += f"""
-• `/allbots on/off/status` - کنترل همه بات‌ها (فقط ادمین لانچر)"""
-                    
-                    help_text += f"""
 
 🤖 **تنظیمات سیستم:**
 • `/runself` - فعال کردن پاسخگویی خودکار
@@ -1956,10 +1660,6 @@ class UnifiedBotLauncher:
                 except:
                     pass
 
-                # بررسی وضعیت فعال/غیرفعال بات
-                if not self.bot_enabled.get(bot_id, False):
-                    return  # بات غیرفعال است
-                
                 if not config['auto_reply_enabled']:
                     return
 
@@ -2292,9 +1992,9 @@ class UnifiedBotLauncher:
                     if fosh_count % 10 == 0:
                         logger.info(f"🔥 بات {bot_id} - ارسال {fosh_count} فحش به دشمن {user_id}")
                     
-                    # تاخیر بر اساس تنظیمات هر بات
-                    bot_delay = self.bot_delays.get(bot_id, 2.0)  # پیش‌فرض 2 ثانیه
-                    remaining_delay = bot_delay
+                    # تاخیر تا تکمیل دور (2 ثانیه - تاخیر بات) ولی با چک کردن توقف
+                    # چون آخرین بات (بات 9) 0.80 ثانیه تاخیر داره، باقی مونده: 2 - 0.80 = 1.20 ثانیه
+                    remaining_delay = 2.0 - (8 * 0.10)  # 8 بات بعد از بات 1 = 0.80 ثانیه
                     
                     # تقسیم تاخیر به قطعات کوچک برای چک کردن سریع‌تر توقف
                     sleep_intervals = 10  # 10 قطعه
