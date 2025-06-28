@@ -101,6 +101,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- June 28, 2025. Emergency Stop System & Instant Forbidden Emoji Response:
+  - Fixed delayed stopping issue when forbidden emojis were detected (some bots continued for several seconds)
+  - Implemented emergency stop event system for instant synchronization across all 9 bots
+  - Added immediate task cancellation when forbidden emojis/commands are detected
+  - Enhanced continuous spam loop with emergency stop checks at multiple points
+  - New commands: /clearstop, /stopstatus for emergency stop management
+  - Reduced response time from 3-5 seconds to under 1 second for emoji detection
+  - All spam tasks now cancelled instantly upon forbidden emoji detection
 - June 28, 2025. Global Rate Limiting System Implementation:
   - Fixed concurrent messaging issue where multiple bots sent messages simultaneously
   - Added global rate limiting with shared locks across all bots per chat

@@ -56,6 +56,10 @@ class UnifiedBotLauncher:
         self.concurrent_message_limit = 1  # فقط یک بات در هر لحظه در یک چت
         self.active_senders = {}  # {chat_id: set of bot_ids}
         self.chat_locks = {}  # {chat_id: asyncio.Lock}
+        
+        # سیستم توقف فوری برای ایموجی‌های ممنوعه
+        self.emergency_stop_event = asyncio.Event()  # سیگنال توقف فوری برای همه بات‌ها
+        self.last_emoji_detection_time = 0  # زمان آخرین تشخیص ایموجی ممنوعه
 
         # ادمین اصلی لانچر (کنترل همه بات‌ها)
         self.launcher_admin_id = 5533325167
@@ -617,11 +621,13 @@ class UnifiedBotLauncher:
         # بررسی ایموجی‌های توقف در متن اصلی پیام (همگانی)
         if message.text and self.contains_stop_emoji(message.text):
             logger.info(f"🛑 ایموجی توقف در متن تشخیص داده شد: {message.text[:50]}...")
+            self.trigger_emergency_stop()
             return True
 
         # بررسی ایموجی‌های توقف در کپشن (همگانی)
         if message.caption and self.contains_stop_emoji(message.caption):
             logger.info(f"🛑 ایموجی توقف در کپشن تشخیص داده شد: {message.caption[:50]}...")
+            self.trigger_emergency_stop()
             return True
 
         # بررسی کامندهای ممنوعه فقط برای دشمنان
@@ -639,9 +645,35 @@ class UnifiedBotLauncher:
                         # بررسی در ابتدای پیام یا بعد از فاصله
                         if message_lower.startswith(command) or f' {command}' in message_lower:
                             logger.info(f"🛑 کامند ممنوعه دشمن تشخیص داده شد: {command} از دشمن {user_id}")
+                            self.trigger_emergency_stop()
                             return True
 
         return False
+
+    def trigger_emergency_stop(self):
+        """فعال‌سازی توقف اضطراری فوری برای همه بات‌ها"""
+        self.last_emoji_detection_time = time.time()
+        self.emergency_stop_event.set()
+        logger.warning("🚨 توقف اضطراری فعال شد - همه بات‌ها باید فوراً متوقف شوند")
+        
+        # لغو همه تسک‌های فحش نامحدود
+        cancelled_count = 0
+        for spam_key, task in list(self.continuous_spam_tasks.items()):
+            try:
+                task.cancel()
+                cancelled_count += 1
+                logger.info(f"⚡ تسک فحش {spam_key} فوراً لغو شد")
+            except:
+                pass
+        self.continuous_spam_tasks.clear()
+        
+        if cancelled_count > 0:
+            logger.warning(f"🚨 {cancelled_count} تسک فحش نامحدود فوراً متوقف شد")
+
+    def clear_emergency_stop(self):
+        """پاک کردن حالت توقف اضطراری"""
+        self.emergency_stop_event.clear()
+        logger.info("✅ حالت توقف اضطراری پاک شد")
 
     def is_flooding_message(self, text):
         """تشخیص پیام‌های مربوط به فلودینگ و اسپم"""
@@ -1641,13 +1673,54 @@ class UnifiedBotLauncher:
                 try:
                     active_chats = len(self.last_message_time)
                     active_locks = len(self.chat_locks)
+                    emergency_active = self.emergency_stop_event.is_set()
                     
                     text = f"📊 **وضعیت Rate Limiting:**\n\n"
                     text += f"🌐 تاخیر عمومی: {self.min_global_delay} ثانیه\n"
                     text += f"💬 چت‌های فعال: {active_chats}\n"
                     text += f"🔒 Lock های فعال: {active_locks}\n"
-                    text += f"🔥 تسک‌های فحش فعال: {len(self.continuous_spam_tasks)}\n\n"
+                    text += f"🔥 تسک‌های فحش فعال: {len(self.continuous_spam_tasks)}\n"
+                    text += f"🚨 توقف اضطراری: {'فعال' if emergency_active else 'غیرفعال'}\n\n"
                     text += f"📝 سیستم rate limiting جلوگیری از ارسال همزمان پیام‌ها توسط بات‌های مختلف را می‌کند"
+                    
+                    await message.reply_text(text)
+                    
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("clearstop") & admin_filter)
+            async def clear_emergency_stop_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    if not self.is_launcher_admin(user_id):
+                        await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
+                        return
+                    
+                    if self.emergency_stop_event.is_set():
+                        self.clear_emergency_stop()
+                        await message.reply_text("✅ حالت توقف اضطراری پاک شد\n\n💡 بات‌ها می‌توانند مجدداً شروع به کار کنند")
+                    else:
+                        await message.reply_text("ℹ️ هیچ توقف اضطراری فعالی وجود ندارد")
+                        
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("stopstatus") & admin_filter)
+            async def stop_status_command(client, message):
+                try:
+                    emergency_active = self.emergency_stop_event.is_set()
+                    last_detection = self.last_emoji_detection_time
+                    
+                    text = f"🛑 **وضعیت سیستم توقف:**\n\n"
+                    text += f"🚨 توقف اضطراری: {'🔴 فعال' if emergency_active else '🟢 غیرفعال'}\n"
+                    text += f"🔥 تسک‌های فحش فعال: {len(self.continuous_spam_tasks)}\n"
+                    
+                    if last_detection > 0:
+                        import datetime
+                        detection_time = datetime.datetime.fromtimestamp(last_detection)
+                        text += f"⏰ آخرین تشخیص: {detection_time.strftime('%H:%M:%S')}\n"
+                    
+                    text += f"\n📝 ایموجی‌های ممنوعه فعال: {len(self.forbidden_emojis)}"
                     
                     await message.reply_text(text)
                     
@@ -2314,6 +2387,11 @@ class UnifiedBotLauncher:
             logger.info(f"🔥 شروع فحش نامحدود بات {bot_id} به دشمن {user_id} در چت {chat_id}")
             
             while True:
+                # بررسی فوری توقف اضطراری در ابتدای هر loop
+                if self.emergency_stop_event.is_set():
+                    logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری در ابتدای loop")
+                    break
+                
                 # بررسی اینکه آیا چت متوقف شده یا نه
                 if chat_id in self.global_paused:
                     logger.info(f"⏸️ فحش نامحدود بات {bot_id} متوقف شد - چت {chat_id} در حالت توقف")
@@ -2337,13 +2415,24 @@ class UnifiedBotLauncher:
                     # دریافت تاخیر قابل تنظیم برای این بات
                     spam_delay = self.get_spam_delay(bot_id)
                     
-                    # تقسیم تاخیر به قطعات کوچک برای چک کردن سریع‌تر توقف
-                    sleep_intervals = max(1, int(spam_delay * 10))  # حداقل 1 قطعه، حداکثر 10 قطعه در هر ثانیه
-                    interval_time = spam_delay / sleep_intervals if sleep_intervals > 0 else spam_delay
+                    # بررسی فوری توقف اضطراری قبل از انتظار
+                    if self.emergency_stop_event.is_set():
+                        logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری")
+                        break
+                    
+                    # تقسیم تاخیر به قطعات کوچک‌تر برای چک کردن سریع‌تر توقف
+                    sleep_intervals = max(10, int(spam_delay * 20))  # حداقل 10 قطعه، 20 بررسی در ثانیه
+                    interval_time = spam_delay / sleep_intervals if sleep_intervals > 0 else 0.05
                     
                     should_break = False
                     for _ in range(sleep_intervals):
                         await asyncio.sleep(interval_time)
+                        
+                        # بررسی اولویت بالا: توقف اضطراری
+                        if self.emergency_stop_event.is_set():
+                            logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری (حین انتظار)")
+                            should_break = True
+                            break
                         
                         # چک کردن توقف در هر قطعه
                         if chat_id in self.global_paused:
