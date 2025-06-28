@@ -420,6 +420,10 @@ class UnifiedBotLauncher:
     def add_forbidden_emoji_to_db(self, emoji):
         """اضافه کردن ایموجی ممنوعه به دیتابیس (از بات 1)"""
         db_path = self.bot_configs[1]['db_path']  # استفاده از دیتابیس بات 1 برای ذخیره مشترک
+        
+        # اطمینان از وجود دیتابیس و جدول
+        self.setup_database(1, db_path)
+        
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         try:
@@ -437,6 +441,10 @@ class UnifiedBotLauncher:
     def remove_forbidden_emoji_from_db(self, emoji):
         """حذف ایموجی ممنوعه از دیتابیس"""
         db_path = self.bot_configs[1]['db_path']
+        
+        # اطمینان از وجود دیتابیس و جدول
+        self.setup_database(1, db_path)
+        
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("DELETE FROM forbidden_emojis WHERE emoji = ?", (emoji,))
@@ -449,6 +457,10 @@ class UnifiedBotLauncher:
         """بارگذاری ایموجی‌های ممنوعه از دیتابیس"""
         try:
             db_path = self.bot_configs[1]['db_path']
+            
+            # اطمینان از وجود دیتابیس و جدول
+            self.setup_database(1, db_path)
+            
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             cursor.execute("SELECT emoji FROM forbidden_emojis")
@@ -472,21 +484,43 @@ class UnifiedBotLauncher:
             logger.debug(f"کاربر {user_id} ادمین نیست - لیست ادمین‌ها: {list(self.all_admin_ids)}")
         return is_admin
 
+    def normalize_emoji(self, emoji):
+        """نرمال‌سازی ایموجی برای مقایسه دقیق‌تر"""
+        import unicodedata
+        
+        # نرمال‌سازی Unicode
+        normalized = unicodedata.normalize('NFC', emoji)
+        
+        # حذف Variation Selectors (U+FE0F, U+FE0E)
+        cleaned = normalized.replace('\uFE0F', '').replace('\uFE0E', '')
+        
+        return cleaned
+
     def contains_stop_emoji(self, text):
         """بررسی وجود ایموجی‌های توقف در متن"""
         if not text:
             return False
 
-        # نرمال‌سازی متن برای بررسی دقیق‌تر ایموجی‌ها
-        import unicodedata
-        normalized_text = unicodedata.normalize('NFC', text)
+        # نرمال‌سازی متن
+        normalized_text = self.normalize_emoji(text)
 
         for emoji in self.forbidden_emojis:
-            normalized_emoji = unicodedata.normalize('NFC', emoji)
+            normalized_emoji = self.normalize_emoji(emoji)
             
-            # بررسی هم در متن اصلی و هم در متن نرمال شده
-            if emoji in text or normalized_emoji in normalized_text:
+            # بررسی چند حالت مختلف
+            checks = [
+                emoji in text,                              # مقایسه مستقیم
+                normalized_emoji in normalized_text,        # مقایسه نرمال شده
+                emoji.replace('\uFE0F', '') in text,       # بدون Variation Selector
+                emoji in text.replace('\uFE0F', ''),       # متن بدون Variation Selector
+            ]
+            
+            if any(checks):
                 logger.info(f"🛑 ایموجی ممنوعه تشخیص داده شد: {emoji} در متن: {text[:50]}...")
+                logger.debug(f"   ایموجی اصلی: {repr(emoji)} (کدها: {[hex(ord(c)) for c in emoji]})")
+                logger.debug(f"   ایموجی نرمال: {repr(normalized_emoji)} (کدها: {[hex(ord(c)) for c in normalized_emoji]})")
+                logger.debug(f"   متن اصلی: {repr(text[:30])}")
+                logger.debug(f"   متن نرمال: {repr(normalized_text[:30])}")
                 return True
         return False
 

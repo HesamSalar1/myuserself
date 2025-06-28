@@ -101,6 +101,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- June 28, 2025. Critical emoji detection system fixes:
+  - Fixed forbidden emoji detection for all users (non-enemies and Telegram bots)
+  - Resolved Unicode variation selector issues (e.g., ⚡️ vs ⚡)
+  - Enhanced emoji normalization system for accurate matching
+  - Added automatic database table creation for forbidden_emojis
+  - Improved debugging and logging for emoji detection system
 - June 27, 2025. Major feature enhancements to unified bot launcher:
   - Implemented unlimited spam attacks against enemies until forbidden emoji sent
   - Added customizable forbidden emoji system with admin management commands
