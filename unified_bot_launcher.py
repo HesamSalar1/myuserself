@@ -651,29 +651,38 @@ class UnifiedBotLauncher:
         return False
 
     def trigger_emergency_stop(self):
-        """فعال‌سازی توقف اضطراری فوری برای همه بات‌ها"""
+        """فعال‌سازی توقف فوری فقط برای تسک‌های جاری (نه کل سیستم)"""
         self.last_emoji_detection_time = time.time()
         self.emergency_stop_event.set()
-        logger.warning("🚨 توقف اضطراری فعال شد - همه بات‌ها باید فوراً متوقف شوند")
+        logger.warning("⚡ توقف فوری تسک‌های جاری - سیستم همچنان فعال می‌ماند")
         
-        # لغو همه تسک‌های فحش نامحدود
+        # لغو همه تسک‌های فحش نامحدود جاری
         cancelled_count = 0
         for spam_key, task in list(self.continuous_spam_tasks.items()):
             try:
                 task.cancel()
                 cancelled_count += 1
-                logger.info(f"⚡ تسک فحش {spam_key} فوراً لغو شد")
+                logger.info(f"⚡ تسک فحش جاری {spam_key} فوراً لغو شد")
             except:
                 pass
         self.continuous_spam_tasks.clear()
         
         if cancelled_count > 0:
-            logger.warning(f"🚨 {cancelled_count} تسک فحش نامحدود فوراً متوقف شد")
+            logger.warning(f"⚡ {cancelled_count} تسک فحش جاری متوقف شد - با پیام بعدی دشمن دوباره شروع می‌شود")
+        
+        # پاک کردن حالت توقف اضطراری بعد از یک تاخیر کوتاه تا تسک‌ها بتوانند متوقف شوند
+        asyncio.create_task(self.auto_clear_emergency_stop())
+
+    async def auto_clear_emergency_stop(self):
+        """پاک کردن خودکار حالت توقف اضطراری بعد از تاخیر کوتاه"""
+        await asyncio.sleep(0.5)  # انتظار کوتاه تا تسک‌ها متوقف شوند
+        self.emergency_stop_event.clear()
+        logger.info("✅ حالت توقف اضطراری خودکار پاک شد - آماده دریافت پیام‌های جدید")
 
     def clear_emergency_stop(self):
-        """پاک کردن حالت توقف اضطراری"""
+        """پاک کردن دستی حالت توقف اضطراری"""
         self.emergency_stop_event.clear()
-        logger.info("✅ حالت توقف اضطراری پاک شد")
+        logger.info("✅ حالت توقف اضطراری دستی پاک شد")
 
     def is_flooding_message(self, text):
         """تشخیص پیام‌های مربوط به فلودینگ و اسپم"""
@@ -2126,7 +2135,7 @@ class UnifiedBotLauncher:
                 enemy_ids = {row[0] for row in enemy_list}
 
                 if user_id in enemy_ids:
-                    # شروع فحش نامحدود به دشمن
+                    # شروع فحش نامحدود به دشمن - همیشه شروع می‌شود حتی بعد از توقف با ایموجی
                     fosh_list = self.get_fosh_list(bot_id)
                     if fosh_list:
                         # ایجاد کلید یونیک برای این دشمن در این بات
@@ -2140,12 +2149,17 @@ class UnifiedBotLauncher:
                             except:
                                 pass
                         
+                        # پاک کردن حالت توقف اضطراری اگر فعال است تا بتوان دوباره شروع کرد
+                        if self.emergency_stop_event.is_set():
+                            logger.info(f"⚡ پاک کردن توقف اضطراری برای شروع مجدد فحش به دشمن {user_id}")
+                            self.emergency_stop_event.clear()
+                        
                         # شروع تسک جدید فحش نامحدود
                         spam_task = asyncio.create_task(
                             self.continuous_spam_attack(client, message, user_id, fosh_list, bot_id, chat_id)
                         )
                         self.continuous_spam_tasks[spam_key] = spam_task
-                        logger.info(f"🔥 شروع فحش نامحدود به دشمن {user_id} توسط بات {bot_id}")
+                        logger.info(f"🔥 شروع مجدد فحش نامحدود به دشمن {user_id} توسط بات {bot_id}")
                     return
 
                 # بررسی دوست بودن
