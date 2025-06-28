@@ -53,7 +53,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot1/my_bot1",
                 'db_path': "bots/bot1/bot1_data.db",
                 'log_path': "bots/bot1/bot1.log",
-                'admin_id': 7143723023,
+                'admin_id': 7419698159,  # ادمین اصلی بات 1
                 'auto_reply_enabled': True
             },
             2: {
@@ -62,7 +62,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot2/my_bot2",
                 'db_path': "bots/bot2/bot2_data.db",
                 'log_path': "bots/bot2/bot2.log",
-                'admin_id': 7419698159,
+                'admin_id': 7607882302,  # ادمین اصلی بات 2
                 'auto_reply_enabled': True
             },
             3: {
@@ -71,7 +71,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot3/my_bot3",
                 'db_path': "bots/bot3/bot3_data.db",
                 'log_path': "bots/bot3/bot3.log",
-                'admin_id': 7607882302,
+                'admin_id': 7850529246,  # ادمین اصلی بات 3
                 'auto_reply_enabled': True
             },
             4: {
@@ -80,7 +80,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot4/my_bot4",
                 'db_path': "bots/bot4/bot4_data.db",
                 'log_path': "bots/bot4/bot4.log",
-                'admin_id': 7850529246,
+                'admin_id': 7739974888,  # ادمین اصلی بات 4
                 'auto_reply_enabled': True
             },
             5: {
@@ -89,7 +89,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot5/my_bot5",
                 'db_path': "bots/bot5/bot5_data.db",
                 'log_path': "bots/bot5/bot5.log",
-                'admin_id': 7850529246,
+                'admin_id': 7346058093,  # ادمین اصلی بات 5
                 'auto_reply_enabled': True
             },
             6: {
@@ -98,7 +98,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot6/my_bot6",
                 'db_path': "bots/bot6/bot6_data.db",
                 'log_path': "bots/bot6/bot6.log",
-                'admin_id': 7850529246,
+                'admin_id': 7927398744,  # ادمین اصلی بات 6
                 'auto_reply_enabled': True
             },
             7: {
@@ -107,7 +107,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot7/my_bot7",
                 'db_path': "bots/bot7/bot7_data.db",
                 'log_path': "bots/bot7/bot7.log",
-                'admin_id': 7850529246,
+                'admin_id': 8092847456,  # ادمین اصلی بات 7
                 'auto_reply_enabled': True
             },
             8: {
@@ -116,7 +116,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot8/my_bot8",
                 'db_path': "bots/bot8/bot8_data.db",
                 'log_path': "bots/bot8/bot8.log",
-                'admin_id': 7850529246,
+                'admin_id': 7220521953,  # ادمین اصلی بات 8
                 'auto_reply_enabled': True
             },
             9: {
@@ -125,7 +125,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot9/my_bot9",
                 'db_path': "bots/bot9/bot9_data.db",
                 'log_path': "bots/bot9/bot9.log",
-                'admin_id': 7850529246,
+                'admin_id': 7143723023,  # ادمین اصلی بات 9
                 'auto_reply_enabled': True
             }
         }

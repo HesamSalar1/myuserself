@@ -16,11 +16,16 @@ def test_admin_permissions():
     # ادمین اصلی لانچر
     launcher_admin = 5533325167
     
-    # ادمین‌های بات‌ها
-    bot1_admin = 7143723023
-    bot2_admin = 7419698159
-    bot3_admin = 7607882302
-    bot4_admin = 7850529246  # این ادمین برای بات‌های 4-9 است
+    # ادمین‌های بات‌ها (ایدی‌های جدید)
+    bot1_admin = 7419698159  # ادمین بات 1
+    bot2_admin = 7607882302  # ادمین بات 2
+    bot3_admin = 7850529246  # ادمین بات 3
+    bot4_admin = 7739974888  # ادمین بات 4
+    bot5_admin = 7346058093  # ادمین بات 5
+    bot6_admin = 7927398744  # ادمین بات 6
+    bot7_admin = 8092847456  # ادمین بات 7
+    bot8_admin = 7220521953  # ادمین بات 8
+    bot9_admin = 7143723023  # ادمین بات 9
     
     print(f"👑 ادمین اصلی لانچر: {launcher_admin}")
     print(f"🔧 ادمین‌های بات‌ها: {list(launcher.bot_admin_ids)}")
@@ -56,15 +61,32 @@ def test_admin_permissions():
         print(f"  ✓ کنترل بات {bot_id}: {'✅' if can_control else '❌'}")
     print()
     
-    # تست ادمین بات‌های 4-9
-    print("📊 تست ادمین بات‌های 4-9:")
-    print(f"  ✓ آیا {bot4_admin} ادمین اصلی است؟ {launcher.is_launcher_admin(bot4_admin)}")
-    print(f"  ✓ بات مربوطه: {launcher.get_bot_for_admin(bot4_admin)}")
-    print(f"  ✓ بات‌های قابل کنترل: {launcher.get_accessible_bots(bot4_admin)}")
-    for bot_id in range(1, 10):
-        can_control = launcher.can_control_bot(bot4_admin, bot_id)
-        print(f"  ✓ کنترل بات {bot_id}: {'✅' if can_control else '❌'}")
-    print()
+    # تست همه ادمین‌های بات‌ها
+    admin_tests = [
+        ("بات 3", bot3_admin, 3),
+        ("بات 4", bot4_admin, 4),
+        ("بات 5", bot5_admin, 5),
+        ("بات 6", bot6_admin, 6),
+        ("بات 7", bot7_admin, 7),
+        ("بات 8", bot8_admin, 8),
+        ("بات 9", bot9_admin, 9),
+    ]
+    
+    for bot_name, admin_id, expected_bot in admin_tests:
+        print(f"📊 تست ادمین {bot_name} ({admin_id}):")
+        print(f"  ✓ آیا {admin_id} ادمین اصلی است؟ {launcher.is_launcher_admin(admin_id)}")
+        print(f"  ✓ بات مربوطه: {launcher.get_bot_for_admin(admin_id)}")
+        print(f"  ✓ بات‌های قابل کنترل: {launcher.get_accessible_bots(admin_id)}")
+        
+        # بررسی دسترسی به بات خودش
+        can_control_own = launcher.can_control_bot(admin_id, expected_bot)
+        print(f"  ✓ کنترل {bot_name}: {'✅' if can_control_own else '❌'}")
+        
+        # بررسی عدم دسترسی به بات‌های دیگر
+        other_bots = [i for i in range(1, 10) if i != expected_bot]
+        accessible_others = sum(1 for bot_id in other_bots if launcher.can_control_bot(admin_id, bot_id))
+        print(f"  ✓ دسترسی غیرمجاز به بات‌های دیگر: {'❌ مشکل!' if accessible_others > 0 else '✅ هیچ'}")
+        print()
     
     # تست کاربر غیر ادمین
     random_user = 123456789
