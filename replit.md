@@ -101,6 +101,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- June 28, 2025. Major admin system overhaul and manual bot control implementation:
+  - Redesigned admin system: Single launcher admin (ID: 5533325167) + individual bot admins
+  - Implemented manual on/off control for each bot (default: OFF state)
+  - Added configurable response delays (0.5-30 seconds) via Telegram commands
+  - Created 9 separate admin IDs for individual bot control
+  - Added new commands: /boton, /botoff, /setdelay, /botstatus, /allbots
+  - Enhanced help system with personalized admin permissions display
+  - Integrated manual control with existing emoji detection system
 - June 28, 2025. Critical emoji detection system fixes:
   - Fixed forbidden emoji detection for all users (non-enemies and Telegram bots)
   - Resolved Unicode variation selector issues (e.g., ⚡️ vs ⚡)
