@@ -117,7 +117,7 @@ Preferred communication style: Simple, everyday language.
   - Enhanced /testadmin command to show user's permission level and accessible bots
   - Updated help system to display different information based on admin type
   - Added comprehensive permission testing system to verify access controls
-  - Bot admin assignments corrected: Bot1(7419698159), Bot2(7607882302), Bot3(7850529246), Bot4(7739974888), Bot5(7346058093), Bot6(7927398744), Bot7(8092847456), Bot8(7220521953), Bot9(7143723023)
+  - Bot admin assignments corrected: Bot1(7850529246), Bot2(7419698159), Bot3(7607882302), Bot4(7739974888), Bot5(7346058093), Bot6(7927398744), Bot7(8092847456), Bot8(7220521953), Bot9(7143723023)
 - June 28, 2025. Admin logging system optimization:
   - Removed excessive admin detection logging messages
   - Simplified is_admin() function to eliminate debug spam

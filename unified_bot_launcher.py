@@ -56,7 +56,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot1/my_bot1",
                 'db_path': "bots/bot1/bot1_data.db",
                 'log_path': "bots/bot1/bot1.log",
-                'admin_id': 7419698159,  # ادمین اصلی بات 1
+                'admin_id': 7850529246,  # ادمین اصلی بات 1
                 'auto_reply_enabled': True
             },
             2: {
@@ -65,7 +65,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot2/my_bot2",
                 'db_path': "bots/bot2/bot2_data.db",
                 'log_path': "bots/bot2/bot2.log",
-                'admin_id': 7607882302,  # ادمین اصلی بات 2
+                'admin_id': 7419698159,  # ادمین اصلی بات 2
                 'auto_reply_enabled': True
             },
             3: {
@@ -74,7 +74,7 @@ class UnifiedBotLauncher:
                 'session_name': "bots/bot3/my_bot3",
                 'db_path': "bots/bot3/bot3_data.db",
                 'log_path': "bots/bot3/bot3.log",
-                'admin_id': 7850529246,  # ادمین اصلی بات 3
+                'admin_id': 7607882302,  # ادمین اصلی بات 3
                 'auto_reply_enabled': True
             },
             4: {
