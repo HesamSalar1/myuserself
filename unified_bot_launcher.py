@@ -42,6 +42,9 @@ class UnifiedBotLauncher:
         # کامندهای ممنوعه فقط برای دشمنان
         self.enemy_forbidden_commands = ['/catch', '/grab', '/guess', '/arise', '/take', '/secure']
 
+        # ادمین اصلی لانچر (کنترل همه بات‌ها)
+        self.launcher_admin_id = 5533325167
+        
         # تنظیمات بات‌ها
         self.bot_configs = {
             1: {
@@ -127,9 +130,15 @@ class UnifiedBotLauncher:
             }
         }
 
-        # لیست همه admin_id ها
-        self.all_admin_ids = {config['admin_id'] for config in self.bot_configs.values()}
-        logger.info(f"🔐 لیست ادمین‌های مجاز: {list(self.all_admin_ids)}")
+        # لیست همه admin_id های بات‌ها (بدون ادمین لانچر)
+        self.bot_admin_ids = {config['admin_id'] for config in self.bot_configs.values()}
+        
+        # لیست کامل همه ادمین‌ها (شامل ادمین لانچر + ادمین‌های بات‌ها)
+        self.all_admin_ids = self.bot_admin_ids | {self.launcher_admin_id}
+        
+        logger.info(f"👑 ادمین اصلی لانچر: {self.launcher_admin_id}")
+        logger.info(f"🔐 ادمین‌های بات‌ها: {list(self.bot_admin_ids)}")
+        logger.info(f"📋 همه ادمین‌ها: {list(self.all_admin_ids)}")
 
     def setup_database(self, bot_id, db_path):
         """تنظیم پایگاه داده برای هر بات"""
@@ -578,6 +587,33 @@ class UnifiedBotLauncher:
             if config['admin_id'] == user_id:
                 return bot_id
         return None
+    
+    def is_launcher_admin(self, user_id):
+        """بررسی آیا کاربر ادمین اصلی لانچر است"""
+        return user_id == self.launcher_admin_id
+    
+    def can_control_bot(self, user_id, target_bot_id):
+        """بررسی آیا کاربر مجاز به کنترل بات مشخصی است"""
+        # ادمین اصلی لانچر می‌تواند همه بات‌ها را کنترل کند
+        if self.is_launcher_admin(user_id):
+            return True
+        
+        # ادمین‌های بات فقط می‌توانند بات‌هایی که به آن‌ها اختصاص داده شده را کنترل کنند
+        accessible_bots = self.get_accessible_bots(user_id)
+        return target_bot_id in accessible_bots
+    
+    def get_accessible_bots(self, user_id):
+        """دریافت لیست بات‌هایی که کاربر مجاز به کنترل آن‌ها است"""
+        if self.is_launcher_admin(user_id):
+            return list(self.bot_configs.keys())  # همه بات‌ها
+        
+        # پیدا کردن همه بات‌هایی که این ادمین کنترل می‌کند
+        accessible_bots = []
+        for bot_id, config in self.bot_configs.items():
+            if config['admin_id'] == user_id:
+                accessible_bots.append(bot_id)
+        
+        return accessible_bots
 
     async def create_bot(self, bot_id, config):
         """ایجاد و تنظیم یک بات"""
@@ -594,17 +630,28 @@ class UnifiedBotLauncher:
 
             admin_id = config['admin_id']
 
-            # تعریف هندلرها - همه کامندها برای همه ادمین‌ها
+            # تعریف هندلرها - کنترل دسترسی بر اساس نوع ادمین
             def is_admin_user(_, __, message):
                 if not message.from_user:
                     return False
                 user_id = message.from_user.id
-                is_admin = user_id in self.all_admin_ids
-                if is_admin:
-                    logger.info(f"✅ ادمین تشخیص داده شد: {user_id} برای بات {bot_id}")
+                
+                # بررسی آیا کاربر اصلاً ادمین است
+                if user_id not in self.all_admin_ids:
+                    return False
+                
+                # بررسی آیا کاربر مجاز به کنترل این بات است
+                can_control = self.can_control_bot(user_id, bot_id)
+                
+                if can_control:
+                    if self.is_launcher_admin(user_id):
+                        logger.info(f"👑 ادمین اصلی لانچر: {user_id} - کنترل بات {bot_id}")
+                    else:
+                        logger.info(f"🔧 ادمین بات: {user_id} - کنترل بات {bot_id}")
                 else:
-                    logger.debug(f"❌ کاربر {user_id} ادمین نیست - ادمین‌های مجاز: {self.all_admin_ids}")
-                return is_admin
+                    logger.warning(f"🚫 ادمین {user_id} مجاز به کنترل بات {bot_id} نیست")
+                
+                return can_control
 
             admin_filter = filters.create(is_admin_user)
 
@@ -621,13 +668,22 @@ class UnifiedBotLauncher:
                 try:
                     user_id = message.from_user.id
                     user_bot = self.get_bot_for_admin(user_id)
-                    admin_list = list(self.all_admin_ids)
+                    is_launcher = self.is_launcher_admin(user_id)
+                    accessible_bots = self.get_accessible_bots(user_id)
 
                     text = f"🔍 **تست تشخیص ادمین:**\n\n"
                     text += f"👤 شما: `{user_id}`\n"
-                    text += f"🤖 بات مربوطه: `{user_bot or 'یافت نشد'}`\n"
-                    text += f"📋 لیست کامل ادمین‌ها: `{admin_list}`\n"
-                    text += f"✅ وضعیت: ادمین تشخیص داده شده"
+                    
+                    if is_launcher:
+                        text += f"👑 نوع: ادمین اصلی لانچر\n"
+                        text += f"🎯 دسترسی: کنترل همه بات‌ها\n"
+                    else:
+                        text += f"🔧 نوع: ادمین بات شخصی\n"
+                        text += f"🤖 بات مربوطه: `{user_bot or 'یافت نشد'}`\n"
+                    
+                    text += f"🎮 بات‌های قابل کنترل: `{accessible_bots}`\n"
+                    text += f"🎯 بات فعلی: `{bot_id}`\n"
+                    text += f"✅ وضعیت: دسترسی تایید شده"
 
                     await message.reply_text(text)
                 except Exception as e:
@@ -1443,7 +1499,14 @@ class UnifiedBotLauncher:
             @app.on_message(filters.command("help") & admin_filter)
             async def help_command(client, message):
                 try:
+                    user_id = message.from_user.id
+                    is_launcher = self.is_launcher_admin(user_id)
+                    accessible_bots = self.get_accessible_bots(user_id)
+                    
                     help_text = f"""🤖 **راهنمای جامع سیستم ۹ بات هوشمند - بات {bot_id}**
+
+👤 **دسترسی شما:**
+{'👑 ادمین اصلی لانچر - کنترل همه بات‌ها' if is_launcher else f'🔧 ادمین بات شخصی - کنترل بات‌های: {accessible_bots}'}
 
 🔥 **سیستم فحش نامحدود:**
 • فحش خودکار و مداوم به دشمنان تا دریافت ایموجی توقف
@@ -1577,19 +1640,44 @@ class UnifiedBotLauncher:
 • کامندهای توقف: `/catch` `/grab` `/guess` `/take` `/arise`
 └ اسپم تا پیام بعدی دشمن متوقف می‌شود"""
 
+                    # اضافه کردن کامندهای ویژه ادمین اصلی لانچر
+                    if is_launcher:
+                        text += f"""
+
+👑 **کامندهای ویژه ادمین اصلی لانچر:**
+• `/launcherstatus` - نمایش وضعیت کامل همه بات‌ها
+• `/restartbot [شماره]` - راه‌اندازی مجدد بات مشخص
+• `/manageall autoreply [on|off]` - کنترل پاسخگویی همه بات‌ها
+• `/testadmin` - بررسی دسترسی و نوع ادمین
+
+🎯 **دسترسی شما:** کنترل کامل همه ۹ بات
+⚠️ **توجه:** این کامندها فقط برای شما قابل استفاده هستند"""
+                    
+                    text += """
+
+💡 **نکات مهم:**
+• هر ادمین فقط بات خودش را کنترل می‌کند
+• ادمین اصلی لانچر همه بات‌ها را کنترل می‌کند
+• فحش نامحدود خودکار با تشخیص دشمن شروع می‌شود
+• سیستم توقف هوشمند برای جلوگیری از مشکل"""
+
                     await message.reply_text(text)
 
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
-            # دستورات مدیریتی ادمین (فقط برای بات 1)
-            if bot_id == 1:
-                @app.on_message(filters.command("status") & admin_filter)
-                async def admin_status_command(client, message):
-                    try:
-                        status = self.get_status()
-                        status_text = f"""
-📊 **وضعیت لانچر واحد:**
+            # دستورات مدیریتی ویژه ادمین اصلی لانچر
+            @app.on_message(filters.command("launcherstatus") & admin_filter)
+            async def launcher_status_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    if not self.is_launcher_admin(user_id):
+                        await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
+                        return
+                        
+                    status = self.get_status()
+                    status_text = f"""
+👑 **وضعیت لانچر واحد - ادمین اصلی:**
 
 🤖 تعداد کل بات‌ها: {status['total_bots']}
 ✅ بات‌های فعال: {status['running_bots']}
@@ -1598,39 +1686,77 @@ class UnifiedBotLauncher:
 📋 **جزئیات بات‌ها:**
 """
 
-                        for bot_info in status['bots']:
-                            emoji = "✅" if bot_info['status'] == 'running' else "❌"
-                            status_text += f"{emoji} بات {bot_info['id']}: {bot_info['status']}\n"
+                    for bot_info in status['bots']:
+                        emoji = "✅" if bot_info['status'] == 'running' else "❌"
+                        bot_admin = self.bot_configs.get(bot_info['id'], {}).get('admin_id', 'Unknown')
+                        status_text += f"{emoji} بات {bot_info['id']}: {bot_info['status']} (Admin: {bot_admin})\n"
 
-                        await message.reply_text(status_text.strip())
+                    await message.reply_text(status_text.strip())
 
-                    except Exception as e:
-                        await message.reply_text(f"❌ خطا: {e}")
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {e}")
 
-                @app.on_message(filters.command("restart") & admin_filter)
-                async def admin_restart_command(client, message):
-                    try:
-                        if len(message.command) < 2:
-                            await message.reply_text("⚠️ استفاده: /restart [شماره_بات]\nمثال: /restart 2")
-                            return
+            @app.on_message(filters.command("restartbot") & admin_filter)
+            async def restart_bot_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ استفاده: /restartbot [شماره_بات]\nمثال: /restartbot 2")
+                        return
 
-                        target_bot_id = int(message.command[1])
-                        if target_bot_id not in self.bot_configs:
-                            await message.reply_text(f"❌ بات {target_bot_id} یافت نشد")
-                            return
+                    target_bot_id = int(message.command[1])
+                    if target_bot_id not in self.bot_configs:
+                        await message.reply_text(f"❌ بات {target_bot_id} یافت نشد")
+                        return
+                    
+                    # بررسی دسترسی
+                    if not self.can_control_bot(user_id, target_bot_id):
+                        await message.reply_text(f"🚫 شما مجاز به راه‌اندازی مجدد بات {target_bot_id} نیستید")
+                        return
 
-                        await message.reply_text(f"🔄 راه‌اندازی مجدد بات {target_bot_id}...")
+                    await message.reply_text(f"🔄 راه‌اندازی مجدد بات {target_bot_id}...")
 
-                        success = await self.restart_bot(target_bot_id)
-                        if success:
-                            await message.reply_text(f"✅ بات {target_bot_id} مجدداً راه‌اندازی شد")
-                        else:
-                            await message.reply_text(f"❌ خطا در راه‌اندازی مجدد بات {target_bot_id}")
+                    success = await self.restart_bot(target_bot_id)
+                    if success:
+                        await message.reply_text(f"✅ بات {target_bot_id} مجدداً راه‌اندازی شد")
+                    else:
+                        await message.reply_text(f"❌ خطا در راه‌اندازی مجدد بات {target_bot_id}")
 
-                    except ValueError:
-                        await message.reply_text("❌ شماره بات نامعتبر")
-                    except Exception as e:
-                        await message.reply_text(f"❌ خطا: {e}")
+                except ValueError:
+                    await message.reply_text("❌ شماره بات نامعتبر")
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {e}")
+            
+            # کامند جدید برای مدیریت کردن همه بات‌ها (فقط ادمین اصلی)
+            @app.on_message(filters.command("manageall") & admin_filter)
+            async def manage_all_bots_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    if not self.is_launcher_admin(user_id):
+                        await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
+                        return
+                    
+                    if len(message.command) < 3:
+                        await message.reply_text("⚠️ استفاده: /manageall [کامند] [پارامتر]\nمثال: /manageall autoreply on")
+                        return
+                    
+                    command = message.command[1].lower()
+                    parameter = message.command[2].lower()
+                    
+                    if command == "autoreply":
+                        enabled = parameter == "on"
+                        for bot_id in self.bot_configs.keys():
+                            self.bot_configs[bot_id]['auto_reply_enabled'] = enabled
+                        
+                        status = "فعال" if enabled else "غیرفعال" 
+                        await message.reply_text(f"✅ پاسخگویی خودکار همه بات‌ها {status} شد")
+                    
+                    else:
+                        await message.reply_text("❌ کامند نامعتبر. کامندهای موجود: autoreply")
+                        
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {e}")
 
             # پاسخگویی خودکار
             @app.on_message(
