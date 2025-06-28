@@ -37,6 +37,9 @@ class UnifiedBotLauncher:
         # ایموجی‌های ممنوعه (مدیریت کامل توسط ادمین از طریق کامندها)
         self.forbidden_emojis = set()
         
+        # بارگذاری ایموجی‌های ممنوعه از دیتابیس در startup (بعد از اینکه دیتابیس آماده شد)
+        self._emoji_loaded = False
+        
         # کامندهای ممنوعه فقط برای دشمنان
         self.enemy_forbidden_commands = ['/catch', '/grab', '/guess', '/arise', '/take', '/secure']
 
@@ -184,6 +187,15 @@ class UnifiedBotLauncher:
                     user_id INTEGER,
                     details TEXT,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
+            # جدول جدید برای ایموجی‌های ممنوعه (مشترک بین همه بات‌ها)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS forbidden_emojis (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    emoji TEXT UNIQUE NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
 
@@ -405,6 +417,52 @@ class UnifiedBotLauncher:
             'friend_count': friend_count,
             'word_count': word_count
         }
+
+    def add_forbidden_emoji_to_db(self, emoji):
+        """اضافه کردن ایموجی ممنوعه به دیتابیس (از بات 1)"""
+        db_path = self.bot_configs[1]['db_path']  # استفاده از دیتابیس بات 1 برای ذخیره مشترک
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO forbidden_emojis (emoji) VALUES (?)", (emoji,))
+            conn.commit()
+            result = True
+        except sqlite3.IntegrityError:
+            result = False  # ایموجی از قبل وجود دارد
+        except Exception as e:
+            logger.error(f"خطا در اضافه کردن ایموجی ممنوعه: {e}")
+            result = False
+        conn.close()
+        return result
+
+    def remove_forbidden_emoji_from_db(self, emoji):
+        """حذف ایموجی ممنوعه از دیتابیس"""
+        db_path = self.bot_configs[1]['db_path']
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM forbidden_emojis WHERE emoji = ?", (emoji,))
+        result = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return result
+
+    def load_forbidden_emojis_from_db(self):
+        """بارگذاری ایموجی‌های ممنوعه از دیتابیس"""
+        try:
+            db_path = self.bot_configs[1]['db_path']
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT emoji FROM forbidden_emojis")
+            result = cursor.fetchall()
+            conn.close()
+            
+            # تبدیل به set
+            emojis = {row[0] for row in result}
+            logger.info(f"📥 بارگذاری {len(emojis)} ایموجی ممنوعه از دیتابیس")
+            return emojis
+        except Exception as e:
+            logger.error(f"خطا در بارگذاری ایموجی‌های ممنوعه: {e}")
+            return set()
 
     def is_admin(self, user_id):
         """بررسی اینکه آیا کاربر ادمین است یا نه"""
@@ -1159,9 +1217,14 @@ class UnifiedBotLauncher:
                         await message.reply_text(f"⚠️ این ایموجی قبلاً در لیست ممنوعه است: {new_emoji}")
                         return
                     
-                    self.forbidden_emojis.add(new_emoji)
-                    await message.reply_text(f"✅ ایموجی جدید به لیست ممنوعه اضافه شد: {new_emoji}\n📊 تعداد کل: {len(self.forbidden_emojis)} ایموجی")
-                    self.log_action(bot_id, "add_forbidden_emoji", message.from_user.id, new_emoji)
+                    # اضافه کردن به دیتابیس
+                    if self.add_forbidden_emoji_to_db(new_emoji):
+                        # اضافه کردن به حافظه
+                        self.forbidden_emojis.add(new_emoji)
+                        await message.reply_text(f"✅ ایموجی جدید به لیست ممنوعه اضافه شد: {new_emoji}\n📊 تعداد کل: {len(self.forbidden_emojis)} ایموجی\n💾 در دیتابیس ذخیره شد")
+                        self.log_action(bot_id, "add_forbidden_emoji", message.from_user.id, new_emoji)
+                    else:
+                        await message.reply_text(f"❌ خطا در ذخیره ایموجی در دیتابیس")
 
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
@@ -1179,9 +1242,14 @@ class UnifiedBotLauncher:
                         await message.reply_text(f"⚠️ این ایموجی در لیست ممنوعه یافت نشد: {emoji_to_remove}")
                         return
                     
-                    self.forbidden_emojis.remove(emoji_to_remove)
-                    await message.reply_text(f"✅ ایموجی از لیست ممنوعه حذف شد: {emoji_to_remove}\n📊 تعداد باقی‌مانده: {len(self.forbidden_emojis)} ایموجی")
-                    self.log_action(bot_id, "del_forbidden_emoji", message.from_user.id, emoji_to_remove)
+                    # حذف از دیتابیس
+                    if self.remove_forbidden_emoji_from_db(emoji_to_remove):
+                        # حذف از حافظه
+                        self.forbidden_emojis.remove(emoji_to_remove)
+                        await message.reply_text(f"✅ ایموجی از لیست ممنوعه حذف شد: {emoji_to_remove}\n📊 تعداد باقی‌مانده: {len(self.forbidden_emojis)} ایموجی\n💾 از دیتابیس حذف شد")
+                        self.log_action(bot_id, "del_forbidden_emoji", message.from_user.id, emoji_to_remove)
+                    else:
+                        await message.reply_text(f"❌ خطا در حذف ایموجی از دیتابیس")
 
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
@@ -1632,6 +1700,16 @@ class UnifiedBotLauncher:
             await client.start()
             bot_info['status'] = 'running'
             bot_info['start_time'] = datetime.now()
+
+            # بارگذاری ایموجی‌های ممنوعه از دیتابیس (فقط یکبار)
+            if not self._emoji_loaded:
+                try:
+                    loaded_emojis = self.load_forbidden_emojis_from_db()
+                    self.forbidden_emojis.update(loaded_emojis)
+                    self._emoji_loaded = True
+                    logger.info(f"📥 ایموجی‌های ممنوعه بارگذاری شدند: {len(self.forbidden_emojis)} ایموجی")
+                except Exception as e:
+                    logger.error(f"❌ خطا در بارگذاری ایموجی‌های ممنوعه: {e}")
 
             logger.info(f"✅ بات {bot_id} آماده و در حال اجرا!")
 
