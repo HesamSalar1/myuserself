@@ -101,6 +101,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- June 28, 2025. Configurable Spam Delay System Implementation:
+  - Added customizable delay settings for enemy attack frequency
+  - New Telegram commands: /setdelay [seconds] and /getdelay
+  - Each bot can have independent delay configuration (0.1s to unlimited)
+  - Settings are persisted in database and loaded on bot startup
+  - Updated continuous spam attack system to use configurable delays
+  - Added comprehensive input validation and error handling
+  - Supports decimal values (e.g., 0.5, 2.5) with no upper limit restrictions
 - June 28, 2025. Advanced Admin Permission System Implementation:
   - Set user ID 5533325167 as main launcher admin with full control over all 9 bots
   - Implemented strict permission system where each bot admin can only control their assigned bot(s)

@@ -34,6 +34,9 @@ class UnifiedBotLauncher:
         self.global_paused = {}  # برای توقف کلی {chat_id: user_id} - وقتی ایموجی ممنوعه تشخیص داده شه
         self.continuous_spam_tasks = {}  # برای نگه داشتن تسک‌های فحش مداوم {bot_id: {user_id: task}}
         
+        # تنظیمات تاخیر فحش برای هر بات (ثانیه)
+        self.bot_spam_delays = {i: 1.0 for i in range(1, 10)}  # تاخیر پیش‌فرض: 1 ثانیه
+        
         # ایموجی‌های ممنوعه (مدیریت کامل توسط ادمین از طریق کامندها)
         self.forbidden_emojis = set()
         
@@ -206,6 +209,20 @@ class UnifiedBotLauncher:
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+            
+            # جدول تنظیمات تاخیر فحش
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS spam_delay_settings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    delay_seconds REAL NOT NULL DEFAULT 1.0,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # اگر تنظیمات تاخیر وجود ندارد، مقدار پیش‌فرض را وارد کن
+            cursor.execute('SELECT COUNT(*) FROM spam_delay_settings')
+            if cursor.fetchone()[0] == 0:
+                cursor.execute('INSERT INTO spam_delay_settings (delay_seconds) VALUES (1.0)')
 
             conn.commit()
             conn.close()
@@ -483,6 +500,60 @@ class UnifiedBotLauncher:
         except Exception as e:
             logger.error(f"خطا در بارگذاری ایموجی‌های ممنوعه: {e}")
             return set()
+    
+    def get_spam_delay(self, bot_id):
+        """دریافت تاخیر فحش برای بات مشخص"""
+        try:
+            db_path = self.bot_configs[bot_id]['db_path']
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT delay_seconds FROM spam_delay_settings ORDER BY id DESC LIMIT 1")
+            result = cursor.fetchone()
+            
+            conn.close()
+            
+            if result:
+                delay = float(result[0])
+                self.bot_spam_delays[bot_id] = delay
+                return delay
+            else:
+                return self.bot_spam_delays.get(bot_id, 1.0)
+                
+        except Exception as e:
+            logger.error(f"❌ خطا در دریافت تاخیر فحش بات {bot_id}: {e}")
+            return self.bot_spam_delays.get(bot_id, 1.0)
+    
+    def set_spam_delay(self, bot_id, delay_seconds):
+        """تنظیم تاخیر فحش برای بات مشخص"""
+        try:
+            # تبدیل به float و اعتبارسنجی
+            delay = float(delay_seconds)
+            if delay < 0:
+                return False, "تاخیر نمی‌تواند منفی باشد"
+            
+            db_path = self.bot_configs[bot_id]['db_path']
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # به‌روزرسانی یا درج مقدار جدید
+            cursor.execute("DELETE FROM spam_delay_settings")  # حذف تنظیمات قبلی
+            cursor.execute("INSERT INTO spam_delay_settings (delay_seconds) VALUES (?)", (delay,))
+            
+            conn.commit()
+            conn.close()
+            
+            # به‌روزرسانی کش
+            self.bot_spam_delays[bot_id] = delay
+            
+            logger.info(f"⏱️ تاخیر فحش بات {bot_id} به {delay} ثانیه تنظیم شد")
+            return True, f"تاخیر فحش بات {bot_id} به {delay} ثانیه تنظیم شد"
+            
+        except ValueError:
+            return False, "مقدار تاخیر باید عدد باشد"
+        except Exception as e:
+            logger.error(f"❌ خطا در تنظیم تاخیر فحش بات {bot_id}: {e}")
+            return False, f"خطا در تنظیم تاخیر: {str(e)}"
 
     def is_admin(self, user_id):
         """بررسی اینکه آیا کاربر ادمین است یا نه"""
@@ -620,6 +691,9 @@ class UnifiedBotLauncher:
         try:
             # تنظیم پایگاه داده
             self.setup_database(bot_id, config['db_path'])
+            
+            # بارگذاری تنظیمات تاخیر فحش از دیتابیس
+            self.get_spam_delay(bot_id)
 
             # ایجاد کلاینت
             app = Client(
@@ -1495,6 +1569,34 @@ class UnifiedBotLauncher:
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
+            # کامندهای تنظیم تاخیر فحش
+            @app.on_message(filters.command("setdelay") & admin_filter)
+            async def set_delay_command(client, message):
+                try:
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ استفاده: /setdelay [ثانیه]\nمثال: /setdelay 2.5")
+                        return
+                    
+                    delay_str = message.command[1]
+                    success, msg = self.set_spam_delay(bot_id, delay_str)
+                    
+                    if success:
+                        await message.reply_text(f"✅ {msg}")
+                        self.log_action(bot_id, "set_delay", message.from_user.id, f"تاخیر: {delay_str} ثانیه")
+                    else:
+                        await message.reply_text(f"❌ {msg}")
+                        
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("getdelay") & admin_filter)
+            async def get_delay_command(client, message):
+                try:
+                    current_delay = self.get_spam_delay(bot_id)
+                    await message.reply_text(f"⏱️ **تاخیر فعلی فحش بات {bot_id}:**\n\n🕒 {current_delay} ثانیه\n\n💡 برای تغییر از `/setdelay [ثانیه]` استفاده کنید")
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
             # راهنما
             @app.on_message(filters.command("help") & admin_filter)
             async def help_command(client, message):
@@ -1632,6 +1734,12 @@ class UnifiedBotLauncher:
 • `/spamstatus` - نمایش وضعیت فحش‌های نامحدود فعال
 • `/stopspam [bot_id|all]` - متوقف کردن فحش‌های نامحدود
   └ مثال: `/stopspam 1` یا `/stopspam all`
+
+⏱️ **تنظیمات تاخیر فحش:**
+• `/setdelay [ثانیه]` - تنظیم تاخیر بین فحش‌ها
+  └ مثال: `/setdelay 2.5` (2.5 ثانیه تاخیر)
+  └ مثال: `/setdelay 0.1` (0.1 ثانیه تاخیر)
+• `/getdelay` - نمایش تاخیر فعلی فحش
 
 ⚡ **ویژگی‌های جدید:**
 • فحش نامحدود به دشمنان تا ایموجی ممنوعه فرستاده شود
@@ -2097,10 +2205,6 @@ class UnifiedBotLauncher:
                     break
                 
                 try:
-                    # محاسبه تاخیر بر اساس شماره بات (هر بات 0.10 ثانیه بعد از قبلی)
-                    bot_delay = (bot_id - 1) * 0.10
-                    await asyncio.sleep(bot_delay)
-                    
                     # انتخاب فحش تصادفی
                     selected = choice(fosh_list)
                     await self.send_fosh_reply(client, message, selected)
@@ -2110,13 +2214,12 @@ class UnifiedBotLauncher:
                     if fosh_count % 10 == 0:
                         logger.info(f"🔥 بات {bot_id} - ارسال {fosh_count} فحش به دشمن {user_id}")
                     
-                    # تاخیر تا تکمیل دور (2 ثانیه - تاخیر بات) ولی با چک کردن توقف
-                    # چون آخرین بات (بات 9) 0.80 ثانیه تاخیر داره، باقی مونده: 2 - 0.80 = 1.20 ثانیه
-                    remaining_delay = 2.0 - (8 * 0.10)  # 8 بات بعد از بات 1 = 0.80 ثانیه
+                    # دریافت تاخیر قابل تنظیم برای این بات
+                    spam_delay = self.get_spam_delay(bot_id)
                     
                     # تقسیم تاخیر به قطعات کوچک برای چک کردن سریع‌تر توقف
-                    sleep_intervals = 10  # 10 قطعه
-                    interval_time = remaining_delay / sleep_intervals
+                    sleep_intervals = max(1, int(spam_delay * 10))  # حداقل 1 قطعه، حداکثر 10 قطعه در هر ثانیه
+                    interval_time = spam_delay / sleep_intervals if sleep_intervals > 0 else spam_delay
                     
                     should_break = False
                     for _ in range(sleep_intervals):
