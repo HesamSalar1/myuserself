@@ -477,8 +477,16 @@ class UnifiedBotLauncher:
         if not text:
             return False
 
+        # نرمال‌سازی متن برای بررسی دقیق‌تر ایموجی‌ها
+        import unicodedata
+        normalized_text = unicodedata.normalize('NFC', text)
+
         for emoji in self.forbidden_emojis:
-            if emoji in text:
+            normalized_emoji = unicodedata.normalize('NFC', emoji)
+            
+            # بررسی هم در متن اصلی و هم در متن نرمال شده
+            if emoji in text or normalized_emoji in normalized_text:
+                logger.info(f"🛑 ایموجی ممنوعه تشخیص داده شد: {emoji} در متن: {text[:50]}...")
                 return True
         return False
 
@@ -1277,12 +1285,45 @@ class UnifiedBotLauncher:
                     text = f"🚫 **لیست ایموجی‌های ممنوعه (همگانی):**\n\n"
                     
                     for i, emoji in enumerate(emoji_list, 1):
-                        text += f"`{i}.` {emoji}\n"
-                        if i >= 30:  # محدود به 30 ایموجی در هر پیام
-                            text += f"\n... و {len(emoji_list) - 30} ایموجی دیگر"
+                        # نمایش کد یونیکد هم برای دیباگ
+                        unicode_codes = [f"U+{ord(char):04X}" for char in emoji]
+                        text += f"`{i}.` {emoji} `{' '.join(unicode_codes)}`\n"
+                        if i >= 20:  # محدود به 20 ایموجی در هر پیام
+                            text += f"\n... و {len(emoji_list) - 20} ایموجی دیگر"
                             break
 
                     text += f"\n📊 **تعداد کل:** {len(emoji_list)} ایموجی"
+                    await message.reply_text(text)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("testemoji") & admin_filter)
+            async def test_emoji_command(client, message):
+                try:
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ استفاده: `/testemoji [ایموجی]`\nمثال: `/testemoji ⚡️`")
+                        return
+
+                    test_emoji = " ".join(message.command[1:])
+                    
+                    # تست تشخیص
+                    is_detected = self.contains_stop_emoji(test_emoji)
+                    
+                    # نمایش جزئیات
+                    import unicodedata
+                    unicode_codes = [f"U+{ord(char):04X}" for char in test_emoji]
+                    normalized = unicodedata.normalize('NFC', test_emoji)
+                    normalized_codes = [f"U+{ord(char):04X}" for char in normalized]
+                    
+                    text = f"🔍 **تست تشخیص ایموجی:**\n\n"
+                    text += f"ایموجی: {test_emoji}\n"
+                    text += f"کد اصلی: `{' '.join(unicode_codes)}`\n"
+                    text += f"کد نرمال: `{' '.join(normalized_codes)}`\n"
+                    text += f"در لیست ممنوعه: {'✅ بله' if test_emoji in self.forbidden_emojis else '❌ خیر'}\n"
+                    text += f"تشخیص داده شد: {'✅ بله' if is_detected else '❌ خیر'}\n\n"
+                    text += f"📊 تعداد کل ایموجی‌های ممنوعه: {len(self.forbidden_emojis)}"
+                    
                     await message.reply_text(text)
 
                 except Exception as e:
