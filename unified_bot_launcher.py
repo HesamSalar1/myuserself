@@ -57,9 +57,9 @@ class UnifiedBotLauncher:
         self.active_senders = {}  # {chat_id: set of bot_ids}
         self.chat_locks = {}  # {chat_id: asyncio.Lock}
         
-        # سیستم توقف فوری برای ایموجی‌های ممنوعه
-        self.emergency_stop_event = asyncio.Event()  # سیگنال توقف فوری برای همه بات‌ها
-        self.last_emoji_detection_time = 0  # زمان آخرین تشخیص ایموجی ممنوعه
+        # سیستم توقف فوری برای ایموجی‌های ممنوعه (مجزا برای هر چت)
+        self.chat_emergency_stops = {}  # {chat_id: asyncio.Event}
+        self.last_emoji_detection_time = {}  # {chat_id: timestamp}
 
         # ادمین اصلی لانچر (کنترل همه بات‌ها)
         self.launcher_admin_id = 5533325167
@@ -617,17 +617,19 @@ class UnifiedBotLauncher:
 
     def should_pause_spam(self, message, bot_id):
         """بررسی اینکه آیا باید اسپم را متوقف کرد"""
+        
+        chat_id = message.chat.id
 
-        # بررسی ایموجی‌های توقف در متن اصلی پیام (همگانی)
+        # بررسی ایموجی‌های توقف در متن اصلی پیام (فقط برای چت جاری)
         if message.text and self.contains_stop_emoji(message.text):
-            logger.info(f"🛑 ایموجی توقف در متن تشخیص داده شد: {message.text[:50]}...")
-            self.trigger_emergency_stop()
+            logger.info(f"🛑 ایموجی توقف در متن چت {chat_id} تشخیص داده شد: {message.text[:50]}...")
+            self.trigger_emergency_stop_for_chat(chat_id)
             return True
 
-        # بررسی ایموجی‌های توقف در کپشن (همگانی)
+        # بررسی ایموجی‌های توقف در کپشن (فقط برای چت جاری)
         if message.caption and self.contains_stop_emoji(message.caption):
-            logger.info(f"🛑 ایموجی توقف در کپشن تشخیص داده شد: {message.caption[:50]}...")
-            self.trigger_emergency_stop()
+            logger.info(f"🛑 ایموجی توقف در کپشن چت {chat_id} تشخیص داده شد: {message.caption[:50]}...")
+            self.trigger_emergency_stop_for_chat(chat_id)
             return True
 
         # بررسی کامندهای ممنوعه فقط برای دشمنان
@@ -644,45 +646,65 @@ class UnifiedBotLauncher:
                     for command in self.enemy_forbidden_commands:
                         # بررسی در ابتدای پیام یا بعد از فاصله
                         if message_lower.startswith(command) or f' {command}' in message_lower:
-                            logger.info(f"🛑 کامند ممنوعه دشمن تشخیص داده شد: {command} از دشمن {user_id}")
-                            self.trigger_emergency_stop()
+                            logger.info(f"🛑 کامند ممنوعه دشمن در چت {chat_id} تشخیص داده شد: {command} از دشمن {user_id}")
+                            self.trigger_emergency_stop_for_chat(chat_id)
                             return True
 
         return False
 
-    def trigger_emergency_stop(self):
-        """فعال‌سازی توقف فوری فقط برای تسک‌های جاری (نه کل سیستم)"""
-        self.last_emoji_detection_time = time.time()
-        self.emergency_stop_event.set()
-        logger.warning("⚡ توقف فوری تسک‌های جاری - سیستم همچنان فعال می‌ماند")
+    def trigger_emergency_stop_for_chat(self, chat_id):
+        """فعال‌سازی توقف فوری فقط برای چت مشخص"""
+        self.last_emoji_detection_time[chat_id] = time.time()
         
-        # لغو همه تسک‌های فحش نامحدود جاری
+        # ایجاد event برای چت در صورت عدم وجود
+        if chat_id not in self.chat_emergency_stops:
+            self.chat_emergency_stops[chat_id] = asyncio.Event()
+        
+        self.chat_emergency_stops[chat_id].set()
+        logger.warning(f"⚡ توقف فوری فقط برای چت {chat_id} - چت‌های دیگر تأثیر نمی‌پذیرند")
+        
+        # لغو فقط تسک‌های فحش مربوط به این چت
         cancelled_count = 0
         for spam_key, task in list(self.continuous_spam_tasks.items()):
-            try:
-                task.cancel()
-                cancelled_count += 1
-                logger.info(f"⚡ تسک فحش جاری {spam_key} فوراً لغو شد")
-            except:
-                pass
-        self.continuous_spam_tasks.clear()
+            # استخراج chat_id از spam_key (format: bot_id_user_id_chat_id)
+            key_parts = spam_key.split('_')
+            if len(key_parts) >= 3:
+                task_chat_id = int(key_parts[2])
+                if task_chat_id == chat_id:
+                    try:
+                        task.cancel()
+                        cancelled_count += 1
+                        logger.info(f"⚡ تسک فحش {spam_key} در چت {chat_id} فوراً لغو شد")
+                        del self.continuous_spam_tasks[spam_key]
+                    except:
+                        pass
         
         if cancelled_count > 0:
-            logger.warning(f"⚡ {cancelled_count} تسک فحش جاری متوقف شد - با پیام بعدی دشمن دوباره شروع می‌شود")
+            logger.warning(f"⚡ {cancelled_count} تسک فحش در چت {chat_id} متوقف شد - چت‌های دیگر عادی ادامه می‌دهند")
         
-        # پاک کردن حالت توقف اضطراری بعد از یک تاخیر کوتاه تا تسک‌ها بتوانند متوقف شوند
-        asyncio.create_task(self.auto_clear_emergency_stop())
+        # پاک کردن خودکار حالت توقف برای این چت
+        asyncio.create_task(self.auto_clear_emergency_stop_for_chat(chat_id))
 
-    async def auto_clear_emergency_stop(self):
-        """پاک کردن خودکار حالت توقف اضطراری بعد از تاخیر کوتاه"""
+    async def auto_clear_emergency_stop_for_chat(self, chat_id):
+        """پاک کردن خودکار حالت توقف اضطراری برای چت مشخص"""
         await asyncio.sleep(0.5)  # انتظار کوتاه تا تسک‌ها متوقف شوند
-        self.emergency_stop_event.clear()
-        logger.info("✅ حالت توقف اضطراری خودکار پاک شد - آماده دریافت پیام‌های جدید")
+        if chat_id in self.chat_emergency_stops:
+            self.chat_emergency_stops[chat_id].clear()
+            logger.info(f"✅ حالت توقف اضطراری چت {chat_id} خودکار پاک شد - آماده دریافت پیام‌های جدید")
 
-    def clear_emergency_stop(self):
-        """پاک کردن دستی حالت توقف اضطراری"""
-        self.emergency_stop_event.clear()
-        logger.info("✅ حالت توقف اضطراری دستی پاک شد")
+    def clear_emergency_stop_for_chat(self, chat_id):
+        """پاک کردن دستی حالت توقف اضطراری برای چت مشخص"""
+        if chat_id in self.chat_emergency_stops:
+            self.chat_emergency_stops[chat_id].clear()
+            logger.info(f"✅ حالت توقف اضطراری چت {chat_id} دستی پاک شد")
+
+    def clear_all_emergency_stops(self):
+        """پاک کردن همه حالت‌های توقف اضطراری (فقط برای ادمین اصلی)"""
+        cleared_count = 0
+        for chat_id, event in self.chat_emergency_stops.items():
+            event.clear()
+            cleared_count += 1
+        logger.info(f"✅ {cleared_count} حالت توقف اضطراری پاک شد")
 
     def is_flooding_message(self, text):
         """تشخیص پیام‌های مربوط به فلودینگ و اسپم"""
@@ -2149,10 +2171,10 @@ class UnifiedBotLauncher:
                             except:
                                 pass
                         
-                        # پاک کردن حالت توقف اضطراری اگر فعال است تا بتوان دوباره شروع کرد
-                        if self.emergency_stop_event.is_set():
-                            logger.info(f"⚡ پاک کردن توقف اضطراری برای شروع مجدد فحش به دشمن {user_id}")
-                            self.emergency_stop_event.clear()
+                        # پاک کردن حالت توقف اضطراری برای این چت اگر فعال است
+                        if chat_id in self.chat_emergency_stops and self.chat_emergency_stops[chat_id].is_set():
+                            logger.info(f"⚡ پاک کردن توقف اضطراری چت {chat_id} برای شروع مجدد فحش به دشمن {user_id}")
+                            self.chat_emergency_stops[chat_id].clear()
                         
                         # شروع تسک جدید فحش نامحدود
                         spam_task = asyncio.create_task(
@@ -2401,9 +2423,9 @@ class UnifiedBotLauncher:
             logger.info(f"🔥 شروع فحش نامحدود بات {bot_id} به دشمن {user_id} در چت {chat_id}")
             
             while True:
-                # بررسی فوری توقف اضطراری در ابتدای هر loop
-                if self.emergency_stop_event.is_set():
-                    logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری در ابتدای loop")
+                # بررسی فوری توقف اضطراری برای این چت در ابتدای هر loop
+                if chat_id in self.chat_emergency_stops and self.chat_emergency_stops[chat_id].is_set():
+                    logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری چت {chat_id}")
                     break
                 
                 # بررسی اینکه آیا چت متوقف شده یا نه
@@ -2429,9 +2451,9 @@ class UnifiedBotLauncher:
                     # دریافت تاخیر قابل تنظیم برای این بات
                     spam_delay = self.get_spam_delay(bot_id)
                     
-                    # بررسی فوری توقف اضطراری قبل از انتظار
-                    if self.emergency_stop_event.is_set():
-                        logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری")
+                    # بررسی فوری توقف اضطراری برای این چت قبل از انتظار
+                    if chat_id in self.chat_emergency_stops and self.chat_emergency_stops[chat_id].is_set():
+                        logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری چت {chat_id}")
                         break
                     
                     # تقسیم تاخیر به قطعات کوچک‌تر برای چک کردن سریع‌تر توقف
@@ -2442,9 +2464,9 @@ class UnifiedBotLauncher:
                     for _ in range(sleep_intervals):
                         await asyncio.sleep(interval_time)
                         
-                        # بررسی اولویت بالا: توقف اضطراری
-                        if self.emergency_stop_event.is_set():
-                            logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری (حین انتظار)")
+                        # بررسی اولویت بالا: توقف اضطراری برای این چت
+                        if chat_id in self.chat_emergency_stops and self.chat_emergency_stops[chat_id].is_set():
+                            logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری چت {chat_id} (حین انتظار)")
                             should_break = True
                             break
                         

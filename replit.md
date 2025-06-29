@@ -101,6 +101,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- June 29, 2025. Per-Chat Isolation System Implementation:
+  - Completely redesigned emergency stop system to work independently per chat
+  - Fixed issue where forbidden emoji in one chat would affect all other chats
+  - Implemented chat-specific emergency stop events: {chat_id: asyncio.Event}
+  - Each chat now operates completely independently with separate spam task management
+  - Forbidden emoji detection now only stops spam tasks in the affected chat
+  - Auto-restart functionality works per chat - enemies can restart spam by sending new messages
+  - Rate limiting and delay systems remain isolated per chat
+  - Updated all emergency stop checks in continuous_spam_attack to use chat-specific events
+  - Test verification shows proper isolation: Chat A stops don't affect Chat B operations
 - June 28, 2025. Emergency Stop System & Instant Forbidden Emoji Response:
   - Fixed delayed stopping issue when forbidden emojis were detected (some bots continued for several seconds)
   - Implemented emergency stop event system for instant synchronization across all 9 bots
