@@ -1686,12 +1686,12 @@ class UnifiedBotLauncher:
                     
                     try:
                         delay_seconds = float(message.command[1])
-                        if delay_seconds < 0.1:
-                            await message.reply_text("❌ حداقل تاخیر عمومی 0.1 ثانیه است")
+                        if delay_seconds < 0:
+                            await message.reply_text("❌ تاخیر نمی‌تواند منفی باشد")
                             return
                         
                         self.min_global_delay = delay_seconds
-                        await message.reply_text(f"✅ تاخیر عمومی تنظیم شد: {delay_seconds} ثانیه\n\n📝 این تاخیر بین پیام‌های همه بات‌ها در هر چت اعمال می‌شود")
+                        await message.reply_text(f"✅ تاخیر عمومی تنظیم شد: {delay_seconds} ثانیه\n\n📝 این تاخیر بین پیام‌های همه بات‌ها در هر چت اعمال می‌شود\n💡 حالا می‌توانید هر عددی از 0 به بالا تنظیم کنید")
                         
                     except ValueError:
                         await message.reply_text("❌ لطفاً عدد معتبر وارد کنید")

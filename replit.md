@@ -101,6 +101,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- June 29, 2025. Unlimited Delay Configuration System:
+  - Removed minimum delay restrictions for global rate limiting system
+  - Users can now set any non-negative delay value (0, 0.001, 0.5, etc.)
+  - Both global delay (/setglobaldelay) and per-bot spam delay (/setdelay) support unlimited precision
+  - Enhanced validation to only reject negative values
+  - Full decimal precision support for ultra-fast or ultra-slow configurations
+  - Updated command responses to reflect new unlimited capabilities
 - June 29, 2025. Per-Chat Isolation System Implementation:
   - Completely redesigned emergency stop system to work independently per chat
   - Fixed issue where forbidden emoji in one chat would affect all other chats
