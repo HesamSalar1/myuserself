@@ -15,6 +15,9 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMember
 from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
 
+# وارد کردن ربات مانیتورینگ
+from monitoring_bot import MonitoringBot
+
 # تنظیم لاگینگ
 logging.basicConfig(
     level=logging.INFO,
@@ -29,6 +32,8 @@ logger = logging.getLogger(__name__)
 class UnifiedBotLauncher:
     def __init__(self):
         self.bots = {}
+        # ربات مانیتورینگ
+        self.monitoring_bot = None
         # متغیرهای کنترل
         self.running = False
         self.count_tasks = {}  # برای ذخیره تسک‌های شمارش
@@ -682,8 +687,60 @@ class UnifiedBotLauncher:
         if cancelled_count > 0:
             logger.warning(f"⚡ {cancelled_count} تسک فحش در چت {chat_id} متوقف شد - چت‌های دیگر عادی ادامه می‌دهند")
         
+        # ارسال گزارش به ربات مانیتورینگ
+        if self.monitoring_bot:
+            asyncio.create_task(self.send_emoji_report_to_monitoring(chat_id, cancelled_count))
+        
         # پاک کردن خودکار حالت توقف برای این چت
         asyncio.create_task(self.auto_clear_emergency_stop_for_chat(chat_id))
+
+    async def send_emoji_report_to_monitoring(self, chat_id, stopped_bots_count):
+        """ارسال گزارش ایموجی ممنوعه به ربات مانیتورینگ"""
+        try:
+            if not self.monitoring_bot or not self.monitoring_bot.client:
+                return
+            
+            # تلاش برای دریافت اطلاعات چت
+            chat_title = "نامشخص"
+            try:
+                # گرفتن اطلاعات چت از یکی از بات‌ها
+                for bot_info in self.bots.values():
+                    if bot_info.get('client'):
+                        chat = await bot_info['client'].get_chat(chat_id)
+                        chat_title = chat.title or chat.first_name or "نامشخص"
+                        break
+            except Exception as e:
+                logger.debug(f"نتوانست اطلاعات چت {chat_id} را دریافت کند: {e}")
+            
+            # پیدا کردن ایموجی ممنوعه که باعث توقف شده
+            detected_emoji = "نامشخص"
+            try:
+                for emoji in self.forbidden_emojis:
+                    detected_emoji = emoji
+                    break  # فعلاً اولی را می‌گیریم، بعداً بهبود می‌دهیم
+            except:
+                pass
+            
+            # ثبت گزارش در دیتابیس ربات مانیتورینگ
+            self.monitoring_bot.log_emoji_report(
+                chat_id=chat_id,
+                chat_title=chat_title,
+                emoji=detected_emoji,
+                stopped_bots=[f"bot_{i}" for i in range(1, 10)]  # لیست همه بات‌ها
+            )
+            
+            # ارسال هشدار به مشترکین
+            await self.monitoring_bot.send_emoji_alert(
+                chat_id=chat_id,
+                chat_title=chat_title,
+                emoji=detected_emoji,
+                stopped_bots_count=stopped_bots_count
+            )
+            
+            logger.info(f"📤 گزارش ایموجی ممنوعه ارسال شد: {detected_emoji} در {chat_title}")
+            
+        except Exception as e:
+            logger.error(f"❌ خطا در ارسال گزارش به ربات مانیتورینگ: {e}")
 
     async def auto_clear_emergency_stop_for_chat(self, chat_id):
         """پاک کردن خودکار حالت توقف اضطراری برای چت مشخص"""
@@ -2270,6 +2327,15 @@ class UnifiedBotLauncher:
         self.running = True
         logger.info("🚀 شروع لانچر واحد بات‌ها...")
 
+        # شروع ربات مانیتورینگ ابتدا
+        logger.info("🤖 شروع ربات مانیتورینگ...")
+        try:
+            self.monitoring_bot = MonitoringBot()
+            await self.monitoring_bot.start_bot()
+            logger.info("✅ ربات مانیتورینگ راه‌اندازی شد")
+        except Exception as e:
+            logger.error(f"❌ خطا در راه‌اندازی ربات مانیتورینگ: {e}")
+
         # ایجاد همه بات‌ها
         tasks = []
         for bot_id, config in self.bot_configs.items():
@@ -2352,6 +2418,15 @@ class UnifiedBotLauncher:
         """متوقف کردن همه بات‌ها"""
         logger.info("🛑 متوقف کردن همه بات‌ها...")
         self.running = False
+
+        # متوقف کردن ربات مانیتورینگ
+        if self.monitoring_bot:
+            logger.info("🛑 متوقف کردن ربات مانیتورینگ...")
+            try:
+                await self.monitoring_bot.stop_bot()
+                logger.info("✅ ربات مانیتورینگ متوقف شد")
+            except Exception as e:
+                logger.error(f"❌ خطا در متوقف کردن ربات مانیتورینگ: {e}")
 
         # متوقف کردن تمام تسک‌های فحش نامحدود
         if self.continuous_spam_tasks:

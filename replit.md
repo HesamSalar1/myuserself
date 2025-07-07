@@ -99,6 +99,15 @@ Each bot maintains its own SQLite database with the following tables:
 
 Preferred communication style: Simple, everyday language.
 
+## Monitoring Bot Integration
+
+Added new monitoring bot (Token: 7708355228:AAGPzhm47U5-4uPnALl6Oc6En91aCYLyydk) that provides:
+- Real-time reporting of forbidden emoji detections
+- Notifications to all users who started the bot (/start command)
+- Integration with the unified bot launcher
+- Web panel management interface
+- Per-chat isolation for emoji detection events
+
 ## Changelog
 
 - June 29, 2025. Unlimited Delay Configuration System:
