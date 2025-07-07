@@ -172,6 +172,11 @@ class UnifiedBotLauncher:
         try:
             logger.info("🌐 شروع پنل مدیریت وب...")
             
+            # بررسی وجود package.json
+            if not os.path.exists("package.json"):
+                logger.error("❌ فایل package.json موجود نیست - پنل وب رد شد")
+                return False
+            
             # شروع سرور Express/Vite
             self.web_process = subprocess.Popen(
                 ['npm', 'run', 'dev'],
@@ -181,20 +186,24 @@ class UnifiedBotLauncher:
             )
             
             # انتظار برای راه‌اندازی سرور
-            await asyncio.sleep(5)
+            await asyncio.sleep(8)
             
             if self.web_process.poll() is None:
-                logger.info("✅ پنل وب راه‌اندازی شد - http://localhost:5000")
+                logger.info("✅ پنل وب راه‌اندازی شد - http://0.0.0.0:5000")
                 return True
             else:
                 stdout, stderr = self.web_process.communicate()
                 logger.error(f"❌ خطا در راه‌اندازی پنل وب:")
                 logger.error(f"stdout: {stdout.decode()}")
                 logger.error(f"stderr: {stderr.decode()}")
+                
+                # تلاش برای ادامه بدون پنل وب
+                logger.warning("⚠️ ادامه بدون پنل وب - فقط بات‌ها کار می‌کنند")
                 return False
                 
         except Exception as e:
             logger.error(f"❌ خطا در شروع پنل وب: {e}")
+            logger.warning("⚠️ ادامه بدون پنل وب - فقط بات‌ها کار می‌کنند")
             return False
 
     async def stop_web_panel(self):
@@ -2398,11 +2407,12 @@ class UnifiedBotLauncher:
         try:
             web_success = await self.start_web_panel()
             if web_success:
-                logger.info("✅ پنل وب راه‌اندازی شد")
+                logger.info("✅ پنل وب راه‌اندازی شد - دسترسی: http://0.0.0.0:5000")
             else:
                 logger.warning("⚠️ پنل وب راه‌اندازی نشد، ادامه با بات‌ها...")
         except Exception as e:
             logger.error(f"❌ خطا در راه‌اندازی پنل وب: {e}")
+            logger.warning("⚠️ ادامه با بات‌ها بدون پنل وب...")
 
         # شروع ربات مانیتورینگ
         logger.info("🤖 شروع ربات مانیتورینگ...")
