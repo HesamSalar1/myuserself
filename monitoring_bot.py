@@ -167,17 +167,55 @@ class MonitoringBot:
     async def get_system_status(self):
         """دریافت وضعیت سیستم"""
         try:
-            # خواندن وضعیت از فایل لاگ یا سیستم اصلی
+            # خواندن تعداد ایموجی‌های ممنوعه از دیتابیس
+            emoji_count = self.get_forbidden_emoji_count()
+            
             status_info = {
                 'total_bots': 9,
                 'active_bots': 9,  # فعلاً ثابت، بعداً از سیستم اصلی می‌خوانیم
                 'subscribers_count': len(self.subscribers),
+                'forbidden_emojis_count': emoji_count,
                 'last_check': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
             return status_info
         except Exception as e:
             logger.error(f"❌ خطا در دریافت وضعیت: {e}")
             return None
+    
+    def get_forbidden_emoji_count(self):
+        """دریافت تعداد ایموجی‌های ممنوعه"""
+        try:
+            db_path = "bots/bot1/bot_database.db"
+            if os.path.exists(db_path):
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM forbidden_emojis")
+                count = cursor.fetchone()[0]
+                conn.close()
+                return count
+            return 0
+        except Exception as e:
+            logger.error(f"❌ خطا در دریافت تعداد ایموجی‌ها: {e}")
+            return 0
+    
+    def monitor_emoji_changes(self):
+        """نظارت بر تغییرات ایموجی‌های ممنوعه"""
+        try:
+            current_count = self.get_forbidden_emoji_count()
+            
+            # ذخیره تعداد قبلی در متغیر کلاس
+            if not hasattr(self, 'last_emoji_count'):
+                self.last_emoji_count = current_count
+                return
+            
+            if current_count != self.last_emoji_count:
+                logger.info(f"🔄 تغییر در ایموجی‌های ممنوعه: {self.last_emoji_count} → {current_count}")
+                self.last_emoji_count = current_count
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"❌ خطا در نظارت تغییرات: {e}")
+            return False
             
     async def setup_handlers(self):
         """تنظیم هندلرهای ربات"""
@@ -202,9 +240,12 @@ class MonitoringBot:
 🔹 **دستورات:**
 /status - نمایش وضعیت سیستم
 /reports - آخرین گزارش‌ها
+/emojis - لیست ایموجی‌های ممنوعه
 /stop - لغو عضویت
 
 شما الآن عضو لیست گزارش‌دهی هستید و تمام هشدارها را دریافت خواهید کرد.
+
+✅ **ربات آماده است! برای شروع /status کنید.**
             """
             
             keyboard = InlineKeyboardMarkup([
@@ -227,9 +268,14 @@ class MonitoringBot:
 🤖 **تعداد کل ربات‌ها:** {status['total_bots']}
 ✅ **ربات‌های فعال:** {status['active_bots']}
 👥 **تعداد مشترکین:** {status['subscribers_count']}
+⛔ **ایموجی‌های ممنوعه:** {status['forbidden_emojis_count']}
 🕐 **آخرین بررسی:** {status['last_check']}
 
 وضعیت: {"🟢 عالی" if status['active_bots'] == status['total_bots'] else "🟡 نیاز به بررسی"}
+
+💡 **نکات:**
+• برای عضویت در گزارش‌های خودکار /start کنید
+• برای مشاهده آخرین گزارش‌ها /reports کنید
                 """
             else:
                 status_text = "❌ خطا در دریافت وضعیت سیستم"
@@ -264,6 +310,38 @@ class MonitoringBot:
         async def stop_command(client, message: Message):
             self.remove_subscriber(message.from_user.id)
             await message.reply_text("✅ شما از لیست گزارش‌دهی حذف شدید.\nبرای عضویت مجدد /start را بفرستید.")
+            
+        @self.client.on_message(filters.command("emojis") & filters.private)
+        async def emojis_command(client, message: Message):
+            """نمایش لیست ایموجی‌های ممنوعه"""
+            try:
+                db_path = "bots/bot1/bot_database.db"
+                if os.path.exists(db_path):
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT emoji FROM forbidden_emojis")
+                    emojis = cursor.fetchall()
+                    conn.close()
+                    
+                    if emojis:
+                        emoji_list = " ".join([emoji[0] for emoji in emojis])
+                        emoji_text = f"""
+⛔ **لیست ایموجی‌های ممنوعه:** ({len(emojis)} عدد)
+
+{emoji_list}
+
+💡 **نکات:**
+• هر وقت این ایموجی‌ها در گروه‌ها دیده شوند، اسپم متوقف می‌شود
+• تغییرات این لیست به صورت خودکار اعمال می‌شود
+                        """
+                    else:
+                        emoji_text = "⚠️ هیچ ایموجی ممنوعه‌ای تعریف نشده است"
+                else:
+                    emoji_text = "❌ دیتابیس در دسترس نیست"
+                    
+                await message.reply_text(emoji_text)
+            except Exception as e:
+                await message.reply_text(f"❌ خطا در دریافت لیست ایموجی‌ها: {e}")
             
         # هندلر callback query
         @self.client.on_callback_query()
