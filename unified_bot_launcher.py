@@ -4,7 +4,6 @@ import sys
 import sqlite3
 import logging
 import time
-import subprocess
 from datetime import datetime
 import os
 from pathlib import Path
@@ -16,8 +15,8 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMember
 from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
 
-# وارد کردن ربات مانیتورینگ
-from monitoring_bot import MonitoringBot
+# وارد کردن ربات گزارش‌دهی
+from report_bot import send_emoji_report
 
 # تنظیم لاگینگ
 logging.basicConfig(
@@ -33,10 +32,6 @@ logger = logging.getLogger(__name__)
 class UnifiedBotLauncher:
     def __init__(self):
         self.bots = {}
-        # ربات مانیتورینگ
-        self.monitoring_bot = None
-        # پنل وب
-        self.web_process = None
         # متغیرهای کنترل
         self.running = False
         self.count_tasks = {}  # برای ذخیره تسک‌های شمارش
@@ -167,60 +162,7 @@ class UnifiedBotLauncher:
         logger.info(f"🔐 ادمین‌های بات‌ها: {list(self.bot_admin_ids)}")
         logger.info(f"📋 همه ادمین‌ها: {list(self.all_admin_ids)}")
 
-    async def start_web_panel(self):
-        """شروع پنل وب"""
-        try:
-            logger.info("🌐 شروع پنل مدیریت وب...")
-            
-            # بررسی وجود package.json
-            if not os.path.exists("package.json"):
-                logger.error("❌ فایل package.json موجود نیست - پنل وب رد شد")
-                return False
-            
-            # شروع سرور Express/Vite
-            self.web_process = subprocess.Popen(
-                ['npm', 'run', 'dev'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                cwd=os.getcwd()
-            )
-            
-            # انتظار برای راه‌اندازی سرور
-            await asyncio.sleep(8)
-            
-            if self.web_process.poll() is None:
-                logger.info("✅ پنل وب راه‌اندازی شد - http://0.0.0.0:5000")
-                return True
-            else:
-                stdout, stderr = self.web_process.communicate()
-                logger.error(f"❌ خطا در راه‌اندازی پنل وب:")
-                logger.error(f"stdout: {stdout.decode()}")
-                logger.error(f"stderr: {stderr.decode()}")
-                
-                # تلاش برای ادامه بدون پنل وب
-                logger.warning("⚠️ ادامه بدون پنل وب - فقط بات‌ها کار می‌کنند")
-                return False
-                
-        except Exception as e:
-            logger.error(f"❌ خطا در شروع پنل وب: {e}")
-            logger.warning("⚠️ ادامه بدون پنل وب - فقط بات‌ها کار می‌کنند")
-            return False
-
-    async def stop_web_panel(self):
-        """توقف پنل وب"""
-        if self.web_process:
-            try:
-                logger.info("🛑 متوقف کردن پنل وب...")
-                self.web_process.terminate()
-                try:
-                    self.web_process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    self.web_process.kill()
-                    self.web_process.wait()
-                logger.info("✅ پنل وب متوقف شد")
-                self.web_process = None
-            except Exception as e:
-                logger.error(f"❌ خطا در توقف پنل وب: {e}")
+    
 
     def setup_database(self, bot_id, db_path):
         """تنظیم پایگاه داده برای هر بات"""
@@ -745,19 +687,15 @@ class UnifiedBotLauncher:
         if cancelled_count > 0:
             logger.warning(f"⚡ {cancelled_count} تسک فحش در چت {chat_id} متوقف شد - چت‌های دیگر عادی ادامه می‌دهند")
         
-        # ارسال گزارش به ربات مانیتورینگ
-        if self.monitoring_bot:
-            asyncio.create_task(self.send_emoji_report_to_monitoring(chat_id, cancelled_count))
+        # ارسال گزارش به ربات گزارش‌دهی
+        asyncio.create_task(self.send_emoji_report_to_report_bot(chat_id, cancelled_count))
         
         # پاک کردن خودکار حالت توقف برای این چت
         asyncio.create_task(self.auto_clear_emergency_stop_for_chat(chat_id))
 
-    async def send_emoji_report_to_monitoring(self, chat_id, stopped_bots_count):
-        """ارسال گزارش ایموجی ممنوعه به ربات مانیتورینگ"""
+    async def send_emoji_report_to_report_bot(self, chat_id, stopped_bots_count):
+        """ارسال گزارش ایموجی ممنوعه به ربات گزارش‌دهی"""
         try:
-            if not self.monitoring_bot or not self.monitoring_bot.client:
-                return
-            
             # تلاش برای دریافت اطلاعات چت
             chat_title = "نامشخص"
             try:
@@ -779,16 +717,8 @@ class UnifiedBotLauncher:
             except:
                 pass
             
-            # ثبت گزارش در دیتابیس ربات مانیتورینگ
-            self.monitoring_bot.log_emoji_report(
-                chat_id=chat_id,
-                chat_title=chat_title,
-                emoji=detected_emoji,
-                stopped_bots=[f"bot_{i}" for i in range(1, 10)]  # لیست همه بات‌ها
-            )
-            
-            # ارسال هشدار به مشترکین
-            await self.monitoring_bot.send_emoji_alert(
+            # ارسال گزارش به ربات گزارش‌دهی
+            await send_emoji_report(
                 chat_id=chat_id,
                 chat_title=chat_title,
                 emoji=detected_emoji,
@@ -798,7 +728,7 @@ class UnifiedBotLauncher:
             logger.info(f"📤 گزارش ایموجی ممنوعه ارسال شد: {detected_emoji} در {chat_title}")
             
         except Exception as e:
-            logger.error(f"❌ خطا در ارسال گزارش به ربات مانیتورینگ: {e}")
+            logger.error(f"❌ خطا در ارسال گزارش به ربات گزارش‌دهی: {e}")
 
     async def auto_clear_emergency_stop_for_chat(self, chat_id):
         """پاک کردن خودکار حالت توقف اضطراری برای چت مشخص"""
@@ -2398,30 +2328,9 @@ class UnifiedBotLauncher:
             logger.error(f"خطا در ارسال پاسخ: {e}")
 
     async def start_all_bots(self):
-        """شروع همه بات‌ها + پنل وب + ربات مانیتورینگ"""
+        """شروع همه بات‌ها"""
         self.running = True
-        logger.info("🚀 شروع سیستم کامل: لانچر بات‌ها + پنل وب + مانیتورینگ...")
-
-        # شروع پنل وب ابتدا
-        logger.info("🌐 شروع پنل وب...")
-        try:
-            web_success = await self.start_web_panel()
-            if web_success:
-                logger.info("✅ پنل وب راه‌اندازی شد - دسترسی: http://0.0.0.0:5000")
-            else:
-                logger.warning("⚠️ پنل وب راه‌اندازی نشد، ادامه با بات‌ها...")
-        except Exception as e:
-            logger.error(f"❌ خطا در راه‌اندازی پنل وب: {e}")
-            logger.warning("⚠️ ادامه با بات‌ها بدون پنل وب...")
-
-        # شروع ربات مانیتورینگ
-        logger.info("🤖 شروع ربات مانیتورینگ...")
-        try:
-            self.monitoring_bot = MonitoringBot()
-            await self.monitoring_bot.start_bot()
-            logger.info("✅ ربات مانیتورینگ راه‌اندازی شد")
-        except Exception as e:
-            logger.error(f"❌ خطا در راه‌اندازی ربات مانیتورینگ: {e}")
+        logger.info("🚀 شروع سیستم بات‌ها...")
 
         # ایجاد همه بات‌ها
         tasks = []
@@ -2437,10 +2346,9 @@ class UnifiedBotLauncher:
             await asyncio.gather(*tasks, return_exceptions=True)
         
         # نمایش آمار نهایی
-        logger.info("🎉 سیستم کامل راه‌اندازی شد!")
-        logger.info("📊 پنل مدیریت: http://localhost:5000")
-        logger.info("🤖 ربات‌ها: 9 ربات اصلی + 1 ربات مانیتورینگ")
-        logger.info("🌐 پنل وب: فعال و آماده")
+        logger.info("🎉 سیستم بات‌ها راه‌اندازی شد!")
+        logger.info("🤖 ربات‌ها: 9 ربات اصلی فعال")
+        logger.info("📢 ربات گزارش‌دهی: آماده دریافت گزارش‌ها")
 
     async def start_single_bot(self, bot_id):
         """شروع یک بات"""
@@ -2508,21 +2416,9 @@ class UnifiedBotLauncher:
             logger.error(f"❌ خطا در متوقف کردن بات {bot_id}: {e}")
 
     async def stop_all_bots(self):
-        """متوقف کردن همه بات‌ها + پنل وب + ربات مانیتورینگ"""
-        logger.info("🛑 متوقف کردن سیستم کامل...")
+        """متوقف کردن همه بات‌ها"""
+        logger.info("🛑 متوقف کردن سیستم بات‌ها...")
         self.running = False
-
-        # متوقف کردن پنل وب
-        await self.stop_web_panel()
-
-        # متوقف کردن ربات مانیتورینگ
-        if self.monitoring_bot:
-            logger.info("🛑 متوقف کردن ربات مانیتورینگ...")
-            try:
-                await self.monitoring_bot.stop_bot()
-                logger.info("✅ ربات مانیتورینگ متوقف شد")
-            except Exception as e:
-                logger.error(f"❌ خطا در متوقف کردن ربات مانیتورینگ: {e}")
 
         # متوقف کردن تمام تسک‌های فحش نامحدود
         if self.continuous_spam_tasks:
