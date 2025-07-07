@@ -4,6 +4,7 @@ import sys
 import sqlite3
 import logging
 import time
+import subprocess
 from datetime import datetime
 import os
 from pathlib import Path
@@ -34,6 +35,8 @@ class UnifiedBotLauncher:
         self.bots = {}
         # ربات مانیتورینگ
         self.monitoring_bot = None
+        # پنل وب
+        self.web_process = None
         # متغیرهای کنترل
         self.running = False
         self.count_tasks = {}  # برای ذخیره تسک‌های شمارش
@@ -163,6 +166,52 @@ class UnifiedBotLauncher:
         logger.info(f"👑 ادمین اصلی لانچر: {self.launcher_admin_id}")
         logger.info(f"🔐 ادمین‌های بات‌ها: {list(self.bot_admin_ids)}")
         logger.info(f"📋 همه ادمین‌ها: {list(self.all_admin_ids)}")
+
+    async def start_web_panel(self):
+        """شروع پنل وب"""
+        try:
+            logger.info("🌐 شروع پنل مدیریت وب...")
+            
+            # شروع سرور Express/Vite
+            self.web_process = subprocess.Popen(
+                ['npm', 'run', 'dev'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=os.getcwd()
+            )
+            
+            # انتظار برای راه‌اندازی سرور
+            await asyncio.sleep(5)
+            
+            if self.web_process.poll() is None:
+                logger.info("✅ پنل وب راه‌اندازی شد - http://localhost:5000")
+                return True
+            else:
+                stdout, stderr = self.web_process.communicate()
+                logger.error(f"❌ خطا در راه‌اندازی پنل وب:")
+                logger.error(f"stdout: {stdout.decode()}")
+                logger.error(f"stderr: {stderr.decode()}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ خطا در شروع پنل وب: {e}")
+            return False
+
+    async def stop_web_panel(self):
+        """توقف پنل وب"""
+        if self.web_process:
+            try:
+                logger.info("🛑 متوقف کردن پنل وب...")
+                self.web_process.terminate()
+                try:
+                    self.web_process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    self.web_process.kill()
+                    self.web_process.wait()
+                logger.info("✅ پنل وب متوقف شد")
+                self.web_process = None
+            except Exception as e:
+                logger.error(f"❌ خطا در توقف پنل وب: {e}")
 
     def setup_database(self, bot_id, db_path):
         """تنظیم پایگاه داده برای هر بات"""
@@ -2109,8 +2158,25 @@ class UnifiedBotLauncher:
                         status = "فعال" if enabled else "غیرفعال" 
                         await message.reply_text(f"✅ پاسخگویی خودکار همه بات‌ها {status} شد")
                     
+                    elif command == "webpanel":
+                        if parameter == "restart":
+                            await self.stop_web_panel()
+                            await asyncio.sleep(2)
+                            web_success = await self.start_web_panel()
+                            if web_success:
+                                await message.reply_text("✅ پنل وب مجدداً راه‌اندازی شد")
+                            else:
+                                await message.reply_text("❌ خطا در راه‌اندازی مجدد پنل وب")
+                        elif parameter == "status":
+                            if self.web_process and self.web_process.poll() is None:
+                                await message.reply_text("✅ پنل وب فعال - http://localhost:5000")
+                            else:
+                                await message.reply_text("❌ پنل وب غیرفعال")
+                        else:
+                            await message.reply_text("❌ پارامتر نامعتبر. استفاده: /manageall webpanel [restart|status]")
+                    
                     else:
-                        await message.reply_text("❌ کامند نامعتبر. کامندهای موجود: autoreply")
+                        await message.reply_text("❌ کامند نامعتبر. کامندهای موجود: autoreply, webpanel")
                         
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {e}")
@@ -2323,11 +2389,22 @@ class UnifiedBotLauncher:
             logger.error(f"خطا در ارسال پاسخ: {e}")
 
     async def start_all_bots(self):
-        """شروع همه بات‌ها"""
+        """شروع همه بات‌ها + پنل وب + ربات مانیتورینگ"""
         self.running = True
-        logger.info("🚀 شروع لانچر واحد بات‌ها...")
+        logger.info("🚀 شروع سیستم کامل: لانچر بات‌ها + پنل وب + مانیتورینگ...")
 
-        # شروع ربات مانیتورینگ ابتدا
+        # شروع پنل وب ابتدا
+        logger.info("🌐 شروع پنل وب...")
+        try:
+            web_success = await self.start_web_panel()
+            if web_success:
+                logger.info("✅ پنل وب راه‌اندازی شد")
+            else:
+                logger.warning("⚠️ پنل وب راه‌اندازی نشد، ادامه با بات‌ها...")
+        except Exception as e:
+            logger.error(f"❌ خطا در راه‌اندازی پنل وب: {e}")
+
+        # شروع ربات مانیتورینگ
         logger.info("🤖 شروع ربات مانیتورینگ...")
         try:
             self.monitoring_bot = MonitoringBot()
@@ -2348,6 +2425,12 @@ class UnifiedBotLauncher:
         if tasks:
             logger.info(f"🎯 شروع {len(tasks)} بات...")
             await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # نمایش آمار نهایی
+        logger.info("🎉 سیستم کامل راه‌اندازی شد!")
+        logger.info("📊 پنل مدیریت: http://localhost:5000")
+        logger.info("🤖 ربات‌ها: 9 ربات اصلی + 1 ربات مانیتورینگ")
+        logger.info("🌐 پنل وب: فعال و آماده")
 
     async def start_single_bot(self, bot_id):
         """شروع یک بات"""
@@ -2415,9 +2498,12 @@ class UnifiedBotLauncher:
             logger.error(f"❌ خطا در متوقف کردن بات {bot_id}: {e}")
 
     async def stop_all_bots(self):
-        """متوقف کردن همه بات‌ها"""
-        logger.info("🛑 متوقف کردن همه بات‌ها...")
+        """متوقف کردن همه بات‌ها + پنل وب + ربات مانیتورینگ"""
+        logger.info("🛑 متوقف کردن سیستم کامل...")
         self.running = False
+
+        # متوقف کردن پنل وب
+        await self.stop_web_panel()
 
         # متوقف کردن ربات مانیتورینگ
         if self.monitoring_bot:
