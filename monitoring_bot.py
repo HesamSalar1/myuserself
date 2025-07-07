@@ -237,21 +237,19 @@ class MonitoringBot:
 • 📊 نمایش وضعیت کلی سیستم
 • 📈 آمار و گزارش‌های عملکرد
 
-🔹 **دستورات:**
-/status - نمایش وضعیت سیستم
-/reports - آخرین گزارش‌ها
-/emojis - لیست ایموجی‌های ممنوعه
-/stop - لغو عضویت
-
 شما الآن عضو لیست گزارش‌دهی هستید و تمام هشدارها را دریافت خواهید کرد.
 
-✅ **ربات آماده است! برای شروع /status کنید.**
+✅ **ربات آماده است!**
             """
             
             keyboard = InlineKeyboardMarkup([
                 [
-                    InlineKeyboardButton("📊 وضعیت سیستم", callback_data="system_status"),
-                    InlineKeyboardButton("📈 گزارش‌ها", callback_data="reports")
+                    InlineKeyboardButton("🚀 شروع", callback_data="start_bot"),
+                    InlineKeyboardButton("📊 وضعیت سیستم", callback_data="status_bot")
+                ],
+                [
+                    InlineKeyboardButton("📈 گزارش‌ها", callback_data="reports"),
+                    InlineKeyboardButton("⛔ ایموجی‌ها", callback_data="emojis")
                 ],
                 [InlineKeyboardButton("⚙️ تنظیمات", callback_data="settings")]
             ])
@@ -347,20 +345,156 @@ class MonitoringBot:
         @self.client.on_callback_query()
         async def callback_handler(client, callback_query):
             data = callback_query.data
+            user_id = callback_query.from_user.id
             
-            if data == "system_status":
+            if data == "start_bot":
+                welcome_text = f"""
+🚀 **ربات مانیتورینگ راه‌اندازی شد!**
+
+✅ شما الآن عضو سیستم گزارش‌دهی هستید
+📨 تمام هشدارها و گزارش‌ها را دریافت خواهید کرد
+
+🔹 **دستورات مفید:**
+• /status - وضعیت فعلی سیستم
+• /reports - آخرین گزارش‌ها  
+• /emojis - ایموجی‌های ممنوعه
+• /stop - لغو عضویت
+                """
+                
+                keyboard = InlineKeyboardMarkup([
+                    [
+                        InlineKeyboardButton("📊 وضعیت سیستم", callback_data="status_bot"),
+                        InlineKeyboardButton("📈 گزارش‌ها", callback_data="reports")
+                    ],
+                    [
+                        InlineKeyboardButton("⛔ ایموجی‌ها", callback_data="emojis"),
+                        InlineKeyboardButton("🔄 بروزرسانی", callback_data="refresh")
+                    ]
+                ])
+                
+                await callback_query.edit_message_text(welcome_text, reply_markup=keyboard)
+                
+            elif data == "status_bot":
                 status = await self.get_system_status()
                 if status:
-                    status_text = f"📊 وضعیت: {status['active_bots']}/{status['total_bots']} ربات فعال"
+                    status_text = f"""
+📊 **وضعیت سیستم**
+
+🤖 **ربات‌ها:** {status['active_bots']}/{status['total_bots']} فعال
+👥 **مشترکین:** {status['subscribers_count']} نفر
+⛔ **ایموجی‌های ممنوعه:** {status['forbidden_emojis_count']} عدد
+🕐 **آخرین بررسی:** {status['last_check']}
+
+وضعیت: {"🟢 عالی" if status['active_bots'] == status['total_bots'] else "🟡 نیاز به بررسی"}
+                    """
                 else:
-                    status_text = "❌ خطا در دریافت وضعیت"
-                await callback_query.answer(status_text, show_alert=True)
+                    status_text = "❌ خطا در دریافت وضعیت سیستم"
+                    
+                keyboard = InlineKeyboardMarkup([
+                    [
+                        InlineKeyboardButton("🔄 بروزرسانی", callback_data="status_bot"),
+                        InlineKeyboardButton("📈 گزارش‌ها", callback_data="reports")
+                    ],
+                    [InlineKeyboardButton("🏠 منوی اصلی", callback_data="start_bot")]
+                ])
+                
+                await callback_query.edit_message_text(status_text, reply_markup=keyboard)
                 
             elif data == "reports":
-                await callback_query.answer("📈 برای مشاهده گزارش‌ها /reports بفرستید")
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT chat_title, emoji, stopped_bots, reported_at 
+                    FROM emoji_reports 
+                    ORDER BY reported_at DESC 
+                    LIMIT 5
+                ''')
+                reports = cursor.fetchall()
+                conn.close()
+                
+                if reports:
+                    reports_text = "📈 **آخرین گزارش‌های ایموجی ممنوعه:**\n\n"
+                    for report in reports:
+                        chat_title, emoji, stopped_bots, reported_at = report
+                        bots_count = len(json.loads(stopped_bots)) if stopped_bots else 0
+                        reports_text += f"• **{chat_title[:20]}...** - {emoji} ({bots_count} بات) - {reported_at[:16]}\n"
+                else:
+                    reports_text = "📈 **هیچ گزارشی ثبت نشده است**"
+                    
+                keyboard = InlineKeyboardMarkup([
+                    [
+                        InlineKeyboardButton("📊 وضعیت", callback_data="status_bot"),
+                        InlineKeyboardButton("⛔ ایموجی‌ها", callback_data="emojis")
+                    ],
+                    [InlineKeyboardButton("🏠 منوی اصلی", callback_data="start_bot")]
+                ])
+                
+                await callback_query.edit_message_text(reports_text, reply_markup=keyboard)
+                
+            elif data == "emojis":
+                try:
+                    db_path = "bots/bot1/bot_database.db"
+                    if os.path.exists(db_path):
+                        conn = sqlite3.connect(db_path)
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT emoji FROM forbidden_emojis")
+                        emojis = cursor.fetchall()
+                        conn.close()
+                        
+                        if emojis:
+                            emoji_list = " ".join([emoji[0] for emoji in emojis])
+                            emoji_text = f"""
+⛔ **لیست ایموجی‌های ممنوعه:** ({len(emojis)} عدد)
+
+{emoji_list}
+
+💡 **توضیح:**
+هر وقت این ایموجی‌ها در گروه‌ها دیده شوند، اسپم متوقف می‌شود
+                            """
+                        else:
+                            emoji_text = "⚠️ هیچ ایموجی ممنوعه‌ای تعریف نشده است"
+                    else:
+                        emoji_text = "❌ دیتابیس در دسترس نیست"
+                        
+                    keyboard = InlineKeyboardMarkup([
+                        [
+                            InlineKeyboardButton("📊 وضعیت", callback_data="status_bot"),
+                            InlineKeyboardButton("📈 گزارش‌ها", callback_data="reports")
+                        ],
+                        [InlineKeyboardButton("🏠 منوی اصلی", callback_data="start_bot")]
+                    ])
+                    
+                    await callback_query.edit_message_text(emoji_text, reply_markup=keyboard)
+                except Exception as e:
+                    await callback_query.answer(f"❌ خطا: {e}")
+                
+            elif data == "refresh":
+                await callback_query.answer("🔄 در حال بروزرسانی...")
+                # بروزرسانی وضعیت و بازگشت به منوی اصلی
+                await callback_handler(client, callback_query._replace(data="start_bot"))
                 
             elif data == "settings":
-                await callback_query.answer("⚙️ تنظیمات در نسخه بعدی اضافه می‌شود")
+                settings_text = """
+⚙️ **تنظیمات ربات مانیتورینگ**
+
+🔔 **اعلانات:** فعال
+📊 **گزارش‌های خودکار:** فعال
+⏰ **بروزرسانی هر:** 10 ثانیه
+
+💡 تنظیمات بیشتر در نسخه‌های آینده اضافه می‌شود
+                """
+                
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🏠 منوی اصلی", callback_data="start_bot")]
+                ])
+                
+                await callback_query.edit_message_text(settings_text, reply_markup=keyboard)
+                
+            # پاسخ خودکار به callback
+            try:
+                await callback_query.answer()
+            except Exception as e:
+                logger.error(f"❌ خطا در callback handler: {e}")
                 
         logger.info("✅ هندلرهای ربات مانیتورینگ آماده شد")
         
