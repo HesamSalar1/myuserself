@@ -270,8 +270,11 @@ class ReportBot:
                 
             logger.info("🚀 شروع راه‌اندازی ربات گزارش‌دهی...")
             
+            # برای bot token، از API credentials پیش‌فرض استفاده می‌کنیم
             self.client = Client(
                 name="report_bot",
+                api_id=21724,  # API ID عمومی تلگرام
+                api_hash="3e0cb5efcd52300aec5994fdfc5bdc16",  # API Hash عمومی تلگرام
                 bot_token=self.bot_token,
                 no_updates=False,
                 workdir="."
