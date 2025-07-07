@@ -16,7 +16,7 @@ from pyrogram.types import Message, ChatMember
 from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
 
 # وارد کردن ربات گزارش‌دهی
-from report_bot import send_emoji_report
+from report_bot import send_emoji_report, ReportBot
 
 # تنظیم لاگینگ
 logging.basicConfig(
@@ -34,6 +34,9 @@ class UnifiedBotLauncher:
         self.bots = {}
         # متغیرهای کنترل
         self.running = False
+        
+        # ربات گزارش‌دهی
+        self.report_bot = None
         self.count_tasks = {}  # برای ذخیره تسک‌های شمارش
         self.global_paused = {}  # برای توقف کلی {chat_id: user_id} - وقتی ایموجی ممنوعه تشخیص داده شه
         self.continuous_spam_tasks = {}  # برای نگه داشتن تسک‌های فحش مداوم {bot_id: {user_id: task}}
@@ -2332,6 +2335,9 @@ class UnifiedBotLauncher:
         self.running = True
         logger.info("🚀 شروع سیستم بات‌ها...")
 
+        # شروع ربات گزارش‌دهی
+        await self.start_report_bot()
+
         # ایجاد همه بات‌ها
         tasks = []
         for bot_id, config in self.bot_configs.items():
@@ -2349,6 +2355,23 @@ class UnifiedBotLauncher:
         logger.info("🎉 سیستم بات‌ها راه‌اندازی شد!")
         logger.info("🤖 ربات‌ها: 9 ربات اصلی فعال")
         logger.info("📢 ربات گزارش‌دهی: آماده دریافت گزارش‌ها")
+        
+        # نگه داشتن سیستم زنده
+        try:
+            while self.running:
+                await asyncio.sleep(10)
+                # بررسی وضعیت ربات گزارش‌دهی
+                if self.report_bot and self.report_bot.client and not self.report_bot.client.is_connected:
+                    logger.warning("⚠️ ربات گزارش‌دهی قطع شده - تلاش برای اتصال مجدد...")
+                    try:
+                        await self.report_bot.client.start()
+                        logger.info("✅ ربات گزارش‌دهی مجدداً متصل شد")
+                    except Exception as e:
+                        logger.error(f"❌ خطا در اتصال مجدد ربات گزارش‌دهی: {e}")
+        except KeyboardInterrupt:
+            logger.info("⌨️ دریافت سیگنال توقف...")
+        finally:
+            await self.stop_all_bots()
 
     async def start_single_bot(self, bot_id):
         """شروع یک بات"""
@@ -2415,10 +2438,28 @@ class UnifiedBotLauncher:
         except Exception as e:
             logger.error(f"❌ خطا در متوقف کردن بات {bot_id}: {e}")
 
+    async def start_report_bot(self):
+        """شروع ربات گزارش‌دهی"""
+        try:
+            logger.info("📢 شروع ربات گزارش‌دهی...")
+            self.report_bot = ReportBot()
+            
+            if await self.report_bot.start_bot():
+                logger.info("✅ ربات گزارش‌دهی راه‌اندازی شد")
+            else:
+                logger.error("❌ خطا در راه‌اندازی ربات گزارش‌دهی")
+                
+        except Exception as e:
+            logger.error(f"❌ خطا در شروع ربات گزارش‌دهی: {e}")
+
     async def stop_all_bots(self):
         """متوقف کردن همه بات‌ها"""
         logger.info("🛑 متوقف کردن سیستم بات‌ها...")
         self.running = False
+
+        # متوقف کردن ربات گزارش‌دهی
+        if self.report_bot:
+            await self.report_bot.stop_bot()
 
         # متوقف کردن تمام تسک‌های فحش نامحدود
         if self.continuous_spam_tasks:
