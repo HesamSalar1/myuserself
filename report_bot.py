@@ -29,10 +29,15 @@ logger = logging.getLogger(__name__)
 class ReportBot:
     def __init__(self):
         # توکن ربات را از secrets می‌خوانیم
-        self.bot_token = os.getenv('REPORT_BOT_TOKEN', '')
+        self.bot_token = os.getenv('REPORT_BOT_TOKEN', '').strip()
         if not self.bot_token:
             logger.error("❌ توکن ربات یافت نشد. لطفاً REPORT_BOT_TOKEN را در Secrets اضافه کنید")
+            logger.error("💡 توکن مورد نیاز: 7708355228:AAGPzhm47U5-4uPnALl6Oc6En91aCYLyydk")
+            self.is_valid = False
             return
+        
+        self.is_valid = True
+        logger.info(f"✅ توکن ربات گزارش‌دهی یافت شد: {self.bot_token[:20]}...")
             
         self.client = None
         self.admin_ids = {5533325167}  # ادمین اصلی - می‌توانید اضافه کنید
@@ -255,27 +260,37 @@ class ReportBot:
     async def start_bot(self):
         """شروع ربات گزارش‌دهی"""
         try:
+            if not hasattr(self, 'is_valid') or not self.is_valid:
+                logger.error("❌ ربات گزارش‌دهی نامعتبر - توکن موجود نیست")
+                return False
+                
             if not self.bot_token:
                 logger.error("❌ توکن ربات موجود نیست")
                 return False
                 
+            logger.info("🚀 شروع راه‌اندازی ربات گزارش‌دهی...")
+            
             self.client = Client(
                 name="report_bot",
                 bot_token=self.bot_token,
-                no_updates=False
+                no_updates=False,
+                workdir="."
             )
             
             await self.client.start()
+            logger.info("✅ ربات گزارش‌دهی متصل شد")
+            
             self.load_subscribers()
             await self.setup_handlers()
             
             me = await self.client.get_me()
-            logger.info(f"🤖 ربات گزارش‌دهی راه‌اندازی شد: @{me.username}")
+            logger.info(f"🤖 ربات گزارش‌دهی راه‌اندازی شد: @{me.username} (ID: {me.id})")
             
             return True
             
         except Exception as e:
             logger.error(f"❌ خطا در راه‌اندازی ربات گزارش‌دهی: {e}")
+            logger.error(f"📝 جزئیات خطا: {type(e).__name__}: {str(e)}")
             return False
             
     async def stop_bot(self):

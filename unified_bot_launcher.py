@@ -699,6 +699,11 @@ class UnifiedBotLauncher:
     async def send_emoji_report_to_report_bot(self, chat_id, stopped_bots_count):
         """ارسال گزارش ایموجی ممنوعه به ربات گزارش‌دهی"""
         try:
+            # اگر ربات گزارش‌دهی موجود نیست، گزارش نده
+            if not self.report_bot or not hasattr(self.report_bot, 'is_valid') or not self.report_bot.is_valid:
+                logger.debug("⚠️ ربات گزارش‌دهی موجود نیست - گزارش ارسال نمی‌شود")
+                return
+            
             # تلاش برای دریافت اطلاعات چت
             chat_title = "نامشخص"
             try:
@@ -712,23 +717,22 @@ class UnifiedBotLauncher:
                 logger.debug(f"نتوانست اطلاعات چت {chat_id} را دریافت کند: {e}")
             
             # پیدا کردن ایموجی ممنوعه که باعث توقف شده
-            detected_emoji = "نامشخص"
+            detected_emoji = "🚫"  # پیش‌فرض
             try:
-                for emoji in self.forbidden_emojis:
-                    detected_emoji = emoji
-                    break  # فعلاً اولی را می‌گیریم، بعداً بهبود می‌دهیم
+                if self.forbidden_emojis:
+                    detected_emoji = list(self.forbidden_emojis)[0]  # اولین ایموجی
             except:
                 pass
             
             # ارسال گزارش به ربات گزارش‌دهی
-            await send_emoji_report(
-                chat_id=chat_id,
-                chat_title=chat_title,
-                emoji=detected_emoji,
-                stopped_bots_count=stopped_bots_count
-            )
-            
-            logger.info(f"📤 گزارش ایموجی ممنوعه ارسال شد: {detected_emoji} در {chat_title}")
+            if self.report_bot and self.report_bot.client:
+                await self.report_bot.send_emoji_alert(
+                    chat_id=chat_id,
+                    chat_title=chat_title,
+                    emoji=detected_emoji,
+                    stopped_bots_count=stopped_bots_count
+                )
+                logger.info(f"📤 گزارش ایموجی ممنوعه ارسال شد: {detected_emoji} در {chat_title}")
             
         except Exception as e:
             logger.error(f"❌ خطا در ارسال گزارش به ربات گزارش‌دهی: {e}")
@@ -2444,13 +2448,22 @@ class UnifiedBotLauncher:
             logger.info("📢 شروع ربات گزارش‌دهی...")
             self.report_bot = ReportBot()
             
+            # بررسی معتبر بودن ربات گزارش‌دهی
+            if not hasattr(self.report_bot, 'is_valid') or not self.report_bot.is_valid:
+                logger.warning("⚠️ ربات گزارش‌دهی غیرفعال - توکن در Secrets موجود نیست")
+                logger.info("💡 برای فعال‌سازی: REPORT_BOT_TOKEN = 7708355228:AAGPzhm47U5-4uPnALl6Oc6En91aCYLyydk")
+                self.report_bot = None
+                return
+            
             if await self.report_bot.start_bot():
                 logger.info("✅ ربات گزارش‌دهی راه‌اندازی شد")
             else:
                 logger.error("❌ خطا در راه‌اندازی ربات گزارش‌دهی")
+                self.report_bot = None
                 
         except Exception as e:
             logger.error(f"❌ خطا در شروع ربات گزارش‌دهی: {e}")
+            self.report_bot = None
 
     async def stop_all_bots(self):
         """متوقف کردن همه بات‌ها"""
