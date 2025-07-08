@@ -597,36 +597,56 @@ class UnifiedBotLauncher:
         return user_id in self.all_admin_ids
 
     def normalize_emoji(self, emoji):
-        """نرمال‌سازی ایموجی برای مقایسه دقیق‌تر"""
+        """نرمال‌سازی پیشرفته ایموجی برای مقایسه دقیق‌تر"""
         import unicodedata
         
         if not emoji:
             return ""
         
-        # نرمال‌سازی Unicode
-        normalized = unicodedata.normalize('NFC', emoji)
+        # نرمال‌سازی Unicode (هر دو حالت NFC و NFD)
+        normalized_nfc = unicodedata.normalize('NFC', emoji)
+        normalized_nfd = unicodedata.normalize('NFD', emoji)
         
-        # حذف Variation Selectors و Zero Width Joiners
-        cleaned = (normalized
-                  .replace('\uFE0F', '')   # Variation Selector-16
-                  .replace('\uFE0E', '')   # Variation Selector-15  
-                  .replace('\u200D', '')   # Zero Width Joiner
-                  .replace('\u200C', '')   # Zero Width Non-Joiner
-                  .replace('\u2069', '')   # Pop Directional Isolate
-                  .replace('\u2066', '')   # Left-to-Right Isolate
-                  .strip())
+        # حذف کاراکترهای اضافی
+        variations_to_remove = [
+            '\uFE0F',   # Variation Selector-16
+            '\uFE0E',   # Variation Selector-15
+            '\u200D',   # Zero Width Joiner
+            '\u200C',   # Zero Width Non-Joiner
+            '\u2069',   # Pop Directional Isolate
+            '\u2066',   # Left-to-Right Isolate
+            '\u2067',   # Right-to-Left Isolate
+            '\u2068',   # First Strong Isolate
+            '\u200E',   # Left-to-Right Mark
+            '\u200F',   # Right-to-Left Mark
+            '\uFEFF',   # Zero Width No-Break Space
+        ]
         
-        return cleaned
+        cleaned_nfc = normalized_nfc
+        cleaned_nfd = normalized_nfd
+        for variation in variations_to_remove:
+            cleaned_nfc = cleaned_nfc.replace(variation, '')
+            cleaned_nfd = cleaned_nfd.replace(variation, '')
+        
+        # انتخاب بهترین حالت نرمال‌سازی
+        final_cleaned = cleaned_nfc.strip()
+        if not final_cleaned:
+            final_cleaned = cleaned_nfd.strip()
+        
+        return final_cleaned
 
     def contains_stop_emoji(self, text, found_emoji_ref=None):
-        """بررسی وجود ایموجی‌های توقف در متن با امکان بازگشت ایموجی یافت شده"""
+        """بررسی پیشرفته وجود ایموجی‌های توقف در متن - فقط اولین ایموجی یافت شده"""
         if not text or not self.forbidden_emojis:
             return False
 
-        # نرمال‌سازی متن
+        # نرمال‌سازی متن اصلی
         normalized_text = self.normalize_emoji(text)
+        
+        # لیست تمام ایموجی‌های یافت شده برای انتخاب اولین یکی
+        found_emojis = []
 
-        # مرتب‌سازی ایموجی‌ها بر اساس طول (طولانی‌تر اول) برای تطبیق دقیق‌تر
+        # مرتب‌سازی ایموجی‌ها بر اساس طول (طولانی‌تر اول)
         sorted_emojis = sorted(self.forbidden_emojis, key=len, reverse=True)
 
         for emoji in sorted_emojis:
@@ -636,26 +656,47 @@ class UnifiedBotLauncher:
             if not normalized_emoji or len(normalized_emoji.strip()) == 0:
                 continue
             
-            # بررسی دقیق‌تر - فقط تطبیق کامل
-            exact_matches = [
-                emoji == text.strip(),  # تطبیق کامل
-                normalized_emoji == normalized_text.strip(),  # تطبیق نرمال کامل
-                emoji in text and len(emoji) > 1,  # موجود در متن و بیش از 1 کاراکتر
-                normalized_emoji in normalized_text and len(normalized_emoji) > 1  # نرمال موجود در متن
+            # بررسی‌های مختلف برای تطبیق دقیق‌تر
+            match_checks = [
+                # تطبیق کامل اصلی
+                emoji == text.strip(),
+                # تطبیق کامل نرمال
+                normalized_emoji == normalized_text.strip(),
+                # موجود بودن در متن (برای ایموجی‌های بیش از یک کاراکتر)
+                emoji in text and len(emoji) > 1,
+                # موجود بودن نرمال در متن نرمال
+                normalized_emoji in normalized_text and len(normalized_emoji) > 1,
+                # تطبیق ساده (بدون نرمال‌سازی)
+                emoji in text,
+                # بررسی Unicode مستقیم
+                any(char in text for char in emoji if ord(char) > 127),
             ]
             
-            if any(exact_matches):
-                logger.info(f"🛑 ایموجی ممنوعه تشخیص داده شد: {emoji} در متن: {text[:50]}...")
+            if any(match_checks):
+                # اضافه کردن به لیست یافت شده‌ها
+                found_emojis.append({
+                    'emoji': emoji,
+                    'position': text.find(emoji) if emoji in text else text.find(normalized_emoji)
+                })
+                
+                logger.debug(f"🔍 ایموجی تطبیق یافت: {emoji} در متن: {text[:50]}...")
                 logger.debug(f"   ایموجی اصلی: {repr(emoji)} (کدها: {[hex(ord(c)) for c in emoji]})")
                 logger.debug(f"   ایموجی نرمال: {repr(normalized_emoji)} (کدها: {[hex(ord(c)) for c in normalized_emoji]})")
-                logger.debug(f"   متن اصلی: {repr(text[:30])}")
-                logger.debug(f"   متن نرمال: {repr(normalized_text[:30])}")
-                
-                # بازگشت ایموجی یافت شده اگر مرجع ارائه شده باشد
-                if found_emoji_ref is not None:
-                    found_emoji_ref.append(emoji)
-                
-                return True
+        
+        # اگر ایموجی یافت شد، فقط اولین یکی را انتخاب کن
+        if found_emojis:
+            # مرتب‌سازی بر اساس موقعیت در متن (اولین ایموجی)
+            found_emojis.sort(key=lambda x: x['position'] if x['position'] >= 0 else float('inf'))
+            selected_emoji = found_emojis[0]['emoji']
+            
+            logger.info(f"🛑 ایموجی ممنوعه تشخیص داده شد: {selected_emoji} در متن: {text[:50]}...")
+            
+            # بازگشت فقط اولین ایموجی یافت شده
+            if found_emoji_ref is not None:
+                found_emoji_ref.append(selected_emoji)
+            
+            return True
+            
         return False
 
     async def should_pause_spam(self, message, bot_id):
@@ -782,30 +823,47 @@ class UnifiedBotLauncher:
         asyncio.create_task(self.auto_clear_emergency_stop_for_chat(chat_id))
 
     async def send_emoji_report_to_report_bot(self, chat_id, stopped_bots_count, detected_item, message):
-        """ارسال گزارش یکپارچه ایموجی ممنوعه به ربات گزارش‌دهی - با کنترل مضاعف"""
+        """ارسال گزارش یکپارچه ایموجی ممنوعه به ربات گزارش‌دهی - با کنترل قوی‌تر چندگانه"""
         try:
             # اگر ربات گزارش‌دهی موجود نیست، گزارش نده
             if not self.report_bot or not hasattr(self.report_bot, 'is_valid') or not self.report_bot.is_valid:
                 logger.debug("⚠️ ربات گزارش‌دهی موجود نیست - گزارش ارسال نمی‌شود")
                 return
             
-            # کنترل اضافی برای جلوگیری از ارسال چندگانه در سطح launcher
+            # کنترل قوی‌تر برای جلوگیری از ارسال چندگانه
             import time
+            import hashlib
             current_time = time.time()
-            report_key = f"{chat_id}_{detected_item}"
+            
+            # ایجاد کلید یونیک برای گزارش (شامل محتوای پیام هم)
+            message_content = (message.text or message.caption or "").strip()
+            content_hash = hashlib.md5(f"{chat_id}_{detected_item}_{message_content}".encode()).hexdigest()[:8]
+            report_key = f"{chat_id}_{detected_item}_{content_hash}"
+            
+            # بررسی cache با زمان کوتاه‌تر برای دقت بیشتر
+            strict_cooldown = 30.0  # 30 ثانیه برای جلوگیری از گزارش‌های مکرر
             
             if report_key in self.report_sent_cache:
                 last_sent = self.report_sent_cache[report_key]
-                if current_time - last_sent < self.report_cooldown:
-                    time_left = int(self.report_cooldown - (current_time - last_sent))
-                    logger.debug(f"🔄 گزارش {detected_item} در چت {chat_id} قبلاً ارسال شده - {time_left} ثانیه باقی‌مانده")
+                if current_time - last_sent < strict_cooldown:
+                    time_left = int(strict_cooldown - (current_time - last_sent))
+                    logger.debug(f"🔄 گزارش مشابه {detected_item} در چت {chat_id} قبلاً ارسال شده - {time_left} ثانیه باقی‌مانده")
+                    return
+            
+            # کنترل اضافی برای همان چت و ایموجی (بدون در نظر گیری محتوا)
+            simple_key = f"{chat_id}_{detected_item}"
+            if simple_key in self.report_sent_cache:
+                last_sent = self.report_sent_cache[simple_key]
+                if current_time - last_sent < 10.0:  # 10 ثانیه برای همان ایموجی در همان چت
+                    logger.debug(f"🔄 گزارش {detected_item} در چت {chat_id} اخیراً ارسال شده - تجمیع می‌شود")
                     return
             
             # ثبت زمان ارسال
             self.report_sent_cache[report_key] = current_time
+            self.report_sent_cache[simple_key] = current_time
             
-            # پاک کردن cache قدیمی
-            if len(self.report_sent_cache) > 50:
+            # پاک کردن cache قدیمی (نگه داشتن فقط 30 آیتم اخیر)
+            if len(self.report_sent_cache) > 30:
                 old_keys = sorted(self.report_sent_cache.items(), key=lambda x: x[1])[:10]
                 for old_key, _ in old_keys:
                     del self.report_sent_cache[old_key]
@@ -827,10 +885,10 @@ class UnifiedBotLauncher:
                 logger.debug(f"نتوانست اطلاعات چت {chat_id} را دریافت کند: {e}")
                 chat_title = f"چت {chat_id}"
             
-            # استفاده از آیتم تشخیص داده شده
-            display_item = str(detected_item) if detected_item else "نامشخص"
+            # تمیز کردن ایموجی برای نمایش
+            display_item = str(detected_item).strip() if detected_item else "نامشخص"
             
-            # شمارش بات‌های فعال (نه فقط متوقف شده)
+            # شمارش بات‌های فعال
             active_bots = sum(1 for bot_info in self.bots.values() if bot_info.get('status') == 'running')
             
             # ارسال گزارش یکپارچه به ربات گزارش‌دهی
@@ -841,7 +899,8 @@ class UnifiedBotLauncher:
                     emoji=display_item,
                     stopped_bots_count=active_bots
                 )
-                logger.info(f"📤 گزارش یکتا ارسال شد: {display_item} در {chat_title} - {active_bots} ربات متأثر شد - کلید: {report_key}")
+                logger.info(f"📤 گزارش یکتا ارسال شد: {display_item} در {chat_title} - {active_bots} ربات متأثر شد")
+                logger.debug(f"   کلید گزارش: {report_key}")
             
         except Exception as e:
             logger.error(f"❌ خطا در ارسال گزارش به ربات گزارش‌دهی: {e}")

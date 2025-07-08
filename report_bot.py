@@ -139,31 +139,43 @@ class ReportBot:
             conn.close()
             
     async def send_emoji_alert(self, chat_id, chat_title, emoji, stopped_bots_count):
-        """ارسال فوری گزارش ایموجی ممنوعه به همه مشترکین - با cache برای جلوگیری از تکرار"""
+        """ارسال فوری گزارش ایموجی ممنوعه به همه مشترکین - با cache قوی‌تر"""
         if not self.subscribers:
             logger.warning("⚠️ هیچ مشترکی برای ارسال گزارش وجود ندارد")
             return
         
-        # ایجاد کلید یونیک برای این گزارش
+        # ایجاد کلید یونیک و تمیز برای این گزارش
         import time
-        cache_key = f"{chat_id}_{emoji}"
+        import hashlib
+        
+        # تمیز کردن ایموجی و عنوان چت
+        clean_emoji = str(emoji).strip() if emoji else "نامشخص"
+        clean_title = str(chat_title).strip() if chat_title else f"چت {chat_id}"
+        
+        # ایجاد کلید cache پیشرفته
+        cache_content = f"{chat_id}_{clean_emoji}_{stopped_bots_count}"
+        cache_hash = hashlib.md5(cache_content.encode()).hexdigest()[:8]
+        cache_key = f"{chat_id}_{clean_emoji}_{cache_hash}"
+        
         current_time = time.time()
         
-        # بررسی cache برای جلوگیری از ارسال چندگانه
+        # بررسی cache با timeout کوتاه‌تر
+        strict_timeout = 45.0  # 45 ثانیه
+        
         if cache_key in self.report_cache:
             last_report_time = self.report_cache[cache_key]
-            if current_time - last_report_time < self.cache_timeout:
-                time_left = int(self.cache_timeout - (current_time - last_report_time))
-                logger.info(f"🔄 گزارش {emoji} در {chat_title} قبلاً ارسال شده - {time_left} ثانیه تا ارسال مجدد")
+            if current_time - last_report_time < strict_timeout:
+                time_left = int(strict_timeout - (current_time - last_report_time))
+                logger.info(f"🔄 گزارش مشابه {clean_emoji} در {clean_title} قبلاً ارسال شده - {time_left} ثانیه تا ارسال مجدد")
                 return
         
         # ثبت در cache
         self.report_cache[cache_key] = current_time
         
-        # پاک کردن cache قدیمی (نگه داشتن فقط 100 آیتم اخیر)
-        if len(self.report_cache) > 100:
-            # حذف 20 آیتم قدیمی‌ترین
-            old_keys = sorted(self.report_cache.items(), key=lambda x: x[1])[:20]
+        # پاک کردن cache قدیمی (نگه داشتن فقط 50 آیتم اخیر)
+        if len(self.report_cache) > 50:
+            # حذف 15 آیتم قدیمی‌ترین
+            old_keys = sorted(self.report_cache.items(), key=lambda x: x[1])[:15]
             for old_key, _ in old_keys:
                 del self.report_cache[old_key]
             
@@ -182,14 +194,15 @@ class ReportBot:
         alert_message = f"""
 🚨 **هشدار: ایموجی ممنوعه تشخیص داده شد**
 
-📍 **گروه:** {group_name}
+📍 **گروه:** {clean_title}
 🆔 **شناسه چت:** `{chat_id}`
-⛔ **ایموجی ممنوعه:** {display_emoji}
-🤖 **ربات‌های متوقف شده:** {stopped_bots_count} عدد
+⛔ **ایموجی ممنوعه:** {clean_emoji}
+🤖 **ربات‌های متأثر شده:** {stopped_bots_count} عدد
 🕐 **زمان تشخیص:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-⚡ **وضعیت:** تمام ربات‌ها در این گروه متوقف شدند
-🔄 **گزارش یکتا:** این پیام فقط یک بار ارسال می‌شود
+⚡ **نتیجه:** تمام فعالیت‌های اسپم در این گروه متوقف شد
+🔄 **گزارش یکپارچه:** فقط اولین ایموجی تشخیص داده شده گزارش می‌شود
+📝 **شناسه گزارش:** `{cache_hash}`
         """
         
         failed_sends = []
