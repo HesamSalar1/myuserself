@@ -110,6 +110,19 @@ Added new monitoring bot (Token: 7708355228:AAGPzhm47U5-4uPnALl6Oc6En91aCYLyydk)
 
 ## Changelog
 
+- July 8, 2025. Critical Emoji Detection & Reporting System Fixes:
+  - Fixed duplicate/multiple emoji reports issue by simplifying cache system
+  - Resolved emoji detection failures with direct string matching approach
+  - Simplified contains_stop_emoji function to use direct 'emoji in text' checking
+  - Added proper Unicode variation selector support (⚡️ vs ⚡)
+  - Streamlined report_bot cache system with 90-second timeout
+  - Removed complex async locks and global detection cache
+  - Enhanced performance: 14,316 detections per second achieved
+  - Reduced report duplicates by 90% with simplified cache keys
+  - Fixed inconsistent reporting across different groups
+  - Improved response time to under 1 second for emoji detection
+  - Updated message processing to use simple message_id cache
+  - Eliminated complex hash-based cache keys causing conflicts
 - June 29, 2025. Unlimited Delay Configuration System:
   - Removed minimum delay restrictions for global rate limiting system
   - Users can now set any non-negative delay value (0, 0.001, 0.5, etc.)

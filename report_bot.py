@@ -139,43 +139,40 @@ class ReportBot:
             conn.close()
             
     async def send_emoji_alert(self, chat_id, chat_title, emoji, stopped_bots_count):
-        """ارسال فوری گزارش ایموجی ممنوعه به همه مشترکین - با cache قوی‌تر"""
+        """ارسال فوری گزارش ایموجی ممنوعه به همه مشترکین - ساده و مؤثر"""
         if not self.subscribers:
             logger.warning("⚠️ هیچ مشترکی برای ارسال گزارش وجود ندارد")
             return
         
-        # ایجاد کلید یونیک و تمیز برای این گزارش
+        # ایجاد کلید ساده برای این گزارش
         import time
-        import hashlib
         
         # تمیز کردن ایموجی و عنوان چت
         clean_emoji = str(emoji).strip() if emoji else "نامشخص"
         clean_title = str(chat_title).strip() if chat_title else f"چت {chat_id}"
         
-        # ایجاد کلید cache پیشرفته
-        cache_content = f"{chat_id}_{clean_emoji}_{stopped_bots_count}"
-        cache_hash = hashlib.md5(cache_content.encode()).hexdigest()[:8]
-        cache_key = f"{chat_id}_{clean_emoji}_{cache_hash}"
+        # ایجاد کلید cache ساده
+        cache_key = f"{chat_id}_{clean_emoji}"
         
         current_time = time.time()
         
-        # بررسی cache با timeout کوتاه‌تر
-        strict_timeout = 45.0  # 45 ثانیه
+        # بررسی cache با timeout مناسب
+        timeout = 90.0  # 90 ثانیه
         
         if cache_key in self.report_cache:
             last_report_time = self.report_cache[cache_key]
-            if current_time - last_report_time < strict_timeout:
-                time_left = int(strict_timeout - (current_time - last_report_time))
-                logger.info(f"🔄 گزارش مشابه {clean_emoji} در {clean_title} قبلاً ارسال شده - {time_left} ثانیه تا ارسال مجدد")
+            if current_time - last_report_time < timeout:
+                time_left = int(timeout - (current_time - last_report_time))
+                logger.info(f"🔄 گزارش {clean_emoji} در {clean_title} قبلاً ارسال شده - {time_left} ثانیه تا ارسال مجدد")
                 return
         
         # ثبت در cache
         self.report_cache[cache_key] = current_time
         
-        # پاک کردن cache قدیمی (نگه داشتن فقط 50 آیتم اخیر)
-        if len(self.report_cache) > 50:
-            # حذف 15 آیتم قدیمی‌ترین
-            old_keys = sorted(self.report_cache.items(), key=lambda x: x[1])[:15]
+        # پاک کردن cache قدیمی (نگه داشتن فقط 20 آیتم اخیر)
+        if len(self.report_cache) > 20:
+            # حذف 5 آیتم قدیمی‌ترین
+            old_keys = sorted(self.report_cache.items(), key=lambda x: x[1])[:5]
             for old_key, _ in old_keys:
                 del self.report_cache[old_key]
             

@@ -72,13 +72,9 @@ class UnifiedBotLauncher:
         self.emoji_sync_lock = asyncio.Lock()  # قفل برای همگام‌سازی
         self.detection_cooldown = 5.0  # ثانیه - فاصله بین تشخیص‌های مجدد همان پیام (افزایش یافت)
         
-        # سیستم اضافی برای جلوگیری از ارسال چندگانه گزارش
+        # سیستم ساده برای جلوگیری از ارسال چندگانه گزارش
         self.report_sent_cache = {}  # {chat_id_emoji: sent_time} - جلوگیری از گزارش چندگانه
-        self.report_cooldown = 120.0  # ثانیه - حداقل فاصله بین گزارش‌های مشابه (افزایش یافت)
-        
-        # سیستم global cache برای تشخیص ایموجی در سطح کل سیستم
-        self.global_emoji_detection_cache = {}  # {chat_id_message_content_hash: detection_time}
-        self.global_detection_cooldown = 300.0  # 5 دقیقه برای جلوگیری از تشخیص مجدد
+        self.report_cooldown = 60.0  # ثانیه - حداقل فاصله بین گزارش‌های مشابه
 
         # ادمین اصلی لانچر (کنترل همه بات‌ها)
         self.launcher_admin_id = 5533325167
@@ -636,137 +632,83 @@ class UnifiedBotLauncher:
         return final_cleaned
 
     def contains_stop_emoji(self, text, found_emoji_ref=None):
-        """بررسی پیشرفته وجود ایموجی‌های توقف در متن - فقط اولین ایموجی یافت شده"""
+        """بررسی ساده و مؤثر وجود ایموجی‌های توقف در متن"""
         if not text or not self.forbidden_emojis:
             return False
 
-        # نرمال‌سازی متن اصلی
-        normalized_text = self.normalize_emoji(text)
-        
-        # لیست تمام ایموجی‌های یافت شده برای انتخاب اولین یکی
-        found_emojis = []
-
-        # مرتب‌سازی ایموجی‌ها بر اساس طول (طولانی‌تر اول)
-        sorted_emojis = sorted(self.forbidden_emojis, key=len, reverse=True)
-
-        for emoji in sorted_emojis:
-            normalized_emoji = self.normalize_emoji(emoji)
-            
-            # فقط ایموجی‌هایی را بررسی کن که حداقل یک کاراکتر دارند
-            if not normalized_emoji or len(normalized_emoji.strip()) == 0:
+        # بررسی مستقیم ایموجی‌ها در متن
+        for emoji in self.forbidden_emojis:
+            if not emoji or len(emoji.strip()) == 0:
                 continue
             
-            # بررسی‌های مختلف برای تطبیق دقیق‌تر
-            match_checks = [
-                # تطبیق کامل اصلی
-                emoji == text.strip(),
-                # تطبیق کامل نرمال
-                normalized_emoji == normalized_text.strip(),
-                # موجود بودن در متن (برای ایموجی‌های بیش از یک کاراکتر)
-                emoji in text and len(emoji) > 1,
-                # موجود بودن نرمال در متن نرمال
-                normalized_emoji in normalized_text and len(normalized_emoji) > 1,
-                # تطبیق ساده (بدون نرمال‌سازی)
-                emoji in text,
-                # بررسی Unicode مستقیم
-                any(char in text for char in emoji if ord(char) > 127),
-            ]
-            
-            if any(match_checks):
-                # اضافه کردن به لیست یافت شده‌ها
-                found_emojis.append({
-                    'emoji': emoji,
-                    'position': text.find(emoji) if emoji in text else text.find(normalized_emoji)
-                })
+            # بررسی‌های ساده و مؤثر
+            if emoji in text:
+                logger.info(f"🛑 ایموجی ممنوعه تشخیص داده شد: {emoji} در متن: {text[:50]}...")
                 
-                logger.debug(f"🔍 ایموجی تطبیق یافت: {emoji} در متن: {text[:50]}...")
-                logger.debug(f"   ایموجی اصلی: {repr(emoji)} (کدها: {[hex(ord(c)) for c in emoji]})")
-                logger.debug(f"   ایموجی نرمال: {repr(normalized_emoji)} (کدها: {[hex(ord(c)) for c in normalized_emoji]})")
-        
-        # اگر ایموجی یافت شد، فقط اولین یکی را انتخاب کن
-        if found_emojis:
-            # مرتب‌سازی بر اساس موقعیت در متن (اولین ایموجی)
-            found_emojis.sort(key=lambda x: x['position'] if x['position'] >= 0 else float('inf'))
-            selected_emoji = found_emojis[0]['emoji']
+                # بازگشت اولین ایموجی یافت شده
+                if found_emoji_ref is not None:
+                    found_emoji_ref.append(emoji)
+                
+                return True
             
-            logger.info(f"🛑 ایموجی ممنوعه تشخیص داده شد: {selected_emoji} در متن: {text[:50]}...")
-            
-            # بازگشت فقط اولین ایموجی یافت شده
-            if found_emoji_ref is not None:
-                found_emoji_ref.append(selected_emoji)
-            
-            return True
+            # بررسی بدون کاراکترهای اضافی (variation selectors)
+            cleaned_emoji = emoji.replace('\uFE0F', '').replace('\uFE0E', '')
+            if cleaned_emoji != emoji and cleaned_emoji in text:
+                logger.info(f"🛑 ایموجی ممنوعه تشخیص داده شد: {emoji} (تمیز شده) در متن: {text[:50]}...")
+                
+                if found_emoji_ref is not None:
+                    found_emoji_ref.append(emoji)
+                
+                return True
             
         return False
 
     async def should_pause_spam(self, message, bot_id):
-        """بررسی اینکه آیا باید اسپم را متوقف کرد - با هماهنگی بین همه بات‌ها"""
+        """بررسی اینکه آیا باید اسپم را متوقف کرد - ساده و مؤثر"""
         
         chat_id = message.chat.id
         message_id = message.id
         current_time = time.time()
         
-        # ایجاد hash از محتوای پیام برای تشخیص دقیق‌تر
-        import hashlib
-        message_content = (message.text or message.caption or "").strip()
-        content_hash = hashlib.md5(f"{chat_id}_{message_content}".encode()).hexdigest()
-        global_cache_key = f"{chat_id}_{content_hash}"
+        # بررسی cache ساده برای جلوگیری از تشخیص چندگانه
+        if message_id in self.emoji_detection_cache:
+            cache_time = self.emoji_detection_cache[message_id]
+            if current_time - cache_time < self.detection_cooldown:
+                logger.debug(f"🔄 پیام {message_id} قبلاً بررسی شده")
+                return False
         
-        # استفاده از قفل برای جلوگیری از تشخیص همزمان
-        async with self.emoji_sync_lock:
-            # بررسی global cache برای جلوگیری از تشخیص چندگانه پیام‌های مشابه
-            if global_cache_key in self.global_emoji_detection_cache:
-                cache_time = self.global_emoji_detection_cache[global_cache_key]
-                if current_time - cache_time < self.global_detection_cooldown:
-                    logger.debug(f"🔄 محتوای مشابه در چت {chat_id} قبلاً بررسی شده - تشخیص مجدد نمی‌شود")
-                    return False
-            
-            # بررسی cache برای جلوگیری از تشخیص چندگانه همان پیام
-            if message_id in self.emoji_detection_cache:
-                cache_time = self.emoji_detection_cache[message_id]
-                if current_time - cache_time < self.detection_cooldown:
-                    logger.debug(f"🔄 پیام {message_id} قبلاً بررسی شده - تشخیص مجدد نمی‌شود")
-                    return False
-            
-            found_emoji_ref = []
-            emoji_detected = False
-            detected_emoji = None
-            
-            # بررسی ایموجی‌های توقف در متن اصلی پیام
-            if message.text and self.contains_stop_emoji(message.text, found_emoji_ref):
-                emoji_detected = True
-                detected_emoji = found_emoji_ref[0] if found_emoji_ref else "نامشخص"
-                logger.info(f"🛑 ایموجی توقف در متن چت {chat_id} تشخیص داده شد: {message.text[:50]}...")
+        found_emoji_ref = []
+        emoji_detected = False
+        detected_emoji = None
+        
+        # بررسی ایموجی‌های توقف در متن اصلی پیام
+        if message.text and self.contains_stop_emoji(message.text, found_emoji_ref):
+            emoji_detected = True
+            detected_emoji = found_emoji_ref[0] if found_emoji_ref else "نامشخص"
+            logger.info(f"🛑 ایموجی توقف در متن چت {chat_id} تشخیص داده شد: {message.text[:50]}...")
 
-            # بررسی ایموجی‌های توقف در کپشن
-            elif message.caption and self.contains_stop_emoji(message.caption, found_emoji_ref):
-                emoji_detected = True
-                detected_emoji = found_emoji_ref[0] if found_emoji_ref else "نامشخص"
-                logger.info(f"🛑 ایموجی توقف در کپشن چت {chat_id} تشخیص داده شد: {message.caption[:50]}...")
+        # بررسی ایموجی‌های توقف در کپشن
+        elif message.caption and self.contains_stop_emoji(message.caption, found_emoji_ref):
+            emoji_detected = True
+            detected_emoji = found_emoji_ref[0] if found_emoji_ref else "نامشخص"
+            logger.info(f"🛑 ایموجی توقف در کپشن چت {chat_id} تشخیص داده شد: {message.caption[:50]}...")
 
-            # اگر ایموجی تشخیص داده شد، فقط یک بار اقدام کن
-            if emoji_detected:
-                # ثبت در cache‌ها
-                self.emoji_detection_cache[message_id] = current_time
-                self.global_emoji_detection_cache[global_cache_key] = current_time
-                
-                # پاک کردن cache قدیمی (نگه داشتن فقط 50 آیتم اخیر)
-                if len(self.emoji_detection_cache) > 50:
-                    old_keys = sorted(self.emoji_detection_cache.keys())[:10]
-                    for old_key in old_keys:
-                        del self.emoji_detection_cache[old_key]
-                
-                # پاک کردن global cache قدیمی
-                if len(self.global_emoji_detection_cache) > 100:
-                    old_keys = sorted(self.global_emoji_detection_cache.items(), key=lambda x: x[1])[:20]
-                    for old_key, _ in old_keys:
-                        del self.global_emoji_detection_cache[old_key]
-                
-                # فراخوانی توقف اضطراری
-                await self.trigger_emergency_stop_for_chat(chat_id, detected_emoji, message)
-                return True
+        # اگر ایموجی تشخیص داده شد
+        if emoji_detected:
+            # ثبت در cache
+            self.emoji_detection_cache[message_id] = current_time
+            
+            # پاک کردن cache قدیمی (نگه داشتن فقط 30 آیتم اخیر)
+            if len(self.emoji_detection_cache) > 30:
+                old_keys = sorted(self.emoji_detection_cache.keys())[:10]
+                for old_key in old_keys:
+                    del self.emoji_detection_cache[old_key]
+            
+            # فراخوانی توقف اضطراری
+            await self.trigger_emergency_stop_for_chat(chat_id, detected_emoji, message)
+            return True
 
-        # بررسی کامندهای ممنوعه فقط برای دشمنان (خارج از قفل)
+        # بررسی کامندهای ممنوعه فقط برای دشمنان
         if message.from_user:
             user_id = message.from_user.id
             enemy_list = self.get_enemy_list(bot_id)
@@ -823,55 +765,42 @@ class UnifiedBotLauncher:
         asyncio.create_task(self.auto_clear_emergency_stop_for_chat(chat_id))
 
     async def send_emoji_report_to_report_bot(self, chat_id, stopped_bots_count, detected_item, message):
-        """ارسال گزارش یکپارچه ایموجی ممنوعه به ربات گزارش‌دهی - با کنترل قوی‌تر چندگانه"""
+        """ارسال گزارش ایموجی ممنوعه به ربات گزارش‌دهی - ساده و بدون تکرار"""
         try:
             # اگر ربات گزارش‌دهی موجود نیست، گزارش نده
             if not self.report_bot or not hasattr(self.report_bot, 'is_valid') or not self.report_bot.is_valid:
                 logger.debug("⚠️ ربات گزارش‌دهی موجود نیست - گزارش ارسال نمی‌شود")
                 return
             
-            # کنترل قوی‌تر برای جلوگیری از ارسال چندگانه
+            # کنترل ساده برای جلوگیری از ارسال چندگانه
             import time
-            import hashlib
             current_time = time.time()
             
-            # ایجاد کلید یونیک برای گزارش (شامل محتوای پیام هم)
-            message_content = (message.text or message.caption or "").strip()
-            content_hash = hashlib.md5(f"{chat_id}_{detected_item}_{message_content}".encode()).hexdigest()[:8]
-            report_key = f"{chat_id}_{detected_item}_{content_hash}"
-            
-            # بررسی cache با زمان کوتاه‌تر برای دقت بیشتر
-            strict_cooldown = 30.0  # 30 ثانیه برای جلوگیری از گزارش‌های مکرر
-            
-            if report_key in self.report_sent_cache:
-                last_sent = self.report_sent_cache[report_key]
-                if current_time - last_sent < strict_cooldown:
-                    time_left = int(strict_cooldown - (current_time - last_sent))
-                    logger.debug(f"🔄 گزارش مشابه {detected_item} در چت {chat_id} قبلاً ارسال شده - {time_left} ثانیه باقی‌مانده")
-                    return
-            
-            # کنترل اضافی برای همان چت و ایموجی (بدون در نظر گیری محتوا)
+            # ایجاد کلید ساده برای گزارش
             simple_key = f"{chat_id}_{detected_item}"
+            
+            # بررسی cache با زمان مناسب (60 ثانیه)
+            cooldown = 60.0
+            
             if simple_key in self.report_sent_cache:
                 last_sent = self.report_sent_cache[simple_key]
-                if current_time - last_sent < 10.0:  # 10 ثانیه برای همان ایموجی در همان چت
-                    logger.debug(f"🔄 گزارش {detected_item} در چت {chat_id} اخیراً ارسال شده - تجمیع می‌شود")
+                if current_time - last_sent < cooldown:
+                    time_left = int(cooldown - (current_time - last_sent))
+                    logger.debug(f"🔄 گزارش {detected_item} در چت {chat_id} قبلاً ارسال شده - {time_left} ثانیه باقی‌مانده")
                     return
             
             # ثبت زمان ارسال
-            self.report_sent_cache[report_key] = current_time
             self.report_sent_cache[simple_key] = current_time
             
-            # پاک کردن cache قدیمی (نگه داشتن فقط 30 آیتم اخیر)
-            if len(self.report_sent_cache) > 30:
-                old_keys = sorted(self.report_sent_cache.items(), key=lambda x: x[1])[:10]
+            # پاک کردن cache قدیمی (نگه داشتن فقط 20 آیتم اخیر)
+            if len(self.report_sent_cache) > 20:
+                old_keys = sorted(self.report_sent_cache.items(), key=lambda x: x[1])[:5]
                 for old_key, _ in old_keys:
                     del self.report_sent_cache[old_key]
             
             # تلاش برای دریافت اطلاعات چت
             chat_title = "نامشخص"
             try:
-                # گرفتن اطلاعات چت از پیام
                 if hasattr(message, 'chat') and message.chat:
                     chat_title = message.chat.title or message.chat.first_name or f"چت {chat_id}"
                 else:
@@ -891,7 +820,7 @@ class UnifiedBotLauncher:
             # شمارش بات‌های فعال
             active_bots = sum(1 for bot_info in self.bots.values() if bot_info.get('status') == 'running')
             
-            # ارسال گزارش یکپارچه به ربات گزارش‌دهی
+            # ارسال گزارش به ربات گزارش‌دهی
             if self.report_bot and self.report_bot.client:
                 await self.report_bot.send_emoji_alert(
                     chat_id=chat_id,
@@ -899,8 +828,7 @@ class UnifiedBotLauncher:
                     emoji=display_item,
                     stopped_bots_count=active_bots
                 )
-                logger.info(f"📤 گزارش یکتا ارسال شد: {display_item} در {chat_title} - {active_bots} ربات متأثر شد")
-                logger.debug(f"   کلید گزارش: {report_key}")
+                logger.info(f"📤 گزارش ارسال شد: {display_item} در {chat_title} - {active_bots} ربات متأثر شد")
             
         except Exception as e:
             logger.error(f"❌ خطا در ارسال گزارش به ربات گزارش‌دهی: {e}")
