@@ -515,20 +515,43 @@ class UnifiedBotLauncher:
     def load_forbidden_emojis_from_db(self):
         """بارگذاری ایموجی‌های ممنوعه از دیتابیس"""
         try:
-            db_path = self.bot_configs[1]['db_path']
+            # تلاش برای مسیرهای مختلف دیتابیس
+            possible_paths = [
+                self.bot_configs[1]['db_path'],
+                "bots/bot1/bot_database.db",
+                "bots/bot1/bot1_data.db"
+            ]
             
-            # اطمینان از وجود دیتابیس و جدول
-            self.setup_database(1, db_path)
+            emojis = set()
             
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT emoji FROM forbidden_emojis")
-            result = cursor.fetchall()
-            conn.close()
+            for db_path in possible_paths:
+                if os.path.exists(db_path):
+                    try:
+                        conn = sqlite3.connect(db_path)
+                        cursor = conn.cursor()
+                        
+                        # بررسی وجود جدول
+                        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='forbidden_emojis'")
+                        if cursor.fetchone():
+                            cursor.execute("SELECT emoji FROM forbidden_emojis")
+                            result = cursor.fetchall()
+                            emojis.update({row[0] for row in result})
+                            logger.info(f"📥 بارگذاری {len(result)} ایموجی از {db_path}")
+                        
+                        conn.close()
+                    except Exception as e:
+                        logger.error(f"خطا در بارگذاری از {db_path}: {e}")
+                        continue
             
-            # تبدیل به set
-            emojis = {row[0] for row in result}
-            logger.info(f"📥 بارگذاری {len(emojis)} ایموجی ممنوعه از دیتابیس")
+            # اگر هیچ ایموجی‌ای پیدا نشد، ایموجی‌های پیش‌فرض اضافه کن
+            if not emojis:
+                default_emojis = ["⚡", "⚡️", "🔮", "💎", "🎯", "🏆", "❤️", "💰", "🎁"]
+                for emoji in default_emojis:
+                    self.add_forbidden_emoji_to_db(emoji)
+                    emojis.add(emoji)
+                logger.info(f"✅ {len(default_emojis)} ایموجی پیش‌فرض اضافه شد")
+            
+            logger.info(f"📊 مجموع {len(emojis)} ایموجی ممنوعه بارگذاری شد")
             return emojis
         except Exception as e:
             logger.error(f"خطا در بارگذاری ایموجی‌های ممنوعه: {e}")
@@ -632,30 +655,40 @@ class UnifiedBotLauncher:
         return final_cleaned
 
     def contains_stop_emoji(self, text, found_emoji_ref=None):
-        """بررسی ساده و مؤثر وجود ایموجی‌های توقف در متن"""
+        """بررسی پیشرفته و دقیق وجود ایموجی‌های توقف در متن"""
         if not text or not self.forbidden_emojis:
             return False
+
+        # نرمال‌سازی متن
+        import unicodedata
+        normalized_text = unicodedata.normalize('NFC', text)
+        
+        logger.debug(f"🔍 بررسی متن: {text[:50]}... در برابر {len(self.forbidden_emojis)} ایموجی")
 
         # بررسی مستقیم ایموجی‌ها در متن
         for emoji in self.forbidden_emojis:
             if not emoji or len(emoji.strip()) == 0:
                 continue
             
-            # بررسی‌های ساده و مؤثر
-            if emoji in text:
-                logger.info(f"🛑 ایموجی ممنوعه تشخیص داده شد: {emoji} در متن: {text[:50]}...")
+            # نرمال‌سازی ایموجی
+            normalized_emoji = unicodedata.normalize('NFC', emoji)
+            
+            # حالات مختلف بررسی
+            checks = [
+                emoji in text,                                      # مستقیم
+                normalized_emoji in normalized_text,                # نرمال شده
+                emoji.replace('\uFE0F', '') in text,               # بدون variation selector 16
+                emoji.replace('\uFE0E', '') in text,               # بدون variation selector 15
+                emoji in text.replace('\uFE0F', ''),               # متن بدون variation selector
+                normalized_emoji.replace('\uFE0F', '') in normalized_text,  # ترکیبی
+            ]
+            
+            if any(checks):
+                logger.warning(f"🛑 ایموجی ممنوعه تشخیص داده شد: '{emoji}' در متن: {text[:50]}...")
+                logger.info(f"   کدهای Unicode ایموجی: {[hex(ord(c)) for c in emoji]}")
+                logger.info(f"   کدهای Unicode متن: {[hex(ord(c)) for c in text if c in emoji]}")
                 
                 # بازگشت اولین ایموجی یافت شده
-                if found_emoji_ref is not None:
-                    found_emoji_ref.append(emoji)
-                
-                return True
-            
-            # بررسی بدون کاراکترهای اضافی (variation selectors)
-            cleaned_emoji = emoji.replace('\uFE0F', '').replace('\uFE0E', '')
-            if cleaned_emoji != emoji and cleaned_emoji in text:
-                logger.info(f"🛑 ایموجی ممنوعه تشخیص داده شد: {emoji} (تمیز شده) در متن: {text[:50]}...")
-                
                 if found_emoji_ref is not None:
                     found_emoji_ref.append(emoji)
                 
@@ -765,32 +798,39 @@ class UnifiedBotLauncher:
         asyncio.create_task(self.auto_clear_emergency_stop_for_chat(chat_id))
 
     async def send_emoji_report_to_report_bot(self, chat_id, stopped_bots_count, detected_item, message):
-        """ارسال گزارش ایموجی ممنوعه به ربات گزارش‌دهی - ساده و بدون تکرار"""
+        """ارسال گزارش ایموجی ممنوعه به ربات گزارش‌دهی - اصلاح شده"""
         try:
-            # اگر ربات گزارش‌دهی موجود نیست، گزارش نده
-            if not self.report_bot or not hasattr(self.report_bot, 'is_valid') or not self.report_bot.is_valid:
-                logger.debug("⚠️ ربات گزارش‌دهی موجود نیست - گزارش ارسال نمی‌شود")
+            # چک کردن وجود ربات گزارش‌دهی
+            if not self.report_bot:
+                logger.warning("⚠️ ربات گزارش‌دهی تعریف نشده")
+                return
+                
+            if not hasattr(self.report_bot, 'is_valid') or not self.report_bot.is_valid:
+                logger.warning("⚠️ ربات گزارش‌دهی نامعتبر - احتمالاً مشکل در توکن")
                 return
             
-            # کنترل ساده برای جلوگیری از ارسال چندگانه
+            if not self.report_bot.client:
+                logger.warning("⚠️ کلاینت ربات گزارش‌دهی موجود نیست")
+                return
+            
+            # کنترل cache برای جلوگیری از spam
             import time
             current_time = time.time()
             
-            # ایجاد کلید ساده برای گزارش
-            simple_key = f"{chat_id}_{detected_item}"
+            # ایجاد کلید یکتا
+            cache_key = f"{chat_id}_{str(detected_item).strip()}"
             
-            # بررسی cache با زمان مناسب (60 ثانیه)
-            cooldown = 60.0
+            # بررسی cache (کاهش زمان انتظار به 30 ثانیه)
+            cooldown = 30.0
             
-            if simple_key in self.report_sent_cache:
-                last_sent = self.report_sent_cache[simple_key]
+            if cache_key in self.report_sent_cache:
+                last_sent = self.report_sent_cache[cache_key]
                 if current_time - last_sent < cooldown:
-                    time_left = int(cooldown - (current_time - last_sent))
-                    logger.debug(f"🔄 گزارش {detected_item} در چت {chat_id} قبلاً ارسال شده - {time_left} ثانیه باقی‌مانده")
+                    logger.debug(f"🔄 گزارش {detected_item} قبلاً ارسال شده")
                     return
             
-            # ثبت زمان ارسال
-            self.report_sent_cache[simple_key] = current_time
+            # ثبت زمان جدید
+            self.report_sent_cache[cache_key] = current_time
             
             # پاک کردن cache قدیمی (نگه داشتن فقط 20 آیتم اخیر)
             if len(self.report_sent_cache) > 20:
