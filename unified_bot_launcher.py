@@ -655,52 +655,49 @@ class UnifiedBotLauncher:
         return final_cleaned
 
     def contains_stop_emoji(self, text, found_emoji_ref=None):
-        """بررسی سریع و دقیق وجود ایموجی‌های توقف در متن"""
+        """بررسی سریع و دقیق وجود ایموجی‌های توقف در متن - نسخه بهبود یافته"""
         if not text or not self.forbidden_emojis:
             return False
 
-        # بررسی سریع بدون نرمال‌سازی اول
-        for emoji in self.forbidden_emojis:
-            if emoji in text:
-                logger.warning(f"🛑 ایموجی ممنوعه تشخیص داده شد: '{emoji}' در متن: {text[:50]}...")
-                if found_emoji_ref is not None:
-                    found_emoji_ref.append(emoji)
-                return True
-
-        # نرمال‌سازی متن فقط اگر بررسی اولیه نتیجه نداد
         import unicodedata
-        normalized_text = unicodedata.normalize('NFC', text)
         
-        logger.debug(f"🔍 بررسی متن: {text[:50]}... در برابر {len(self.forbidden_emojis)} ایموجی")
+        # تبدیل متن به حالات مختلف برای بررسی سریع‌تر
+        text_variants = [
+            text,
+            text.replace('\uFE0F', ''),  # بدون variation selector 16
+            text.replace('\uFE0E', ''),  # بدون variation selector 15
+            unicodedata.normalize('NFC', text),
+            unicodedata.normalize('NFD', text)
+        ]
+        
+        logger.debug(f"🔍 بررسی متن: '{text[:30]}...' در برابر {len(self.forbidden_emojis)} ایموجی")
 
-        # بررسی مستقیم ایموجی‌ها در متن
+        # بررسی مستقیم ایموجی‌ها در تمام حالات متن
         for emoji in self.forbidden_emojis:
             if not emoji or len(emoji.strip()) == 0:
                 continue
             
-            # نرمال‌سازی ایموجی
-            normalized_emoji = unicodedata.normalize('NFC', emoji)
-            
-            # حالات مختلف بررسی
-            checks = [
-                emoji in text,                                      # مستقیم
-                normalized_emoji in normalized_text,                # نرمال شده
-                emoji.replace('\uFE0F', '') in text,               # بدون variation selector 16
-                emoji.replace('\uFE0E', '') in text,               # بدون variation selector 15
-                emoji in text.replace('\uFE0F', ''),               # متن بدون variation selector
-                normalized_emoji.replace('\uFE0F', '') in normalized_text,  # ترکیبی
+            # تولید حالات مختلف ایموجی
+            emoji_variants = [
+                emoji,
+                emoji.replace('\uFE0F', ''),
+                emoji.replace('\uFE0E', ''),
+                unicodedata.normalize('NFC', emoji),
+                unicodedata.normalize('NFD', emoji)
             ]
             
-            if any(checks):
-                logger.warning(f"🛑 ایموجی ممنوعه تشخیص داده شد: '{emoji}' در متن: {text[:50]}...")
-                logger.info(f"   کدهای Unicode ایموجی: {[hex(ord(c)) for c in emoji]}")
-                logger.info(f"   کدهای Unicode متن: {[hex(ord(c)) for c in text if c in emoji]}")
-                
-                # بازگشت اولین ایموجی یافت شده
-                if found_emoji_ref is not None:
-                    found_emoji_ref.append(emoji)
-                
-                return True
+            # بررسی تمام ترکیبات
+            for text_variant in text_variants:
+                for emoji_variant in emoji_variants:
+                    if emoji_variant in text_variant:
+                        logger.warning(f"🛑 ایموجی ممنوعه تشخیص داده شد: '{emoji}' در متن: {text[:50]}...")
+                        logger.debug(f"   📝 تطبیق: ایموجی '{emoji_variant}' در متن '{text_variant[:20]}...'")
+                        logger.debug(f"   🔢 کدهای Unicode ایموجی: {[f'U+{ord(c):04X}' for c in emoji]}")
+                        
+                        if found_emoji_ref is not None:
+                            found_emoji_ref.append(emoji)
+                        
+                        return True
             
         return False
 
@@ -712,10 +709,11 @@ class UnifiedBotLauncher:
         current_time = time.time()
         
         # بررسی cache سریع برای جلوگیری از تشخیص چندگانه
-        if message_id in self.emoji_detection_cache:
-            cache_time = self.emoji_detection_cache[message_id]
+        cache_key = f"{message_id}_{chat_id}"
+        if cache_key in self.emoji_detection_cache:
+            cache_time = self.emoji_detection_cache[cache_key]
             if current_time - cache_time < self.detection_cooldown:
-                logger.debug(f"🔄 پیام {message_id} قبلاً بررسی شده")
+                logger.debug(f"🔄 پیام {message_id} در چت {chat_id} قبلاً بررسی شده")
                 return False
         
         found_emoji_ref = []
@@ -737,12 +735,14 @@ class UnifiedBotLauncher:
         # اگر ایموجی تشخیص داده شد
         if emoji_detected:
             # ثبت در cache
-            self.emoji_detection_cache[message_id] = current_time
+            cache_key = f"{message_id}_{chat_id}"
+            self.emoji_detection_cache[cache_key] = current_time
             
-            # پاک کردن cache قدیمی (نگه داشتن فقط 20 آیتم اخیر)
-            if len(self.emoji_detection_cache) > 20:
-                old_keys = sorted(self.emoji_detection_cache.keys())[:5]
-                for old_key in old_keys:
+            # پاک کردن cache قدیمی (نگه داشتن فقط 50 آیتم اخیر)
+            if len(self.emoji_detection_cache) > 50:
+                # پاک کردن قدیمی‌ترین آیتم‌ها
+                old_items = sorted(self.emoji_detection_cache.items(), key=lambda x: x[1])[:10]
+                for old_key, _ in old_items:
                     del self.emoji_detection_cache[old_key]
             
             # فراخوانی توقف اضطراری
@@ -1791,30 +1791,86 @@ class UnifiedBotLauncher:
 
                     test_text = " ".join(message.command[1:])
                     
-                    # تست تشخیص
+                    # تست تشخیص با زمان‌سنجی
+                    import time
+                    start_time = time.time()
                     found_emoji_ref = []
                     is_detected = self.contains_stop_emoji(test_text, found_emoji_ref)
+                    end_time = time.time()
+                    detection_time = (end_time - start_time) * 1000  # میلی‌ثانیه
                     
                     # نمایش جزئیات کامل
-                    debug_text = f"🔍 **دیباگ تشخیص ایموجی:**\n\n"
+                    debug_text = f"🔍 **دیباگ تشخیص ایموجی (نسخه بهبود یافته):**\n\n"
                     debug_text += f"📝 متن تست: `{test_text}`\n"
                     debug_text += f"🎯 تشخیص داده شد: {'✅ بله' if is_detected else '❌ خیر'}\n"
+                    debug_text += f"⏱️ زمان تشخیص: {detection_time:.2f}ms\n"
                     
                     if found_emoji_ref:
                         debug_text += f"⚡ ایموجی یافت شده: `{found_emoji_ref[0]}`\n"
+                        # نمایش کدهای Unicode
+                        unicode_codes = [f"U+{ord(c):04X}" for c in found_emoji_ref[0]]
+                        debug_text += f"🔢 کدهای Unicode: `{' '.join(unicode_codes)}`\n"
                     
                     debug_text += f"📊 تعداد ایموجی‌های ممنوعه: {len(self.forbidden_emojis)}\n"
-                    debug_text += f"🔄 وضعیت cache: {len(self.global_emoji_detection_cache)} آیتم\n\n"
+                    debug_text += f"🔄 وضعیت cache: {len(self.emoji_detection_cache)} آیتم\n\n"
                     
                     # نمایش تمام ایموجی‌های ممنوعه فعلی
                     if self.forbidden_emojis:
                         debug_text += "📋 **ایموجی‌های ممنوعه فعلی:**\n"
                         for i, emoji in enumerate(list(self.forbidden_emojis)[:10], 1):
-                            debug_text += f"{i}. `{emoji}`\n"
+                            unicode_codes = [f"U+{ord(c):04X}" for c in emoji]
+                            debug_text += f"{i}. `{emoji}` ({' '.join(unicode_codes)})\n"
                         if len(self.forbidden_emojis) > 10:
                             debug_text += f"... و {len(self.forbidden_emojis) - 10} مورد دیگر\n"
                     
                     await message.reply_text(debug_text)
+                    
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+            
+            @app.on_message(filters.command("quicktest") & admin_filter)
+            async def quick_test_command(client, message):
+                """تست سریع تشخیص ایموجی‌های معمول"""
+                try:
+                    test_cases = [
+                        "⚡ برق",
+                        "⚡️ برق با variation",
+                        "🔮 کریستال",
+                        "💎 الماس",
+                        "A CHARACTER HAS SPAWNED ⚡",
+                        "متن عادی",
+                    ]
+                    
+                    result_text = "🧪 **تست سریع تشخیص:**\n\n"
+                    detected_count = 0
+                    total_time = 0
+                    
+                    for i, test_text in enumerate(test_cases, 1):
+                        import time
+                        start_time = time.time()
+                        found_emoji_ref = []
+                        is_detected = self.contains_stop_emoji(test_text, found_emoji_ref)
+                        end_time = time.time()
+                        detection_time = (end_time - start_time) * 1000
+                        total_time += detection_time
+                        
+                        if is_detected:
+                            detected_count += 1
+                            status = "✅"
+                            found_text = f" ({found_emoji_ref[0]})" if found_emoji_ref else ""
+                        else:
+                            status = "❌"
+                            found_text = ""
+                        
+                        result_text += f"`{i}.` {test_text[:20]}... → {status}{found_text}\n"
+                    
+                    avg_time = total_time / len(test_cases)
+                    result_text += f"\n📊 **نتایج:**\n"
+                    result_text += f"🎯 تشخیص: {detected_count}/{len(test_cases)}\n"
+                    result_text += f"⏱️ میانگین: {avg_time:.2f}ms\n"
+                    result_text += f"🚀 سرعت: {1000/avg_time:.0f}/ثانیه"
+                    
+                    await message.reply_text(result_text)
                     
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
