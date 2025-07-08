@@ -70,7 +70,11 @@ class UnifiedBotLauncher:
         # سیستم هماهنگی تشخیص ایموجی بین همه بات‌ها
         self.emoji_detection_cache = {}  # {message_id: detection_time} - جلوگیری از تشخیص چندگانه
         self.emoji_sync_lock = asyncio.Lock()  # قفل برای همگام‌سازی
-        self.detection_cooldown = 2.0  # ثانیه - فاصله بین تشخیص‌های مجدد همان پیام
+        self.detection_cooldown = 5.0  # ثانیه - فاصله بین تشخیص‌های مجدد همان پیام (افزایش یافت)
+        
+        # سیستم اضافی برای جلوگیری از ارسال چندگانه گزارش
+        self.report_sent_cache = {}  # {chat_id_emoji: sent_time} - جلوگیری از گزارش چندگانه
+        self.report_cooldown = 60.0  # ثانیه - حداقل فاصله بین گزارش‌های مشابه
 
         # ادمین اصلی لانچر (کنترل همه بات‌ها)
         self.launcher_admin_id = 5533325167
@@ -746,12 +750,33 @@ class UnifiedBotLauncher:
         asyncio.create_task(self.auto_clear_emergency_stop_for_chat(chat_id))
 
     async def send_emoji_report_to_report_bot(self, chat_id, stopped_bots_count, detected_item, message):
-        """ارسال گزارش یکپارچه ایموجی ممنوعه به ربات گزارش‌دهی"""
+        """ارسال گزارش یکپارچه ایموجی ممنوعه به ربات گزارش‌دهی - با کنترل مضاعف"""
         try:
             # اگر ربات گزارش‌دهی موجود نیست، گزارش نده
             if not self.report_bot or not hasattr(self.report_bot, 'is_valid') or not self.report_bot.is_valid:
                 logger.debug("⚠️ ربات گزارش‌دهی موجود نیست - گزارش ارسال نمی‌شود")
                 return
+            
+            # کنترل اضافی برای جلوگیری از ارسال چندگانه در سطح launcher
+            import time
+            current_time = time.time()
+            report_key = f"{chat_id}_{detected_item}"
+            
+            if report_key in self.report_sent_cache:
+                last_sent = self.report_sent_cache[report_key]
+                if current_time - last_sent < self.report_cooldown:
+                    time_left = int(self.report_cooldown - (current_time - last_sent))
+                    logger.debug(f"🔄 گزارش {detected_item} در چت {chat_id} قبلاً ارسال شده - {time_left} ثانیه باقی‌مانده")
+                    return
+            
+            # ثبت زمان ارسال
+            self.report_sent_cache[report_key] = current_time
+            
+            # پاک کردن cache قدیمی
+            if len(self.report_sent_cache) > 50:
+                old_keys = sorted(self.report_sent_cache.items(), key=lambda x: x[1])[:10]
+                for old_key, _ in old_keys:
+                    del self.report_sent_cache[old_key]
             
             # تلاش برای دریافت اطلاعات چت
             chat_title = "نامشخص"
@@ -784,7 +809,7 @@ class UnifiedBotLauncher:
                     emoji=display_item,
                     stopped_bots_count=active_bots
                 )
-                logger.info(f"📤 گزارش یکپارچه ارسال شد: {display_item} در {chat_title} - {active_bots} ربات متأثر شد")
+                logger.info(f"📤 گزارش یکتا ارسال شد: {display_item} در {chat_title} - {active_bots} ربات متأثر شد - کلید: {report_key}")
             
         except Exception as e:
             logger.error(f"❌ خطا در ارسال گزارش به ربات گزارش‌دهی: {e}")

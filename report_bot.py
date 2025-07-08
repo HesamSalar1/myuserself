@@ -43,6 +43,11 @@ class ReportBot:
         self.admin_ids = {5533325167}  # ادمین اصلی - می‌توانید اضافه کنید
         self.subscribers = set()  # کاربرانی که /start کرده‌اند
         self.db_path = "report_bot.db"
+        
+        # سیستم cache برای جلوگیری از ارسال چندگانه گزارش‌ها
+        self.report_cache = {}  # {chat_id_emoji: last_report_time}
+        self.cache_timeout = 60  # ثانیه - حداقل فاصله بین گزارش‌های مشابه
+        
         self.setup_database()
         
     def setup_database(self):
@@ -134,10 +139,33 @@ class ReportBot:
             conn.close()
             
     async def send_emoji_alert(self, chat_id, chat_title, emoji, stopped_bots_count):
-        """ارسال فوری گزارش ایموجی ممنوعه به همه مشترکین"""
+        """ارسال فوری گزارش ایموجی ممنوعه به همه مشترکین - با cache برای جلوگیری از تکرار"""
         if not self.subscribers:
             logger.warning("⚠️ هیچ مشترکی برای ارسال گزارش وجود ندارد")
             return
+        
+        # ایجاد کلید یونیک برای این گزارش
+        import time
+        cache_key = f"{chat_id}_{emoji}"
+        current_time = time.time()
+        
+        # بررسی cache برای جلوگیری از ارسال چندگانه
+        if cache_key in self.report_cache:
+            last_report_time = self.report_cache[cache_key]
+            if current_time - last_report_time < self.cache_timeout:
+                time_left = int(self.cache_timeout - (current_time - last_report_time))
+                logger.info(f"🔄 گزارش {emoji} در {chat_title} قبلاً ارسال شده - {time_left} ثانیه تا ارسال مجدد")
+                return
+        
+        # ثبت در cache
+        self.report_cache[cache_key] = current_time
+        
+        # پاک کردن cache قدیمی (نگه داشتن فقط 100 آیتم اخیر)
+        if len(self.report_cache) > 100:
+            # حذف 20 آیتم قدیمی‌ترین
+            old_keys = sorted(self.report_cache.items(), key=lambda x: x[1])[:20]
+            for old_key, _ in old_keys:
+                del self.report_cache[old_key]
             
         # ثبت گزارش در دیتابیس
         self.log_emoji_report(chat_id, chat_title, emoji, stopped_bots_count)
@@ -161,6 +189,7 @@ class ReportBot:
 🕐 **زمان تشخیص:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 ⚡ **وضعیت:** تمام ربات‌ها در این گروه متوقف شدند
+🔄 **گزارش یکتا:** این پیام فقط یک بار ارسال می‌شود
         """
         
         failed_sends = []
@@ -182,7 +211,7 @@ class ReportBot:
         for failed_id in failed_sends:
             self.remove_subscriber(failed_id)
             
-        logger.info(f"📤 گزارش ارسال شد به {success_count} مشترک، {len(failed_sends)} ناموفق")
+        logger.info(f"📤 گزارش یکتا ارسال شد به {success_count} مشترک، {len(failed_sends)} ناموفق - کلید: {cache_key}")
         
     async def setup_handlers(self):
         """تنظیم هندلرهای ربات"""
