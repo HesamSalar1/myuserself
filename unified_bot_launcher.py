@@ -70,11 +70,11 @@ class UnifiedBotLauncher:
         # سیستم هماهنگی تشخیص ایموجی بین همه بات‌ها
         self.emoji_detection_cache = {}  # {message_id: detection_time} - جلوگیری از تشخیص چندگانه
         self.emoji_sync_lock = asyncio.Lock()  # قفل برای همگام‌سازی
-        self.detection_cooldown = 5.0  # ثانیه - فاصله بین تشخیص‌های مجدد همان پیام (افزایش یافت)
+        self.detection_cooldown = 0.5  # ثانیه - فاصله بین تشخیص‌های مجدد همان پیام (کاهش یافت)
         
         # سیستم ساده برای جلوگیری از ارسال چندگانه گزارش
         self.report_sent_cache = {}  # {chat_id_emoji: sent_time} - جلوگیری از گزارش چندگانه
-        self.report_cooldown = 60.0  # ثانیه - حداقل فاصله بین گزارش‌های مشابه
+        self.report_cooldown = 30.0  # ثانیه - حداقل فاصله بین گزارش‌های مشابه
 
         # ادمین اصلی لانچر (کنترل همه بات‌ها)
         self.launcher_admin_id = 5533325167
@@ -655,11 +655,19 @@ class UnifiedBotLauncher:
         return final_cleaned
 
     def contains_stop_emoji(self, text, found_emoji_ref=None):
-        """بررسی پیشرفته و دقیق وجود ایموجی‌های توقف در متن"""
+        """بررسی سریع و دقیق وجود ایموجی‌های توقف در متن"""
         if not text or not self.forbidden_emojis:
             return False
 
-        # نرمال‌سازی متن
+        # بررسی سریع بدون نرمال‌سازی اول
+        for emoji in self.forbidden_emojis:
+            if emoji in text:
+                logger.warning(f"🛑 ایموجی ممنوعه تشخیص داده شد: '{emoji}' در متن: {text[:50]}...")
+                if found_emoji_ref is not None:
+                    found_emoji_ref.append(emoji)
+                return True
+
+        # نرمال‌سازی متن فقط اگر بررسی اولیه نتیجه نداد
         import unicodedata
         normalized_text = unicodedata.normalize('NFC', text)
         
@@ -697,13 +705,13 @@ class UnifiedBotLauncher:
         return False
 
     async def should_pause_spam(self, message, bot_id):
-        """بررسی اینکه آیا باید اسپم را متوقف کرد - ساده و مؤثر"""
+        """بررسی اینکه آیا باید اسپم را متوقف کرد - سریع و فوری"""
         
         chat_id = message.chat.id
         message_id = message.id
         current_time = time.time()
         
-        # بررسی cache ساده برای جلوگیری از تشخیص چندگانه
+        # بررسی cache سریع برای جلوگیری از تشخیص چندگانه
         if message_id in self.emoji_detection_cache:
             cache_time = self.emoji_detection_cache[message_id]
             if current_time - cache_time < self.detection_cooldown:
@@ -731,9 +739,9 @@ class UnifiedBotLauncher:
             # ثبت در cache
             self.emoji_detection_cache[message_id] = current_time
             
-            # پاک کردن cache قدیمی (نگه داشتن فقط 30 آیتم اخیر)
-            if len(self.emoji_detection_cache) > 30:
-                old_keys = sorted(self.emoji_detection_cache.keys())[:10]
+            # پاک کردن cache قدیمی (نگه داشتن فقط 20 آیتم اخیر)
+            if len(self.emoji_detection_cache) > 20:
+                old_keys = sorted(self.emoji_detection_cache.keys())[:5]
                 for old_key in old_keys:
                     del self.emoji_detection_cache[old_key]
             
@@ -2781,8 +2789,8 @@ class UnifiedBotLauncher:
                         break
                     
                     # تقسیم تاخیر به قطعات کوچک‌تر برای چک کردن سریع‌تر توقف
-                    sleep_intervals = max(10, int(spam_delay * 20))  # حداقل 10 قطعه، 20 بررسی در ثانیه
-                    interval_time = spam_delay / sleep_intervals if sleep_intervals > 0 else 0.05
+                    sleep_intervals = max(20, int(spam_delay * 50))  # حداقل 20 قطعه، 50 بررسی در ثانیه
+                    interval_time = spam_delay / sleep_intervals if sleep_intervals > 0 else 0.02
                     
                     should_break = False
                     for _ in range(sleep_intervals):
