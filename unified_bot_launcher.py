@@ -79,6 +79,15 @@ class UnifiedBotLauncher:
         # ادمین اصلی لانچر (کنترل همه بات‌ها)
         self.launcher_admin_id = 5533325167
         
+        # سیستم گفتگوی خودکار بین ربات‌ها
+        self.auto_chat_enabled = False  # فعال/غیرفعال بودن حالت گفتگو
+        self.auto_chat_tasks = {}  # تسک‌های گفتگوی خودکار برای هر چت
+        self.bot_online_status = {i: True for i in range(1, 10)}  # وضعیت آنلاین/آفلاین ربات‌ها
+        self.last_bot_activity = {i: time.time() for i in range(1, 10)}  # آخرین فعالیت هر ربات
+        self.conversation_topics = []  # موضوعات گفتگو
+        self.conversation_messages = []  # پیام‌های گفتگو
+        self.active_conversations = {}  # گفتگوهای فعال در هر چت {chat_id: conversation_state}
+        
         # تنظیمات بات‌ها
         self.bot_configs = {
             1: {
@@ -252,10 +261,90 @@ class UnifiedBotLauncher:
                 )
             ''')
             
+            # جدول پیام‌های گفتگوی خودکار
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS conversation_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    message_type TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    topic TEXT,
+                    response_to TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # جدول موضوعات گفتگو
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS conversation_topics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    topic_name TEXT UNIQUE NOT NULL,
+                    description TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
             # اگر تنظیمات تاخیر وجود ندارد، مقدار پیش‌فرض را وارد کن
             cursor.execute('SELECT COUNT(*) FROM spam_delay_settings')
             if cursor.fetchone()[0] == 0:
                 cursor.execute('INSERT INTO spam_delay_settings (delay_seconds) VALUES (1.0)')
+            
+            # وارد کردن موضوعات پیش‌فرض گفتگو
+            cursor.execute('SELECT COUNT(*) FROM conversation_topics')
+            if cursor.fetchone()[0] == 0:
+                default_topics = [
+                    ('روزمره', 'گفتگوهای عادی روزانه'),
+                    ('هواشناسی', 'صحبت درباره آب و هوا'),
+                    ('ورزش', 'گفتگو درباره ورزش و بازی‌ها'),
+                    ('تکنولوژی', 'صحبت درباره فناوری جدید'),
+                    ('خوراک', 'گفتگو درباره غذا و آشپزی'),
+                    ('سفر', 'صحبت درباره سفر و گردشگری'),
+                    ('موسیقی', 'گفتگو درباره موسیقی و آهنگ‌ها'),
+                    ('کتاب', 'صحبت درباره کتاب و مطالعه')
+                ]
+                cursor.executemany('INSERT INTO conversation_topics (topic_name, description) VALUES (?, ?)', default_topics)
+            
+            # وارد کردن پیام‌های پیش‌فرض گفتگو
+            cursor.execute('SELECT COUNT(*) FROM conversation_messages')
+            if cursor.fetchone()[0] == 0:
+                default_messages = [
+                    # پیام‌های شروع گفتگو
+                    ('starter', 'سلام دوستان، چطورید؟', 'روزمره', None),
+                    ('starter', 'امروز چه برنامه‌ای دارید؟', 'روزمره', None),
+                    ('starter', 'کسی فیلم خوب دیده؟', 'روزمره', None),
+                    ('starter', 'هوا امروز خیلی قشنگه', 'هواشناسی', None),
+                    ('starter', 'دیشب چه بازی جالبی بود!', 'ورزش', None),
+                    
+                    # پاسخ‌های معمولی
+                    ('response', 'آره واقعاً', None, 'agreement'),
+                    ('response', 'کاملاً موافقم', None, 'agreement'),
+                    ('response', 'من که چندان موافق نیستم', None, 'disagreement'),
+                    ('response', 'جالب بود این که گفتی', None, 'acknowledgment'),
+                    ('response', 'حق با توئه', None, 'agreement'),
+                    
+                    # سوالات متقابل
+                    ('question', 'تو چی فکر می‌کنی؟', None, None),
+                    ('question', 'تجربه‌ای داری از این موضوع؟', None, None),
+                    ('question', 'کجا شنیدی این رو؟', None, None),
+                    ('question', 'واقعاً همینطوره؟', None, None),
+                    
+                    # پیام‌های روزمره
+                    ('casual', 'خب بچه‌ها، برم کارام رو انجام بدم', 'روزمره', None),
+                    ('casual', 'فعلاً بای', 'روزمره', None),
+                    ('casual', 'حوصله‌م سر رفت', 'روزمره', None),
+                    ('casual', 'کسی هست؟', 'روزمره', None),
+                    ('casual', 'الآن برمی‌گردم', 'روزمره', None),
+                    
+                    # پیام‌های هواشناسی
+                    ('weather', 'امروز آفتابی خوبی بود', 'هواشناسی', None),
+                    ('weather', 'انگار بارون می‌آد', 'هواشناسی', None),
+                    ('weather', 'هوا سرد شده', 'هواشناسی', None),
+                    
+                    # پیام‌های ورزشی
+                    ('sports', 'چه بازی خفنی بود', 'ورزش', None),
+                    ('sports', 'تیم محبوبتون چیه؟', 'ورزش', None),
+                    ('sports', 'فوتبال دیشب دیدید؟', 'ورزش', None)
+                ]
+                cursor.executemany('INSERT INTO conversation_messages (message_type, content, topic, response_to) VALUES (?, ?, ?, ?)', default_messages)
 
             conn.commit()
             conn.close()
@@ -610,6 +699,249 @@ class UnifiedBotLauncher:
         except Exception as e:
             logger.error(f"❌ خطا در تنظیم تاخیر فحش بات {bot_id}: {e}")
             return False, f"خطا در تنظیم تاخیر: {str(e)}"
+
+    # توابع سیستم گفتگوی خودکار
+    def get_conversation_messages(self, message_type=None, topic=None):
+        """دریافت پیام‌های گفتگو از دیتابیس"""
+        try:
+            db_path = self.bot_configs[1]['db_path']
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            if message_type and topic:
+                cursor.execute("SELECT content FROM conversation_messages WHERE message_type = ? AND topic = ?", (message_type, topic))
+            elif message_type:
+                cursor.execute("SELECT content FROM conversation_messages WHERE message_type = ?", (message_type,))
+            elif topic:
+                cursor.execute("SELECT content FROM conversation_messages WHERE topic = ?", (topic,))
+            else:
+                cursor.execute("SELECT content FROM conversation_messages")
+            
+            result = cursor.fetchall()
+            conn.close()
+            return [row[0] for row in result]
+        except Exception as e:
+            logger.error(f"خطا در دریافت پیام‌های گفتگو: {e}")
+            return []
+
+    def get_conversation_topics(self):
+        """دریافت موضوعات گفتگو از دیتابیس"""  
+        try:
+            db_path = self.bot_configs[1]['db_path']
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT topic_name FROM conversation_topics")
+            result = cursor.fetchall()
+            conn.close()
+            return [row[0] for row in result]
+        except Exception as e:
+            logger.error(f"خطا در دریافت موضوعات گفتگو: {e}")
+            return ['روزمره']
+
+    def select_bot_for_conversation(self, chat_id, exclude_bots=None):
+        """انتخاب ربات برای ارسال پیام در گفتگو"""
+        if exclude_bots is None:
+            exclude_bots = set()
+        
+        # فقط ربات‌هایی که آنلاین هستند و کانفیگ دارند
+        online_bots = []
+        for bot_id in range(1, 10):
+            # بررسی آنلاین بودن
+            if not self.bot_online_status.get(bot_id, True):
+                continue
+            
+            # بررسی عدم حضور در لیست مستثنیات
+            if bot_id in exclude_bots:
+                continue
+                
+            # بررسی وجود کانفیگ ربات
+            if bot_id not in self.bot_configs:
+                continue
+                
+            # اگر ربات‌ها در حال اجرا هستند، بررسی وضعیت
+            if hasattr(self, 'bots') and self.bots and bot_id in self.bots:
+                if self.bots[bot_id]['status'] != 'running':
+                    continue
+            
+            online_bots.append(bot_id)
+        
+        if not online_bots:
+            return None
+        
+        # انتخاب ربات با کمترین فعالیت اخیر
+        selected_bot = min(online_bots, key=lambda x: self.last_bot_activity.get(x, 0))
+        return selected_bot
+
+    def simulate_bot_offline(self, bot_id, duration=None):
+        """شبیه‌سازی آفلاین شدن ربات"""
+        import random
+        if duration is None:
+            duration = random.randint(30, 180)  # 30 ثانیه تا 3 دقیقه
+        
+        self.bot_online_status[bot_id] = False
+        logger.info(f"🔴 ربات {bot_id} آفلاین شد برای {duration} ثانیه")
+        
+        # تسک برای آنلاین کردن مجدد
+        async def bring_back_online():
+            await asyncio.sleep(duration)
+            self.bot_online_status[bot_id] = True
+            logger.info(f"🟢 ربات {bot_id} مجدداً آنلاین شد")
+        
+        asyncio.create_task(bring_back_online())
+
+    async def start_auto_conversation(self, chat_id):
+        """شروع گفتگوی خودکار در چت"""
+        if chat_id in self.auto_chat_tasks:
+            return False, "گفتگوی خودکار در این چت فعال است"
+        
+        self.active_conversations[chat_id] = {
+            'started_at': time.time(),
+            'last_message_time': 0,
+            'last_bot': None,
+            'current_topic': choice(self.get_conversation_topics()),
+            'message_count': 0,
+            'participants': set()
+        }
+        
+        task = asyncio.create_task(self.auto_conversation_loop(chat_id))
+        self.auto_chat_tasks[chat_id] = task
+        
+        logger.info(f"🗣️ گفتگوی خودکار در چت {chat_id} شروع شد")
+        return True, "گفتگوی خودکار شروع شد"
+
+    async def stop_auto_conversation(self, chat_id):
+        """توقف گفتگوی خودکار در چت"""
+        if chat_id in self.auto_chat_tasks:
+            self.auto_chat_tasks[chat_id].cancel()
+            del self.auto_chat_tasks[chat_id]
+            
+        if chat_id in self.active_conversations:
+            del self.active_conversations[chat_id]
+            
+        logger.info(f"🤐 گفتگوی خودکار در چت {chat_id} متوقف شد")
+        return True, "گفتگوی خودکار متوقف شد"
+
+    async def auto_conversation_loop(self, chat_id):
+        """حلقه اصلی گفتگوی خودکار"""
+        import random
+        
+        try:
+            conversation = self.active_conversations[chat_id]
+            
+            while self.auto_chat_enabled and chat_id in self.active_conversations:
+                current_time = time.time()
+                
+                # انتظار تصادفی بین پیام‌ها (10 ثانیه تا 2 دقیقه)
+                wait_time = random.randint(10, 120)
+                await asyncio.sleep(wait_time)
+                
+                # انتخاب ربات برای ارسال پیام
+                exclude_last = {conversation['last_bot']} if conversation['last_bot'] else set()
+                selected_bot = self.select_bot_for_conversation(chat_id, exclude_last)
+                
+                if not selected_bot:
+                    await asyncio.sleep(30)
+                    continue
+                
+                # شبیه‌سازی آفلاین شدن تصادفی
+                if random.random() < 0.1:  # 10% احتمال آفلاین شدن
+                    self.simulate_bot_offline(selected_bot)
+                    continue
+                
+                # انتخاب نوع پیام و محتوا
+                message_content = await self.generate_conversation_message(chat_id, selected_bot)
+                
+                if message_content:
+                    await self.send_auto_conversation_message(chat_id, selected_bot, message_content)
+                    
+                    # به‌روزرسانی وضعیت گفتگو
+                    conversation['last_message_time'] = current_time
+                    conversation['last_bot'] = selected_bot
+                    conversation['message_count'] += 1
+                    conversation['participants'].add(selected_bot)
+                    self.last_bot_activity[selected_bot] = current_time
+                    
+                    # تغییر موضوع گاهی اوقات
+                    if random.random() < 0.15:  # 15% احتمال تغییر موضوع
+                        conversation['current_topic'] = choice(self.get_conversation_topics())
+                        logger.info(f"📝 موضوع گفتگو در چت {chat_id} تغییر یافت: {conversation['current_topic']}")
+                
+        except asyncio.CancelledError:
+            logger.info(f"🛑 حلقه گفتگوی خودکار چت {chat_id} متوقف شد")
+        except Exception as e:
+            logger.error(f"❌ خطا در حلقه گفتگوی خودکار چت {chat_id}: {e}")
+
+    async def generate_conversation_message(self, chat_id, bot_id):
+        """تولید پیام برای گفتگوی خودکار"""
+        import random
+        
+        conversation = self.active_conversations.get(chat_id)
+        if not conversation:
+            return None
+        
+        current_topic = conversation['current_topic']
+        message_count = conversation['message_count']
+        
+        # انتخاب نوع پیام بر اساس وضعیت گفتگو
+        if message_count == 0:
+            # پیام اول - شروع گفتگو
+            messages = self.get_conversation_messages('starter', current_topic)
+            if not messages:
+                messages = self.get_conversation_messages('starter')
+        elif message_count < 5:
+            # پیام‌های ابتدایی - ترکیبی از پاسخ و سوال
+            message_types = ['response', 'question']
+            message_type = choice(message_types)
+            messages = self.get_conversation_messages(message_type)
+        else:
+            # پیام‌های ادامه - ترکیب متنوع
+            message_types = ['response', 'question', 'casual']
+            weights = [0.4, 0.3, 0.3]  # احتمال هر نوع
+            message_type = random.choices(message_types, weights=weights)[0]
+            
+            if message_type == 'casual' and random.random() < 0.3:
+                # احتمال موضوع‌محور
+                messages = self.get_conversation_messages(message_type, current_topic)
+            else:
+                messages = self.get_conversation_messages(message_type)
+        
+        if messages:
+            return choice(messages)
+        
+        # پیام پیش‌فرض در صورت نبود پیام مناسب
+        default_messages = ["سلام دوستان", "چه خبر؟", "کسی هست؟", "چطورید؟"]
+        return choice(default_messages)
+
+    async def send_auto_conversation_message(self, chat_id, bot_id, message_content):
+        """ارسال پیام گفتگوی خودکار"""
+        try:
+            if bot_id not in self.bots or self.bots[bot_id]['status'] != 'running':
+                return False
+            
+            client = self.bots[bot_id]['client']
+            
+            # ارسال پیام با هماهنگی rate limiting
+            if chat_id not in self.chat_locks:
+                self.chat_locks[chat_id] = asyncio.Lock()
+            
+            async with self.chat_locks[chat_id]:
+                # بررسی تاخیر global
+                current_time = time.time()
+                if chat_id in self.last_message_time:
+                    time_since_last = current_time - self.last_message_time[chat_id]
+                    if time_since_last < self.min_global_delay:
+                        wait_time = self.min_global_delay - time_since_last
+                        await asyncio.sleep(wait_time)
+                
+                await client.send_message(chat_id, message_content)
+                self.last_message_time[chat_id] = time.time()
+                
+                logger.info(f"🤖 ربات {bot_id} پیام گفتگو ارسال کرد: {message_content[:50]}...")
+                return True
+                
+        except Exception as e:
+            logger.error(f"❌ خطا در ارسال پیام گفتگوی خودکار بات {bot_id}: {e}")
+            return False
 
     def is_admin(self, user_id):
         """بررسی اینکه آیا کاربر ادمین است یا نه"""
@@ -1031,6 +1363,120 @@ class UnifiedBotLauncher:
                     text += f"✅ وضعیت: دسترسی تایید شده"
 
                     await message.reply_text(text)
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            # کامندهای گفتگوی خودکار - فقط برای ادمین اصلی لانچر
+            @app.on_message(filters.command("startchat") & admin_filter)
+            async def start_auto_chat_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    if not self.is_launcher_admin(user_id):
+                        await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
+                        return
+                    
+                    chat_id = message.chat.id
+                    self.auto_chat_enabled = True
+                    success, msg = await self.start_auto_conversation(chat_id)
+                    
+                    if success:
+                        await message.reply_text(f"🗣️ **گفتگوی خودکار شروع شد!**\n\n✨ ربات‌ها در این گروه شروع به گفتگوی طبیعی می‌کنند\n🤖 شرکت‌کنندگان: {len([b for b in range(1,10) if self.bot_online_status.get(b, True)])} ربات\n⏰ بازه زمانی: 10 ثانیه تا 2 دقیقه بین پیام‌ها\n🎯 موضوع فعلی: {self.active_conversations[chat_id]['current_topic']}")
+                    else:
+                        await message.reply_text(f"❌ {msg}")
+                        
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("stopchat") & admin_filter)
+            async def stop_auto_chat_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    if not self.is_launcher_admin(user_id):
+                        await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
+                        return
+                    
+                    chat_id = message.chat.id
+                    success, msg = await self.stop_auto_conversation(chat_id)
+                    
+                    if success:
+                        self.auto_chat_enabled = False
+                        await message.reply_text("🤐 **گفتگوی خودکار متوقف شد**\n\n✅ ربات‌ها دیگر به صورت خودکار گفتگو نمی‌کنند")
+                    else:
+                        await message.reply_text(f"❌ {msg}")
+                        
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("chatstatus") & admin_filter)
+            async def chat_status_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    if not self.is_launcher_admin(user_id):
+                        await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
+                        return
+                    
+                    chat_id = message.chat.id
+                    
+                    text = f"📊 **وضعیت گفتگوی خودکار**\n\n"
+                    text += f"🔄 حالت کلی: {'فعال' if self.auto_chat_enabled else 'غیرفعال'}\n"
+                    text += f"💬 این چت: {'فعال' if chat_id in self.auto_chat_tasks else 'غیرفعال'}\n\n"
+                    
+                    # وضعیت ربات‌ها
+                    online_count = sum(1 for i in range(1, 10) if self.bot_online_status.get(i, True))
+                    offline_count = 9 - online_count
+                    text += f"🤖 **ربات‌ها:**\n"
+                    text += f"🟢 آنلاین: {online_count} ربات\n"
+                    text += f"🔴 آفلاین: {offline_count} ربات\n\n"
+                    
+                    # جزئیات گفتگوی فعال
+                    if chat_id in self.active_conversations:
+                        conv = self.active_conversations[chat_id]
+                        duration = int(time.time() - conv['started_at'])
+                        text += f"📈 **آمار گفتگو:**\n"
+                        text += f"⏱️ مدت فعالیت: {duration//60} دقیقه\n"
+                        text += f"💬 تعداد پیام: {conv['message_count']}\n"
+                        text += f"🎯 موضوع فعلی: {conv['current_topic']}\n"
+                        text += f"👥 شرکت‌کنندگان: {len(conv['participants'])} ربات"
+                    else:
+                        text += "📈 **آمار گفتگو:** هیچ گفتگوی فعالی موجود نیست"
+                    
+                    await message.reply_text(text)
+                    
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("setoffline") & admin_filter)
+            async def set_offline_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    if not self.is_launcher_admin(user_id):
+                        await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
+                        return
+                    
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ لطفاً شماره ربات را وارد کنید.\n💡 استفاده: `/setoffline 1` یا `/setoffline 1-5`")
+                        return
+                    
+                    bot_range = message.command[1]
+                    
+                    if '-' in bot_range:
+                        # محدوده ربات‌ها
+                        start, end = map(int, bot_range.split('-'))
+                        bots_to_offline = list(range(start, end + 1))
+                    else:
+                        # ربات منفرد
+                        bots_to_offline = [int(bot_range)]
+                    
+                    offline_count = 0
+                    for target_bot in bots_to_offline:
+                        if 1 <= target_bot <= 9:
+                            self.simulate_bot_offline(target_bot)
+                            offline_count += 1
+                    
+                    await message.reply_text(f"🔴 **{offline_count} ربات آفلاین شد**\n\n📱 ربات‌های آفلاین: {', '.join(map(str, bots_to_offline[:offline_count]))}\n⏰ مدت آفلاین: 30 ثانیه تا 3 دقیقه (تصادفی)")
+                    
+                except ValueError:
+                    await message.reply_text("❌ فرمت نامعتبر. از اعداد 1-9 استفاده کنید")
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
@@ -2260,6 +2706,13 @@ class UnifiedBotLauncher:
 • `/manageall autoreply [on|off]` - کنترل پاسخگویی همه بات‌ها
 • `/testadmin` - بررسی دسترسی و نوع ادمین
 
+🗣️ **گفتگوی خودکار ربات‌ها (ویژگی جدید):**
+• `/startchat` - شروع گفتگوی خودکار بین ۹ ربات
+• `/stopchat` - توقف گفتگوی خودکار
+• `/chatstatus` - وضعیت گفتگوی خودکار و آمار
+• `/setoffline [شماره]` - آفلاین کردن ربات‌ها
+  └ مثال: `/setoffline 1` یا `/setoffline 1-5`
+
 🎯 **دسترسی شما:** کنترل کامل همه ۹ بات
 ⚠️ **توجه:** این کامندها فقط برای شما قابل استفاده هستند"""
                     
@@ -2515,6 +2968,30 @@ class UnifiedBotLauncher:
                         self.continuous_spam_tasks[spam_key] = spam_task
                         logger.info(f"🔥 شروع مجدد فحش نامحدود به دشمن {user_id} توسط بات {bot_id}")
                     return
+
+                # در حالت گفتگوی خودکار، احتمال پاسخ به پیام‌های عادی
+                if self.auto_chat_enabled and chat_id in self.active_conversations:
+                    import random
+                    # 20% احتمال پاسخ به پیام‌های عادی کاربران
+                    if random.random() < 0.2 and not user_id in enemy_ids:
+                        # انتخاب پاسخ مناسب از دیتابیس گفتگو
+                        response_messages = self.get_conversation_messages('response')
+                        if response_messages:
+                            selected_response = choice(response_messages)
+                            
+                            # با تاخیر کوتاه پاسخ بده تا طبیعی به نظر برسد
+                            await asyncio.sleep(random.uniform(2, 8))
+                            await self.send_auto_conversation_message(chat_id, bot_id, selected_response)
+                            
+                            # به‌روزرسانی آمار گفتگو
+                            conv = self.active_conversations[chat_id]
+                            conv['message_count'] += 1
+                            conv['last_bot'] = bot_id
+                            conv['last_message_time'] = time.time()
+                            self.last_bot_activity[bot_id] = time.time()
+                            
+                            logger.info(f"💬 ربات {bot_id} به پیام کاربر {user_id} پاسخ داد: {selected_response[:30]}...")
+                            return
 
                 # بررسی دوست بودن
                 friend_list = self.get_friend_list(bot_id)
