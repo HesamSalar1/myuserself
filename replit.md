@@ -110,19 +110,20 @@ Added new monitoring bot (Token: 7708355228:AAGPzhm47U5-4uPnALl6Oc6En91aCYLyydk)
 
 ## Changelog
 
-- July 30, 2025. Advanced Auto-Conversation System Implementation:
-  - Added comprehensive auto-conversation system for 9 bots to chat naturally without human presence
-  - Created conversation database with topics (daily, weather, sports, tech, food, travel, music, books)
-  - Implemented 50+ default conversation messages (starters, responses, questions, casual)
-  - Added intelligent bot selection system with activity tracking
-  - Created realistic offline/online simulation for bots (30 seconds to 3 minutes offline periods)
-  - Implemented smart response timing (10 seconds to 2 minutes between messages)
-  - Added 20% chance for bots to respond to user messages during auto-chat mode
-  - New admin commands: /startchat, /stopchat, /chatstatus, /setoffline
-  - Built topic switching mechanism (15% chance) for natural conversation flow
-  - Added comprehensive conversation statistics and monitoring
-  - Enhanced rate limiting coordination for auto-conversation messages
-  - Integrated with existing emoji detection and spam systems
+- July 30, 2025. Enhanced Natural Auto-Conversation System with Personality Engine:
+  - **MAJOR UPGRADE**: Completely redesigned conversation system based on user feedback
+  - **Individual Bot Personalities**: Each of 9 bots has unique personality (funny, serious, friendly, energetic, calm, curious, creative, practical, social)
+  - **Massive Dictionary Expansion**: 200+ natural, casual, colloquial messages in Persian/English/Hindi mix
+  - **Anti-Repetition Logic**: 70% rejection rate for same-bot consecutive messages prevents spam-like behavior
+  - **Natural Language Elements**: 
+    * Mixed languages (20% of messages): "Hello بچه‌ها", "OK چطورین؟", "Namaste دوستان"
+    * Casual emphasis words (18%): "واقعاً", "یعنی", "راستی", "والا"
+    * Emojis and natural typos (12%): elongated words, emotional expressions
+    * Slang and colloquial expressions: "دهنت سرویس", "چاکرم", "جون دل"
+  - **Context-Aware Responses**: Messages adapt to topics (tech, food, sports, music) and conversation flow
+  - **Realistic Conversation Patterns**: Story-telling, opinion-asking, plan-making, experience-sharing
+  - **Quality Assurance**: Extensive testing shows natural, diverse, non-repetitive conversations
+  - Previous features maintained: offline simulation, rate limiting, admin commands, user interaction
 - July 8, 2025. Critical Emoji Detection & Reporting System Fixes:
   - Fixed duplicate/multiple emoji reports issue by simplifying cache system
   - Resolved emoji detection failures with direct string matching approach
