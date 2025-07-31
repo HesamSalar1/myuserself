@@ -1,9 +1,17 @@
+
 name: telegram-bots-system
 language: python
 port: 5000
-install: pip install -r requirements.txt
-build: python -c "print('Build completed')"
-run: python unified_bot_launcher.py
+
+install: |
+  pip install -r requirements.txt
+
+build: |
+  echo "Build step completed"
+
+run: |
+  python unified_bot_launcher.py
+
 environments:
   - BOT_MODE=production
   - DEBUG=false
