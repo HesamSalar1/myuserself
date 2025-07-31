@@ -1,0 +1,48 @@
+[Unit]
+Description=Telegram Bots Management System
+Documentation=https://github.com/your-repo/telegram-bots
+After=network.target network-online.target
+Wants=network-online.target
+Requires=network-online.target
+
+[Service]
+Type=simple
+User=telegrambot
+Group=telegrambot
+WorkingDirectory=/home/telegrambot/telegram-bots
+Environment=PATH=/home/telegrambot/telegram-bots/venv/bin
+Environment=PYTHONPATH=/home/telegrambot/telegram-bots
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/telegrambot/telegram-bots/venv/bin/python unified_bot_launcher.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=telegram-bots
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/telegrambot/telegram-bots /var/log/telegram-bots /tmp
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictSUIDSGID=true
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=32768
+
+[Install]
+WantedBy=multi-user.target

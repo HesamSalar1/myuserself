@@ -1,0 +1,34 @@
+[Unit]
+Description=Telegram Bots Monitoring System
+Documentation=https://github.com/your-repo/telegram-bots
+After=network.target telegram-bots.service
+Wants=telegram-bots.service
+
+[Service]
+Type=simple
+User=telegrambot
+Group=telegrambot
+WorkingDirectory=/home/telegrambot/telegram-bots
+Environment=PATH=/home/telegrambot/telegram-bots/venv/bin
+Environment=PYTHONPATH=/home/telegrambot/telegram-bots
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/telegrambot/telegram-bots/venv/bin/python monitoring_bot.py
+Restart=always
+RestartSec=5
+StartLimitInterval=300
+StartLimitBurst=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=telegram-bots-monitor
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/telegrambot/telegram-bots /var/log/telegram-bots /tmp
+
+[Install]
+WantedBy=multi-user.target

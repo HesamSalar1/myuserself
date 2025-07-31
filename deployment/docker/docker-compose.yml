@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  telegram-bots:
+    build: 
+      context: ../../
+      dockerfile: deployment/docker/Dockerfile
+    container_name: telegram-bots-system
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - bot_data:/app/data
+      - bot_logs:/app/logs
+      - bot_sessions:/app/sessions
+      - ./config:/app/config:ro
+    environment:
+      - BOT_MODE=production
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+      - WEB_PORT=5000
+      - WEB_HOST=0.0.0.0
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - telegram-bots-network
+
+  # PostgreSQL برای ذخیره‌سازی (اختیاری)
+  postgres:
+    image: postgres:15-alpine
+    container_name: telegram-bots-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: telegram_bots
+      POSTGRES_USER: telegram_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - telegram-bots-network
+    # فقط در صورت نیاز به دسترسی مستقیم
+    # ports:
+    #   - "5432:5432"
+
+  # Redis برای cache (اختیاری)
+  redis:
+    image: redis:7-alpine
+    container_name: telegram-bots-cache
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - telegram-bots-network
+    # ports:
+    #   - "6379:6379"
+
+  # Nginx برای load balancing و SSL (اختیاری)
+  nginx:
+    image: nginx:alpine
+    container_name: telegram-bots-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - telegram-bots
+    networks:
+      - telegram-bots-network
+
+volumes:
+  bot_data:
+    driver: local
+  bot_logs:
+    driver: local
+  bot_sessions:
+    driver: local
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  telegram-bots-network:
+    driver: bridge
