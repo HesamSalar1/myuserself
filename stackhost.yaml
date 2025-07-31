@@ -10,6 +10,11 @@ run: python unified_bot_launcher.py
 install: |
   pip install -r requirements.txt
 
+build: |
+  echo "Building Telegram Bot System..."
+  python -c "import sys; print(f'Python version: {sys.version}')"
+  echo "Build completed successfully"
+
 port: 5000
 
 environments:
