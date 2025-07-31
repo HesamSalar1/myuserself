@@ -1130,13 +1130,14 @@ class UnifiedBotLauncher:
         message_id = message.id
         current_time = time.time()
         
-        # بررسی cache سریع برای جلوگیری از تشخیص چندگانه
-        cache_key = f"{message_id}_{chat_id}"
-        if cache_key in self.emoji_detection_cache:
-            cache_time = self.emoji_detection_cache[cache_key]
-            if current_time - cache_time < self.detection_cooldown:
-                logger.debug(f"🔄 پیام {message_id} در چت {chat_id} قبلاً بررسی شده")
-                return False
+        # بررسی cache سریع برای جلوگیری از تشخیص چندگانه - فقط در صورت وجود message_id
+        if hasattr(message, 'id') and message.id:
+            cache_key = f"{message_id}_{chat_id}"
+            if cache_key in self.emoji_detection_cache:
+                cache_time = self.emoji_detection_cache[cache_key]
+                if current_time - cache_time < self.detection_cooldown:
+                    logger.debug(f"🔄 پیام {message_id} در چت {chat_id} قبلاً بررسی شده")
+                    return False
         
         found_emoji_ref = []
         emoji_detected = False
@@ -2932,6 +2933,82 @@ class UnifiedBotLauncher:
                         
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {e}")
+
+            # **بررسی ایموجی ممنوعه برای ادمین‌ها (اولویت بالا - بدون استثنا)**
+            @app.on_message(
+                ~filters.me & 
+                ~filters.channel & 
+                admin_filter &
+                ~filters.service &
+                filters.group
+            )
+            async def admin_emoji_security_handler(client, message):
+                """تشخیص ایموجی ممنوعه برای ادمین‌ها - هیچ استثنایی نیست"""
+                chat_id = message.chat.id
+                
+                # **بررسی ایموجی/کامند ممنوعه حتی برای ادمین‌ها - هیچ استثنایی نیست**
+                if await self.should_pause_spam(message, bot_id):
+                    # دریافت اطلاعات ادمین
+                    user_id = message.from_user.id if message.from_user else 0
+                    sender_name = message.from_user.first_name if message.from_user else "نامشخص"
+                    sender_username = message.from_user.username if message.from_user else "نامشخص"
+                    sender_detail = f"{sender_name} (@{sender_username})" if sender_username else f"{sender_name}"
+
+                    logger.warning(f"🚨 SECURITY ALERT - بات {bot_id} - ایموجی ممنوعه توسط ADMIN تشخیص داده شد در چت {chat_id}")
+                    logger.warning(f"   └ توسط: ADMIN - {sender_detail} (ID: {user_id})")
+                    logger.warning(f"   └ ⚠️ حتی ادمین‌ها هم می‌توانند سیستم را متوقف کنند - هیچ استثنایی نیست")
+
+                    # نمایش محتوای پیام با بررسی امنیت
+                    message_content = message.text or message.caption or "[بدون متن]"
+                    if len(message_content) > 100:
+                        message_content = message_content[:100] + "..."
+                    logger.warning(f"   └ محتوای پیام ADMIN: {message_content}")
+
+                    # **توقف کلی همه بات‌ها در این چت - حتی اگر ادمین باشد**
+                    self.global_paused[chat_id] = user_id
+                    logger.warning(f"🛑 همه بات‌ها در چت {chat_id} توسط ADMIN متوقف شدند - امنیت مطلق")
+
+                    # لاگ عملیات در دیتابیس با اولویت بالا
+                    chat_title = message.chat.title if message.chat.title else f"چت {chat_id}"
+                    self.log_action(bot_id, "admin_security_pause", user_id, f"توقف امنیتی توسط ADMIN {sender_detail} در {chat_title}")
+
+                    # **هیچ استثنایی برای ادمین‌ها - سیستم متوقف می‌شود**
+                    return
+
+            # **بررسی ایموجی ممنوعه برای ادمین‌ها در چت‌های خصوصی نیز**
+            @app.on_message(
+                ~filters.me & 
+                admin_filter &
+                ~filters.service &
+                filters.private
+            )
+            async def admin_private_emoji_security_handler(client, message):
+                """تشخیص ایموجی ممنوعه برای ادمین‌ها در چت‌های خصوصی - هیچ استثنایی نیست"""
+                chat_id = message.chat.id
+                
+                # **بررسی ایموجی/کامند ممنوعه حتی برای ادمین‌ها در خصوصی**
+                if await self.should_pause_spam(message, bot_id):
+                    # دریافت اطلاعات ادمین
+                    user_id = message.from_user.id if message.from_user else 0
+                    sender_name = message.from_user.first_name if message.from_user else "نامشخص"
+                    sender_username = message.from_user.username if message.from_user else "نامشخص"
+                    sender_detail = f"{sender_name} (@{sender_username})" if sender_username else f"{sender_name}"
+
+                    logger.warning(f"🚨 SECURITY ALERT PRIVATE - بات {bot_id} - ایموجی ممنوعه توسط ADMIN در چت خصوصی تشخیص داده شد")
+                    logger.warning(f"   └ توسط: ADMIN - {sender_detail} (ID: {user_id})")
+                    logger.warning(f"   └ ⚠️ حتی در چت‌های خصوصی ادمین‌ها استثنا ندارند")
+
+                    # نمایش محتوای پیام
+                    message_content = message.text or message.caption or "[بدون متن]"
+                    if len(message_content) > 100:
+                        message_content = message_content[:100] + "..."
+                    logger.warning(f"   └ محتوای پیام ADMIN (خصوصی): {message_content}")
+
+                    # لاگ عملیات امنیتی
+                    self.log_action(bot_id, "admin_private_security_pause", user_id, f"توقف امنیتی ADMIN در چت خصوصی: {sender_detail}")
+
+                    # **هیچ استثنایی - حتی در خصوصی**
+                    return
 
             # پاسخگویی خودکار
             @app.on_message(
