@@ -1,25 +1,16 @@
-version: '3.8'
-
-# پیکربندی کامل سیستم مدیریت 9 ربات تلگرام برای StackHost
-# Complete Configuration for 9 Telegram Bots Management System for StackHost
-
+name: telegram-bots-system
 language: python
+port: 5000
+
+install: pip install -r requirements.txt
+
+build: echo "Build completed"
 
 run: python unified_bot_launcher.py
 
-install: |
-  pip install -r requirements.txt
-
-build: |
-  echo "Building Telegram Bot System..."
-  python -c "import sys; print(f'Python version: {sys.version}')"
-  echo "Build completed successfully"
-
-port: 5000
-
 environments:
   - BOT_MODE=production
-  - DEBUG=false
+  - DEBUG=false  
   - LOG_LEVEL=INFO
   - TOTAL_BOTS=9
   - RESTART_DELAY=10
@@ -27,8 +18,9 @@ environments:
   - WEB_HOST=0.0.0.0
   - PYTHONUNBUFFERED=1
 
+# Advanced Configuration
 services:
-  # سرویس اصلی مدیریت ربات‌ها - Main Bot Management Service
+  # Main Bot Management Service
   telegram-bots-main:
     build:
       context: .
@@ -80,7 +72,7 @@ services:
           memory: 512M
           cpus: '0.25'
 
-  # سرویس مانیتورینگ - Monitoring Service
+  # Monitoring Service
   telegram-bots-monitor:
     build:
       context: .
@@ -100,132 +92,70 @@ services:
     volumes:
       - bot_data:/app/data
       - bot_logs:/app/logs
-      - bot_sessions:/app/sessions
+      - ./monitoring_bot.py:/app/monitoring_bot.py:ro
       - ./.env:/app/.env:ro
     depends_on:
       - postgres
       - redis
-      - telegram-bots-main
     networks:
       - telegram-bots-network
-    healthcheck:
-      test: ["CMD", "python", "-c", "import psutil; print('OK' if len([p for p in psutil.process_iter() if 'monitoring_bot.py' in ' '.join(p.cmdline())]) > 0 else 'FAIL')"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.25'
-        reservations:
-          memory: 128M
-          cpus: '0.1'
-
-  # سرویس گزارش‌دهی - Report Service
-  telegram-bots-report:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: telegram-bots-report
-    restart: unless-stopped
-    command: python report_bot.py
-    environment:
-      - BOT_MODE=production
-      - DEBUG=false
-      - LOG_LEVEL=INFO
-      - DATABASE_URL=postgresql://telegram_user:${DB_PASSWORD:-secure_password}@postgres:5432/telegram_bots
-      - REDIS_URL=redis://redis:6379/2
-      - REPORT_BOT_TOKEN=${REPORT_BOT_TOKEN:-}
-      - PYTHONUNBUFFERED=1
-      - PYTHONPATH=/app
-    volumes:
-      - bot_data:/app/data
-      - bot_logs:/app/logs
-      - bot_sessions:/app/sessions
-      - ./.env:/app/.env:ro
-    depends_on:
-      - postgres
-      - redis
-      - telegram-bots-main
-    networks:
-      - telegram-bots-network
-    healthcheck:
-      test: ["CMD", "python", "-c", "import psutil; print('OK' if len([p for p in psutil.process_iter() if 'report_bot.py' in ' '.join(p.cmdline())]) > 0 else 'FAIL')"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.25'
-        reservations:
-          memory: 128M
-          cpus: '0.1'
-
-  # پایگاه داده PostgreSQL - PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: telegram-bots-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: telegram_bots
-      POSTGRES_USER: telegram_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_password}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./deployment/sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-      - ./deployment/sql/schema.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
-    networks:
-      - telegram-bots-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U telegram_user -d telegram_bots"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
     deploy:
       resources:
         limits:
           memory: 512M
-          cpus: '0.5'
+          cpus: '0.25'
         reservations:
           memory: 256M
-          cpus: '0.25'
-    ports:
-      - "127.0.0.1:5432:5432"  # فقط برای دسترسی محلی
+          cpus: '0.1'
 
-  # Redis برای Cache و Session - Redis for Cache and Sessions
-  redis:
-    image: redis:7-alpine
-    container_name: telegram-bots-cache
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: telegram-bots-postgres
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_secure_password}
+    environment:
+      - POSTGRES_DB=telegram_bots
+      - POSTGRES_USER=telegram_user
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-secure_password}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
     volumes:
-      - redis_data:/data
-      - ./deployment/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - postgres_data:/var/lib/postgresql/data
+      - ./deployment/sql:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
     networks:
       - telegram-bots-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-redis_secure_password}", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: telegram-bots-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_secure_pass}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - telegram-bots-network
     deploy:
       resources:
         limits:
           memory: 256M
-          cpus: '0.25'
+          cpus: '0.1'
         reservations:
           memory: 128M
-          cpus: '0.1'
+          cpus: '0.05'
 
-  # Nginx Load Balancer و Reverse Proxy
+  # Nginx Load Balancer
   nginx:
     image: nginx:alpine
     container_name: telegram-bots-nginx
@@ -235,283 +165,40 @@ services:
       - "443:443"
     volumes:
       - ./deployment/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./deployment/nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./deployment/ssl:/etc/nginx/ssl:ro
+      - ./deployment/nginx/ssl:/etc/nginx/ssl:ro
       - nginx_logs:/var/log/nginx
     depends_on:
       - telegram-bots-main
     networks:
       - telegram-bots-network
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
     deploy:
       resources:
         limits:
           memory: 128M
-          cpus: '0.25'
+          cpus: '0.1'
         reservations:
           memory: 64M
-          cpus: '0.1'
+          cpus: '0.05'
 
-  # سرویس بک‌آپ خودکار - Automated Backup Service
-  backup:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: telegram-bots-backup
-    restart: unless-stopped
-    command: python deployment/backup_service.py
-    environment:
-      - BOT_MODE=production
-      - DATABASE_URL=postgresql://telegram_user:${DB_PASSWORD:-secure_password}@postgres:5432/telegram_bots
-      - BACKUP_SCHEDULE=0 2 * * *  # روزانه ساعت 2 صبح
-      - BACKUP_RETENTION_DAYS=30
-      - S3_BUCKET=${S3_BACKUP_BUCKET:-}
-      - S3_ACCESS_KEY=${S3_ACCESS_KEY:-}
-      - S3_SECRET_KEY=${S3_SECRET_KEY:-}
-      - PYTHONUNBUFFERED=1
-    volumes:
-      - backup_data:/app/backups
-      - bot_data:/app/data:ro
-      - postgres_data:/app/postgres_data:ro
-    depends_on:
-      - postgres
-    networks:
-      - telegram-bots-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.25'
-        reservations:
-          memory: 128M
-          cpus: '0.1'
-
-  # سرویس مانیتورینگ سیستم - System Monitoring Service
-  system-monitor:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: telegram-bots-system-monitor
-    restart: unless-stopped
-    command: python deployment/monitoring.py --interval 30
-    environment:
-      - BOT_MODE=production
-      - DATABASE_URL=postgresql://telegram_user:${DB_PASSWORD:-secure_password}@postgres:5432/telegram_bots
-      - REDIS_URL=redis://redis:6379/3
-      - ALERT_WEBHOOK=${ALERT_WEBHOOK_URL:-}
-      - PYTHONUNBUFFERED=1
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - bot_logs:/app/logs
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - telegram-bots-network
-    privileged: true  # برای دسترسی به Docker socket
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.25'
-        reservations:
-          memory: 128M
-          cpus: '0.1'
-
-# تعریف شبکه‌ها - Network Definitions
+# Network Configuration
 networks:
   telegram-bots-network:
     driver: bridge
-    name: telegram-bots-network
     ipam:
       config:
         - subnet: 172.20.0.0/16
 
-# تعریف Volume ها - Volume Definitions
+# Volume Configuration
 volumes:
-  # داده‌های ربات‌ها
   bot_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./data
-
-  # لاگ‌های ربات‌ها
   bot_logs:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./logs
-
-  # Session فایل‌های ربات‌ها
   bot_sessions:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./sessions
-
-  # داده‌های PostgreSQL
   postgres_data:
     driver: local
-    name: telegram_bots_postgres_data
-
-  # داده‌های Redis
   redis_data:
     driver: local
-    name: telegram_bots_redis_data
-
-  # بک‌آپ‌ها
-  backup_data:
-    driver: local
-    name: telegram_bots_backups
-
-  # لاگ‌های Nginx
   nginx_logs:
     driver: local
-    name: telegram_bots_nginx_logs
-
-# تنظیمات امنیتی و محدودیت‌ها - Security and Resource Constraints
-x-default-resources: &default-resources
-  deploy:
-    resources:
-      limits:
-        memory: 512M
-        cpus: '0.5'
-      reservations:
-        memory: 256M
-        cpus: '0.25'
-    restart_policy:
-      condition: unless-stopped
-      delay: 10s
-      max_attempts: 5
-      window: 120s
-
-x-default-healthcheck: &default-healthcheck
-  healthcheck:
-    interval: 30s
-    timeout: 10s
-    retries: 3
-    start_period: 30s
-
-# متغیرهای محیط مشترک - Common Environment Variables
-x-common-env: &common-env
-  BOT_MODE: production
-  DEBUG: false
-  LOG_LEVEL: INFO
-  PYTHONUNBUFFERED: 1
-  PYTHONPATH: /app
-  TZ: Asia/Tehran
-
-# پیکربندی‌های اضافی برای StackHost - Additional StackHost Configurations
-x-stackhost-config:
-  # تنظیمات Auto Scaling
-  auto_scaling:
-    enabled: true
-    min_replicas: 1
-    max_replicas: 3
-    target_cpu_utilization: 70
-    target_memory_utilization: 80
-
-  # تنظیمات Load Balancer
-  load_balancer:
-    enabled: true
-    algorithm: round_robin
-    health_check_path: /health
-    health_check_interval: 30s
-
-  # تنظیمات SSL/TLS
-  ssl:
-    enabled: true
-    auto_renew: true
-    force_https: true
-
-  # تنظیمات CDN
-  cdn:
-    enabled: true
-    cache_static_files: true
-    gzip_compression: true
-
-  # تنظیمات Backup
-  backup:
-    enabled: true
-    schedule: "0 2 * * *"  # روزانه ساعت 2 صبح
-    retention_days: 30
-    storage_type: s3
-
-  # تنظیمات Monitoring
-  monitoring:
-    enabled: true
-    metrics_retention: 30d
-    alert_channels:
-      - telegram
-      - email
-      - webhook
-
-  # تنظیمات Security
-  security:
-    firewall_enabled: true
-    ddos_protection: true
-    rate_limiting: true
-    ip_whitelist: []
-    fail2ban: true
-
-# Secrets مورد نیاز - Required Secrets
-x-required-secrets:
-  - SECRET_KEY
-  - DB_PASSWORD
-  - REDIS_PASSWORD
-  - ADMIN_TELEGRAM_ID
-  - REPORT_CHAT_ID
-  - MONITORING_BOT_TOKEN
-  - REPORT_BOT_TOKEN
-  - BOT1_API_ID
-  - BOT1_API_HASH
-  - BOT2_API_ID
-  - BOT2_API_HASH
-  - BOT3_API_ID
-  - BOT3_API_HASH
-  - BOT4_API_ID
-  - BOT4_API_HASH
-  - BOT5_API_ID
-  - BOT5_API_HASH
-  - BOT6_API_ID
-  - BOT6_API_HASH
-  - BOT7_API_ID
-  - BOT7_API_HASH
-  - BOT8_API_ID
-  - BOT8_API_HASH
-  - BOT9_API_ID
-  - BOT9_API_HASH
-
-# پورت‌های expose شده - Exposed Ports
-x-exposed-ports:
-  - "80:80"    # HTTP
-  - "443:443"  # HTTPS
-  - "5000:5000" # Web Panel (optional, behind nginx)
-
-# Health Check URLs
-x-health-checks:
-  main_service: http://telegram-bots-main:5000/health
-  web_panel: http://nginx/health
-  database: postgresql://telegram_user:password@postgres:5432/telegram_bots
-  cache: redis://redis:6379
-
-# دستورات مدیریت - Management Commands
-x-management-commands:
-  start: docker-compose up -d
-  stop: docker-compose down
-  restart: docker-compose restart
-  logs: docker-compose logs -f
-  status: docker-compose ps
-  backup: docker-compose exec backup python deployment/backup_service.py --manual
-  restore: docker-compose exec main python deployment/restore_service.py
-  update: docker-compose pull && docker-compose up -d
-  cleanup: docker system prune -f && docker volume prune -f
