@@ -1,10 +1,13 @@
-
-name: telegram-bots
+name: telegram-bots-system
 language: python
 port: 5000
-install: pip install -r requirements.txt
-build: echo "Build complete"
-run: python unified_bot_launcher.py
+build_cmd: "pip install -r requirements.txt"
+start_cmd: "python unified_bot_launcher.py"
 environments:
-  - PYTHONUNBUFFERED=1
   - BOT_MODE=production
+  - DEBUG=false
+  - LOG_LEVEL=INFO
+  - TOTAL_BOTS=9
+  - WEB_PORT=5000
+  - WEB_HOST=0.0.0.0
+  - PYTHONUNBUFFERED=1
