@@ -8,8 +8,6 @@ python_version: "3.11"
 commands:
   build:
     - "pip install -r requirements.txt"
-  package:
-    - "python3 -c 'print(\"Package ready\")'"
   start:
     - "python3 unified_bot_launcher.py"
 

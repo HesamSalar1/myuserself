@@ -8,8 +8,6 @@ python_version: "3.11"
 commands:
   build:
     - "pip install -r requirements.txt"
-  package:
-    - "mkdir -p logs data sessions"
   start:
     - "python3 unified_bot_launcher.py"
 
