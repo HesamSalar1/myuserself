@@ -1,13 +1,23 @@
-name: telegram-bots-system
-language: python
-port: 5000
-build_cmd: "pip install -r requirements.txt"
-start_cmd: "python unified_bot_launcher.py"
-environments:
-  - BOT_MODE=production
-  - DEBUG=false
-  - LOG_LEVEL=INFO
-  - TOTAL_BOTS=9
-  - WEB_PORT=5000
-  - WEB_HOST=0.0.0.0
-  - PYTHONUNBUFFERED=1
+user:
+  name: telegram-bots
+  github: telegram-bot-system
+
+language: "python"
+python_version: "3.11"
+
+commands:
+  build:
+    - "pip install -r requirements.txt"
+  package:
+    - "echo 'Packaging complete'"
+  start:
+    - "python3 unified_bot_launcher.py"
+
+env:
+  - "BOT_MODE=production"
+  - "DEBUG=false"
+  - "LOG_LEVEL=INFO"
+  - "TOTAL_BOTS=9"
+  - "WEB_PORT=5000"
+  - "WEB_HOST=0.0.0.0"
+  - "PYTHONUNBUFFERED=1"
