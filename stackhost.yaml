@@ -3,7 +3,7 @@ version: '3.8'
 # پیکربندی کامل سیستم مدیریت 9 ربات تلگرام برای StackHost
 # Complete Configuration for 9 Telegram Bots Management System for StackHost
 
-language: python3.11
+language: python
 
 run: python unified_bot_launcher.py
 
