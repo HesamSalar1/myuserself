@@ -9,7 +9,7 @@ commands:
   build:
     - "pip install -r requirements.txt"
   package:
-    - "echo 'Packaging telegram bot system'"
+    - "mkdir -p logs data sessions"
   start:
     - "python3 unified_bot_launcher.py"
 

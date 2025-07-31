@@ -9,7 +9,7 @@ commands:
   build:
     - "pip install -r requirements.txt"
   package:
-    - "echo 'Packaging complete'"
+    - "python3 -c 'print(\"Package ready\")'"
   start:
     - "python3 unified_bot_launcher.py"
 
