@@ -3,6 +3,25 @@ version: '3.8'
 # پیکربندی کامل سیستم مدیریت 9 ربات تلگرام برای StackHost
 # Complete Configuration for 9 Telegram Bots Management System for StackHost
 
+language: python3.11
+
+run: python unified_bot_launcher.py
+
+install: |
+  pip install -r requirements.txt
+
+port: 5000
+
+environments:
+  - BOT_MODE=production
+  - DEBUG=false
+  - LOG_LEVEL=INFO
+  - TOTAL_BOTS=9
+  - RESTART_DELAY=10
+  - WEB_PORT=5000
+  - WEB_HOST=0.0.0.0
+  - PYTHONUNBUFFERED=1
+
 services:
   # سرویس اصلی مدیریت ربات‌ها - Main Bot Management Service
   telegram-bots-main:
