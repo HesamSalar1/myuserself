@@ -1,3 +1,4 @@
+
 import json
 import asyncio
 import sys
@@ -17,7 +18,7 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMember
 from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
 
-# تنظیمات اصلی بات 2
+# تنظیمات اصلی بات 1
 api_id = 29262538
 api_hash = "0417ebf26dbd92d3455d51595f2c923c"
 admin_id = 7419698159
@@ -27,20 +28,25 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('bot2.log', encoding='utf-8'),
+        logging.FileHandler('bot1.log', encoding='utf-8'),
         logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger(__name__)
 
 app = Client(
-    "my_bot2", 
+    "my_bot1", 
     api_id, 
     api_hash,
     workdir="./",
     sleep_threshold=5,
     max_concurrent_transmissions=30
 )
+
+# import ماژول کنترل اکو مشترک
+import sys
+sys.path.append('..')
+from echo_control import set_echo_active, is_echo_active
 
 # متغیرهای کنترل
 auto_reply_enabled = True
@@ -49,7 +55,7 @@ scheduled_messages = {}
 
 # تابع اتصال به دیتابیس با جداول کامل
 def init_db():
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
 
     # جدول فحش‌ها با پشتیبانی رسانه
@@ -102,7 +108,7 @@ def init_db():
 
 # توابع مدیریت فحش‌ها
 def add_fosh(fosh=None, media_type=None, file_id=None):
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     try:
         cursor.execute("INSERT INTO fosh_list (fosh, media_type, file_id) VALUES (?, ?, ?)", 
@@ -116,7 +122,7 @@ def add_fosh(fosh=None, media_type=None, file_id=None):
     return result
 
 def remove_fosh(fosh):
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM fosh_list WHERE fosh = ?", (fosh,))
     result = cursor.rowcount > 0
@@ -125,7 +131,7 @@ def remove_fosh(fosh):
     return result
 
 def get_fosh_list():
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     cursor.execute("SELECT fosh, media_type, file_id FROM fosh_list")
     result = cursor.fetchall()
@@ -133,7 +139,7 @@ def get_fosh_list():
     return result
 
 def clear_fosh_list():
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM fosh_list")
     count = cursor.rowcount
@@ -143,7 +149,7 @@ def clear_fosh_list():
 
 # توابع مدیریت دشمنان
 def add_enemy(user_id, username=None, first_name=None):
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     try:
         cursor.execute("DELETE FROM friend_list WHERE user_id = ?", (user_id,))
@@ -157,7 +163,7 @@ def add_enemy(user_id, username=None, first_name=None):
     return result
 
 def remove_enemy(user_id):
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM enemy_list WHERE user_id = ?", (user_id,))
     result = cursor.rowcount > 0
@@ -166,7 +172,7 @@ def remove_enemy(user_id):
     return result
 
 def get_enemy_list():
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     cursor.execute("SELECT user_id, username, first_name, created_at FROM enemy_list")
     result = cursor.fetchall()
@@ -174,7 +180,7 @@ def get_enemy_list():
     return result
 
 def clear_enemy_list():
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM enemy_list")
     count = cursor.rowcount
@@ -184,7 +190,7 @@ def clear_enemy_list():
 
 # توابع مدیریت دوستان
 def add_friend(user_id, username=None, first_name=None):
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     try:
         cursor.execute("DELETE FROM enemy_list WHERE user_id = ?", (user_id,))
@@ -198,7 +204,7 @@ def add_friend(user_id, username=None, first_name=None):
     return result
 
 def remove_friend(user_id):
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM friend_list WHERE user_id = ?", (user_id,))
     result = cursor.rowcount > 0
@@ -207,7 +213,7 @@ def remove_friend(user_id):
     return result
 
 def get_friend_list():
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     cursor.execute("SELECT user_id, username, first_name, created_at FROM friend_list")
     result = cursor.fetchall()
@@ -215,7 +221,7 @@ def get_friend_list():
     return result
 
 def clear_friend_list():
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM friend_list")
     count = cursor.rowcount
@@ -225,7 +231,7 @@ def clear_friend_list():
 
 # توابع مدیریت کلمات دوستانه
 def add_friend_word(word=None, media_type=None, file_id=None):
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     try:
         cursor.execute("INSERT INTO friend_words (word, media_type, file_id) VALUES (?, ?, ?)", 
@@ -239,7 +245,7 @@ def add_friend_word(word=None, media_type=None, file_id=None):
     return result
 
 def remove_friend_word(word):
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM friend_words WHERE word = ?", (word,))
     result = cursor.rowcount > 0
@@ -248,7 +254,7 @@ def remove_friend_word(word):
     return result
 
 def get_friend_words():
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     cursor.execute("SELECT word, media_type, file_id FROM friend_words")
     result = cursor.fetchall()
@@ -256,7 +262,7 @@ def get_friend_words():
     return result
 
 def clear_friend_words():
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM friend_words")
     count = cursor.rowcount
@@ -266,7 +272,7 @@ def clear_friend_words():
 
 # سایر توابع پایگاه داده
 def log_action(action_type, user_id=None, details=None):
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
     cursor.execute("INSERT INTO action_log (action_type, user_id, details) VALUES (?, ?, ?)", 
                   (action_type, user_id, details))
@@ -274,7 +280,7 @@ def log_action(action_type, user_id=None, details=None):
     conn.close()
 
 def get_stats():
-    conn = sqlite3.connect('bot2_data.db')
+    conn = sqlite3.connect('bot1_data.db')
     cursor = conn.cursor()
 
     cursor.execute("SELECT COUNT(*) FROM fosh_list")
@@ -304,7 +310,7 @@ init_db()
 # کامند شروع
 @app.on_message(filters.command("start") & filters.user(admin_id))
 async def start_command(client, message: Message):
-    await message.edit_text(f"🤖 **ربات 2 آماده است!**\n\n📋 برای مشاهده کامندها: `/help`\n🆔 Admin: `{admin_id}`")
+    await message.edit_text(f"🤖 **ربات 1 آماده است!**\n\n📋 برای مشاهده کامندها: `/help`\n🆔 Admin: `{admin_id}`")
 
 # کامند اضافه کردن فحش (تمام انواع رسانه)
 @app.on_message(filters.command("addfosh") & filters.user(admin_id))
@@ -662,7 +668,7 @@ async def stats_command(client, message: Message):
     try:
         stats = get_stats()
 
-        text = "📊 **آمار کامل ربات 2:**\n\n"
+        text = "📊 **آمار کامل ربات 1:**\n\n"
         text += f"🔥 فحش‌ها: `{stats['fosh_count']}` عدد\n"
         text += f"👹 دشمنان: `{stats['enemy_count']}` نفر\n"
         text += f"😊 دوستان: `{stats['friend_count']}` نفر\n"
@@ -698,6 +704,102 @@ async def off_auto_reply(client, message: Message):
 
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
+
+# کامند اکو (تکرار دقیق پیام)
+@app.on_message(filters.command("echo") & filters.user(admin_id))
+async def echo_command(client, message: Message):
+    """کامند اکو - تکرار دقیق پیام کاربر"""
+    try:
+        set_echo_active(True)  # فعال کردن حالت اکو
+        
+        if message.reply_to_message:
+            # اگر روی پیامی ریپلای شده، آن پیام را اکو کن
+            original_msg = message.reply_to_message
+            
+            # حذف پیام کامند اکو
+            await message.delete()
+            
+            # اکو کردن پیام اصلی
+            if original_msg.text:
+                await client.send_message(
+                    message.chat.id, 
+                    original_msg.text,
+                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
+                )
+            elif original_msg.photo:
+                await client.send_photo(
+                    message.chat.id,
+                    original_msg.photo.file_id,
+                    caption=original_msg.caption,
+                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
+                )
+            elif original_msg.video:
+                await client.send_video(
+                    message.chat.id,
+                    original_msg.video.file_id,
+                    caption=original_msg.caption,
+                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
+                )
+            elif original_msg.animation:
+                await client.send_animation(
+                    message.chat.id,
+                    original_msg.animation.file_id,
+                    caption=original_msg.caption,
+                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
+                )
+            elif original_msg.sticker:
+                await client.send_sticker(
+                    message.chat.id,
+                    original_msg.sticker.file_id,
+                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
+                )
+            elif original_msg.audio:
+                await client.send_audio(
+                    message.chat.id,
+                    original_msg.audio.file_id,
+                    caption=original_msg.caption,
+                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
+                )
+            elif original_msg.voice:
+                await client.send_voice(
+                    message.chat.id,
+                    original_msg.voice.file_id,
+                    caption=original_msg.caption,
+                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
+                )
+            elif original_msg.video_note:
+                await client.send_video_note(
+                    message.chat.id,
+                    original_msg.video_note.file_id,
+                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
+                )
+            elif original_msg.document:
+                await client.send_document(
+                    message.chat.id,
+                    original_msg.document.file_id,
+                    caption=original_msg.caption,
+                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
+                )
+            
+            log_action("echo", admin_id, f"اکو پیام در {message.chat.title}")
+            
+        else:
+            # اگر ریپلای نشده، متن بعد از کامند را اکو کن
+            if len(message.command) > 1:
+                echo_text = " ".join(message.command[1:])
+                await message.edit_text(echo_text)
+                log_action("echo", admin_id, f"اکو متن: {echo_text[:50]}")
+            else:
+                await message.edit_text("⚠️ لطفاً روی پیامی ریپلای کنید یا متنی وارد کنید.\n💡 استفاده: `/echo متن` یا ریپلای `/echo`")
+        
+        # تاخیر کوتاه برای اطمینان از اتمام عملیات اکو
+        await asyncio.sleep(0.5)
+        set_echo_active(False)  # غیرفعال کردن حالت اکو
+
+    except Exception as e:
+        set_echo_active(False)
+        await message.edit_text(f"❌ خطا در اکو: {str(e)}")
+        logger.error(f"خطا در echo_command: {e}")
 
 # کامند ارسال همگانی
 @app.on_message(filters.command("broadcast") & filters.user(admin_id))
@@ -747,6 +849,9 @@ async def broadcast_command(client, message: Message):
         await message.edit_text(result_text)
         log_action("broadcast", admin_id, f"موفق:{success}, ناموفق:{fail}")
 
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
 # کش بهینه‌شده برای سرعت فوق‌العاده
 enemy_cache = set()
 friend_cache = set()
@@ -765,14 +870,14 @@ async def update_cache_async():
             asyncio.create_task(asyncio.to_thread(get_fosh_list)),
             asyncio.create_task(asyncio.to_thread(get_friend_words))
         ]
-
+        
         enemy_list, friend_list, fosh_list, word_list = await asyncio.gather(*tasks)
-
+        
         enemy_cache = {row[0] for row in enemy_list}
         friend_cache = {row[0] for row in friend_list}
         fosh_cache = fosh_list
         word_cache = word_list
-
+        
         last_cache_update = datetime.now().timestamp()
     except:
         pass
@@ -782,7 +887,7 @@ async def send_instant_reply(message, selected_content):
     """ارسال فوری بدون تاخیر"""
     try:
         content_text, media_type, file_id = selected_content
-
+        
         if media_type and file_id:
             reply_methods = {
                 "photo": message.reply_photo,
@@ -794,7 +899,7 @@ async def send_instant_reply(message, selected_content):
                 "video_note": message.reply_video_note,
                 "document": message.reply_document
             }
-
+            
             method = reply_methods.get(media_type)
             if method:
                 await method(file_id)
@@ -803,34 +908,7 @@ async def send_instant_reply(message, selected_content):
     except Exception as e:
         logger.error(f"خطا در ارسال پاسخ: {e}")
 
-# تابع ارسال پاسخ با تاخیر
-async def send_delayed_reply(message, selected_content, delay):
-    """ارسال پاسخ با تاخیر مشخص"""
-    try:
-        await asyncio.sleep(delay)
-        content_text, media_type, file_id = selected_content
-
-        if media_type and file_id:
-            reply_methods = {
-                "photo": message.reply_photo,
-                "video": message.reply_video,
-                "animation": message.reply_animation,
-                "sticker": message.reply_sticker,
-                "audio": message.reply_audio,
-                "voice": message.reply_voice,
-                "video_note": message.reply_video_note,
-                "document": message.reply_document
-            }
-
-            method = reply_methods.get(media_type)
-            if method:
-                await method(file_id)
-        elif content_text:
-            await message.reply_text(content_text)
-    except Exception as e:
-        logger.error(f"خطا در ارسال پاسخ: {e}")
-
-# پاسخگویی با تاخیر 0.001 ثانیه
+# پاسخگویی فوری بدون تاخیر
 @app.on_message(
     ~filters.me & 
     ~filters.channel & 
@@ -839,73 +917,34 @@ async def send_delayed_reply(message, selected_content, delay):
     filters.group
 )
 async def auto_reply_handler(client, message: Message):
-    """هندلر پاسخگویی با تاخیر کوتاه"""
-    # بررسی وضعیت اکو
-    try:
-        import sys
-        sys.path.append('.')
-        from echo_control import is_echo_active
-        if is_echo_active():
-            return
-    except:
-        pass
-
+    """هندلر فوری پاسخگویی"""
+    
+    # اگر حالت اکو فعال است، هیچ پاسخی نده
+    if is_echo_active():
+        return
+        
     if not auto_reply_enabled or not message.from_user:
         return
 
     user_id = message.from_user.id
-
-    # بررسی دشمن بودن - بات 2 با تاخیر 0.001 ثانیه
+    
+    # بررسی فوری دشمن بودن - بات 1 بدون تاخیر
     if user_id in enemy_cache and fosh_cache:
         selected = choice(fosh_cache)
-        asyncio.create_task(send_delayed_reply(message, selected, 0.001))
+        asyncio.create_task(send_instant_reply(message, selected))
         return
 
-    # بررسی دوست بودن - بات 2 با تاخیر 0.001 ثانیه
+    # بررسی فوری دوست بودن - بات 1 بدون تاخیر
     if user_id in friend_cache and word_cache:
         selected = choice(word_cache)
-        asyncio.create_task(send_delayed_reply(message, selected, 0.001))
+        asyncio.create_task(send_instant_reply(message, selected))
 
 # تسک پس‌زمینه برای بروزرسانی کش
 async def cache_updater():
     """بروزرسانی خودکار کش هر 10 ثانیه"""
     while True:
         await update_cache_async()
-        await asyncio.sleep(10)  # کاهش از 30 به 10 ثانیه
-
-# کامند دیباگ کامل
-@app.on_message(filters.command("debug") & filters.user(admin_id))
-async def debug_system(client, message: Message):
-    try:
-        # بررسی دیتابیس
-        enemy_list = get_enemy_list()
-        friend_list = get_friend_list()
-        fosh_list = get_fosh_list()
-        friend_words = get_friend_words()
-
-        debug_info = f"""🔧 **دیباگ کامل سیستم BOT2:**
-
-🎯 **وضعیت پاسخگویی:**
-• auto_reply_enabled = `{auto_reply_enabled}`
-• admin_id = `{admin_id}`
-
-📋 **دیتابیس:**
-• دشمنان: {len(enemy_list)} نفر
-• دوستان: {len(friend_list)} نفر  
-• فحش‌ها: {len(fosh_list)} عدد
-• کلمات دوستانه: {len(friend_words)} عدد
-
-👹 **لیست دشمنان (ID):**
-{[row[0] for row in enemy_list[:10]]}
-
-😊 **لیست دوستان (ID):**
-{[row[0] for row in friend_list[:10]]}
-"""
-
-        await message.edit_text(debug_info)
-
-    except Exception as e:
-        await message.edit_text(f"❌ خطا در دیباگ: {str(e)}")
+        await asyncio.sleep(10)
 
 # راهنما
 @app.on_message(filters.command("help") & filters.user(admin_id))
@@ -953,6 +992,11 @@ async def help_command(client, message: Message):
 • `/start` - راه‌اندازی مجدد ربات
 • `/help` - نمایش این راهنما
 
+🔊 **قابلیت اکو:**
+• `/echo [متن]` - تکرار دقیق متن (ریپلای یا متنی)
+  └ حین اکو، سایر بات‌ها واکنش نشان نمی‌دهند
+  └ پشتیبانی کامل از تمام انواع رسانه و ریپلای
+
 💡 **نکات مهم:**
 • از ریپلای برای اضافه کردن رسانه استفاده کنید
 • پشتیبانی کامل از عکس، ویدیو، صوت، استیکر، گیف و...
@@ -969,10 +1013,10 @@ async def bot_ready():
     """راه‌اندازی کش و تسک‌های پس‌زمینه پس از شروع بات"""
     asyncio.create_task(update_cache_async())
     asyncio.create_task(cache_updater())
-    logger.info("ربات 2 آماده شد و کش راه‌اندازی شد!")
+    logger.info("ربات 1 آماده شد و کش راه‌اندازی شد!")
 
-print("Bot 2 initialized and ready!")
-logger.info("ربات 2 آماده شد!")
+print("Bot 1 initialized and ready!")
+logger.info("ربات 1 آماده شد!")
 
 if __name__ == "__main__":
     # راه‌اندازی تسک‌های پس‌زمینه
