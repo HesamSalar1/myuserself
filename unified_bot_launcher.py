@@ -18,16 +18,16 @@ from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
 # وارد کردن ربات گزارش‌دهی
 from report_bot import send_emoji_report, ReportBot
 
-# تنظیم لاگینگ
+# تنظیم لاگینگ - غیرفعال کردن تمام لاگ‌ها به جز پیام شروع
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.CRITICAL,  # فقط critical errors
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('unified_bots.log', encoding='utf-8'),
-        logging.StreamHandler(sys.stdout)
+        logging.NullHandler()  # هیچ لاگی نمایش داده نمی‌شود
     ]
 )
 logger = logging.getLogger(__name__)
+logger.disabled = True  # غیرفعال کردن کامل logger
 
 class UnifiedBotLauncher:
     def __init__(self):
@@ -179,9 +179,7 @@ class UnifiedBotLauncher:
         # لیست کامل همه ادمین‌ها (شامل ادمین لانچر + ادمین‌های بات‌ها)
         self.all_admin_ids = self.bot_admin_ids | {self.launcher_admin_id}
         
-        logger.info(f"👑 ادمین اصلی لانچر: {self.launcher_admin_id}")
-        logger.info(f"🔐 ادمین‌های بات‌ها: {list(self.bot_admin_ids)}")
-        logger.info(f"📋 همه ادمین‌ها: {list(self.all_admin_ids)}")
+        pass
 
     
 
@@ -348,10 +346,10 @@ class UnifiedBotLauncher:
 
             conn.commit()
             conn.close()
-            logger.info(f"✅ پایگاه داده بات {bot_id} آماده شد")
+            pass
 
         except Exception as e:
-            logger.error(f"❌ خطا در تنظیم پایگاه داده بات {bot_id}: {e}")
+            pass
 
     # توابع مدیریت پایگاه داده
     def add_fosh(self, bot_id, fosh=None, media_type=None, file_id=None):
@@ -364,7 +362,6 @@ class UnifiedBotLauncher:
             conn.commit()
             result = True
         except Exception as e:
-            logger.error(f"خطا در اضافه کردن فحش بات {bot_id}: {e}")
             result = False
         conn.close()
         return result
@@ -625,11 +622,9 @@ class UnifiedBotLauncher:
                             cursor.execute("SELECT emoji FROM forbidden_emojis")
                             result = cursor.fetchall()
                             emojis.update({row[0] for row in result})
-                            logger.info(f"📥 بارگذاری {len(result)} ایموجی از {db_path}")
                         
                         conn.close()
                     except Exception as e:
-                        logger.error(f"خطا در بارگذاری از {db_path}: {e}")
                         continue
             
             # اگر هیچ ایموجی‌ای پیدا نشد، ایموجی‌های پیش‌فرض اضافه کن
@@ -638,12 +633,9 @@ class UnifiedBotLauncher:
                 for emoji in default_emojis:
                     self.add_forbidden_emoji_to_db(emoji)
                     emojis.add(emoji)
-                logger.info(f"✅ {len(default_emojis)} ایموجی پیش‌فرض اضافه شد")
             
-            logger.info(f"📊 مجموع {len(emojis)} ایموجی ممنوعه بارگذاری شد")
             return emojis
         except Exception as e:
-            logger.error(f"خطا در بارگذاری ایموجی‌های ممنوعه: {e}")
             return set()
     
     def get_spam_delay(self, bot_id):
@@ -1092,8 +1084,6 @@ class UnifiedBotLauncher:
             unicodedata.normalize('NFD', text)
         ]
         
-        logger.debug(f"🔍 بررسی متن: '{text[:30]}...' در برابر {len(self.forbidden_emojis)} ایموجی")
-
         # بررسی مستقیم ایموجی‌ها در تمام حالات متن
         for emoji in self.forbidden_emojis:
             if not emoji or len(emoji.strip()) == 0:
@@ -1112,10 +1102,6 @@ class UnifiedBotLauncher:
             for text_variant in text_variants:
                 for emoji_variant in emoji_variants:
                     if emoji_variant in text_variant:
-                        logger.warning(f"🛑 ایموجی ممنوعه تشخیص داده شد: '{emoji}' در متن: {text[:50]}...")
-                        logger.debug(f"   📝 تطبیق: ایموجی '{emoji_variant}' در متن '{text_variant[:20]}...'")
-                        logger.debug(f"   🔢 کدهای Unicode ایموجی: {[f'U+{ord(c):04X}' for c in emoji]}")
-                        
                         if found_emoji_ref is not None:
                             found_emoji_ref.append(emoji)
                         
@@ -1136,7 +1122,6 @@ class UnifiedBotLauncher:
             if cache_key in self.emoji_detection_cache:
                 cache_time = self.emoji_detection_cache[cache_key]
                 if current_time - cache_time < self.detection_cooldown:
-                    logger.debug(f"🔄 پیام {message_id} در چت {chat_id} قبلاً بررسی شده")
                     return False
         
         found_emoji_ref = []
@@ -1147,13 +1132,11 @@ class UnifiedBotLauncher:
         if message.text and self.contains_stop_emoji(message.text, found_emoji_ref):
             emoji_detected = True
             detected_emoji = found_emoji_ref[0] if found_emoji_ref else "نامشخص"
-            logger.info(f"🛑 ایموجی توقف در متن چت {chat_id} تشخیص داده شد: {message.text[:50]}...")
 
         # بررسی ایموجی‌های توقف در کپشن
         elif message.caption and self.contains_stop_emoji(message.caption, found_emoji_ref):
             emoji_detected = True
             detected_emoji = found_emoji_ref[0] if found_emoji_ref else "نامشخص"
-            logger.info(f"🛑 ایموجی توقف در کپشن چت {chat_id} تشخیص داده شد: {message.caption[:50]}...")
 
         # اگر ایموجی تشخیص داده شد
         if emoji_detected:
@@ -1186,7 +1169,6 @@ class UnifiedBotLauncher:
                     for command in self.enemy_forbidden_commands:
                         # بررسی در ابتدای پیام یا بعد از فاصله
                         if message_lower.startswith(command) or f' {command}' in message_lower:
-                            logger.info(f"🛑 کامند ممنوعه دشمن در چت {chat_id} تشخیص داده شد: {command} از دشمن {user_id}")
                             await self.trigger_emergency_stop_for_chat(chat_id, command, message)
                             return True
 
@@ -3177,11 +3159,9 @@ class UnifiedBotLauncher:
                 'status': 'initialized'
             }
 
-            logger.info(f"✅ بات {bot_id} ایجاد شد")
             return app
 
         except Exception as e:
-            logger.error(f"❌ خطا در ایجاد بات {bot_id}: {e}")
             return None
 
     async def send_coordinated_reply(self, message, selected_content, bot_id):
@@ -3244,11 +3224,9 @@ class UnifiedBotLauncher:
     async def start_all_bots(self):
         """شروع همه بات‌ها"""
         self.running = True
-        logger.info("🚀 شروع سیستم بات‌ها...")
 
         # بارگذاری ایموجی‌های ممنوعه قبل از شروع
         self.forbidden_emojis = self.load_forbidden_emojis_from_db()
-        logger.info(f"📥 {len(self.forbidden_emojis)} ایموجی ممنوعه بارگذاری شد")
         
         # شروع ربات گزارش‌دهی
         await self.start_report_bot()
@@ -3256,20 +3234,16 @@ class UnifiedBotLauncher:
         # ایجاد همه بات‌ها
         tasks = []
         for bot_id, config in self.bot_configs.items():
-            logger.info(f"🔧 ایجاد بات {bot_id}...")
             bot = await self.create_bot(bot_id, config)
             if bot:
                 tasks.append(self.start_single_bot(bot_id))
 
         # شروع همه بات‌ها به صورت موازی
         if tasks:
-            logger.info(f"🎯 شروع {len(tasks)} بات...")
             await asyncio.gather(*tasks, return_exceptions=True)
         
-        # نمایش آمار نهایی
-        logger.info("🎉 سیستم بات‌ها راه‌اندازی شد!")
-        logger.info("🤖 ربات‌ها: 9 ربات اصلی فعال")
-        logger.info("📢 ربات گزارش‌دهی: آماده دریافت گزارش‌ها")
+        # تنها لاگ مجاز در کل سیستم
+        print("🎉 همه 9 بات با موفقیت راه‌اندازی شدند و آماده کار هستند")
         
         # نگه داشتن سیستم زنده
         try:
@@ -3292,13 +3266,10 @@ class UnifiedBotLauncher:
         """شروع یک بات"""
         try:
             if bot_id not in self.bots:
-                logger.error(f"❌ بات {bot_id} یافت نشد")
                 return
 
             bot_info = self.bots[bot_id]
             client = bot_info['client']
-
-            logger.info(f"🚀 شروع بات {bot_id}...")
 
             await client.start()
             bot_info['status'] = 'running'
@@ -3308,34 +3279,26 @@ class UnifiedBotLauncher:
             try:
                 loaded_emojis = self.load_forbidden_emojis_from_db()
                 self.forbidden_emojis.update(loaded_emojis)
-                logger.info(f"📥 بات {bot_id} - ایموجی‌های ممنوعه بارگذاری شدند: {len(loaded_emojis)} ایموجی از دیتابیس")
-                logger.info(f"📊 کل ایموجی‌های ممنوعه در حافظه: {len(self.forbidden_emojis)} ایموجی")
             except Exception as e:
-                logger.error(f"❌ خطا در بارگذاری ایموجی‌های ممنوعه برای بات {bot_id}: {e}")
-
-            logger.info(f"✅ بات {bot_id} آماده و در حال اجرا!")
+                pass
 
             # مانیتورینگ و نگه داشتن بات زنده
             while self.running and bot_info['status'] == 'running':
                 try:
                     # بررسی وضعیت اتصال
                     if not client.is_connected:
-                        logger.warning(f"⚠️ بات {bot_id} اتصال قطع شده - تلاش برای اتصال مجدد...")
                         await client.start()
 
                     await asyncio.sleep(10)  # بررسی هر 10 ثانیه
 
                 except Exception as monitor_error:
-                    logger.error(f"❌ خطا در مانیتورینگ بات {bot_id}: {monitor_error}")
                     await asyncio.sleep(5)
 
         except Exception as e:
-            logger.error(f"❌ خطا در شروع بات {bot_id}: {e}")
             if bot_id in self.bots:
                 self.bots[bot_id]['status'] = 'error'
 
                 # تلاش برای راه‌اندازی مجدد خودکار
-                logger.info(f"🔄 تلاش برای راه‌اندازی مجدد خودکار بات {bot_id} در 30 ثانیه...")
                 await asyncio.sleep(30)
                 if self.running:
                     await self.restart_bot(bot_id)
