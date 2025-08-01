@@ -18,7 +18,7 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMember
 from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
 
-# تنظیمات اصلی بات 1
+# تنظیمات اصلی بات 3
 api_id = 21555907
 api_hash = "16f4e09d753bc4b182434d8e37f410cd"
 admin_id = 7607882302
@@ -28,14 +28,14 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('bot1.log', encoding='utf-8'),
+        logging.FileHandler('bot3.log', encoding='utf-8'),
         logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger(__name__)
 
 app = Client(
-    "my_bot1", 
+    "my_bot3", 
     api_id, 
     api_hash,
     workdir="./",
@@ -52,7 +52,7 @@ scheduled_messages = {}
 
 # تابع اتصال به دیتابیس با جداول کامل
 def init_db():
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
 
     # جدول فحش‌ها با پشتیبانی رسانه
@@ -105,7 +105,7 @@ def init_db():
 
 # توابع مدیریت فحش‌ها
 def add_fosh(fosh=None, media_type=None, file_id=None):
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     try:
         cursor.execute("INSERT INTO fosh_list (fosh, media_type, file_id) VALUES (?, ?, ?)", 
@@ -119,7 +119,7 @@ def add_fosh(fosh=None, media_type=None, file_id=None):
     return result
 
 def remove_fosh(fosh):
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM fosh_list WHERE fosh = ?", (fosh,))
     result = cursor.rowcount > 0
@@ -128,7 +128,7 @@ def remove_fosh(fosh):
     return result
 
 def get_fosh_list():
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     cursor.execute("SELECT fosh, media_type, file_id FROM fosh_list")
     result = cursor.fetchall()
@@ -136,7 +136,7 @@ def get_fosh_list():
     return result
 
 def clear_fosh_list():
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM fosh_list")
     count = cursor.rowcount
@@ -146,7 +146,7 @@ def clear_fosh_list():
 
 # توابع مدیریت دشمنان
 def add_enemy(user_id, username=None, first_name=None):
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     try:
         cursor.execute("DELETE FROM friend_list WHERE user_id = ?", (user_id,))
@@ -160,7 +160,7 @@ def add_enemy(user_id, username=None, first_name=None):
     return result
 
 def remove_enemy(user_id):
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM enemy_list WHERE user_id = ?", (user_id,))
     result = cursor.rowcount > 0
@@ -169,7 +169,7 @@ def remove_enemy(user_id):
     return result
 
 def get_enemy_list():
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     cursor.execute("SELECT user_id, username, first_name, created_at FROM enemy_list")
     result = cursor.fetchall()
@@ -177,7 +177,7 @@ def get_enemy_list():
     return result
 
 def clear_enemy_list():
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM enemy_list")
     count = cursor.rowcount
@@ -187,7 +187,7 @@ def clear_enemy_list():
 
 # توابع مدیریت دوستان
 def add_friend(user_id, username=None, first_name=None):
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     try:
         cursor.execute("DELETE FROM enemy_list WHERE user_id = ?", (user_id,))
@@ -201,7 +201,7 @@ def add_friend(user_id, username=None, first_name=None):
     return result
 
 def remove_friend(user_id):
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM friend_list WHERE user_id = ?", (user_id,))
     result = cursor.rowcount > 0
@@ -210,7 +210,7 @@ def remove_friend(user_id):
     return result
 
 def get_friend_list():
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     cursor.execute("SELECT user_id, username, first_name, created_at FROM friend_list")
     result = cursor.fetchall()
@@ -218,7 +218,7 @@ def get_friend_list():
     return result
 
 def clear_friend_list():
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM friend_list")
     count = cursor.rowcount
@@ -228,7 +228,7 @@ def clear_friend_list():
 
 # توابع مدیریت کلمات دوستانه
 def add_friend_word(word=None, media_type=None, file_id=None):
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     try:
         cursor.execute("INSERT INTO friend_words (word, media_type, file_id) VALUES (?, ?, ?)", 
@@ -242,7 +242,7 @@ def add_friend_word(word=None, media_type=None, file_id=None):
     return result
 
 def remove_friend_word(word):
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM friend_words WHERE word = ?", (word,))
     result = cursor.rowcount > 0
@@ -251,7 +251,7 @@ def remove_friend_word(word):
     return result
 
 def get_friend_words():
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     cursor.execute("SELECT word, media_type, file_id FROM friend_words")
     result = cursor.fetchall()
@@ -259,7 +259,7 @@ def get_friend_words():
     return result
 
 def clear_friend_words():
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM friend_words")
     count = cursor.rowcount
@@ -269,7 +269,7 @@ def clear_friend_words():
 
 # سایر توابع پایگاه داده
 def log_action(action_type, user_id=None, details=None):
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
     cursor.execute("INSERT INTO action_log (action_type, user_id, details) VALUES (?, ?, ?)", 
                   (action_type, user_id, details))
@@ -277,7 +277,7 @@ def log_action(action_type, user_id=None, details=None):
     conn.close()
 
 def get_stats():
-    conn = sqlite3.connect('bot1_data.db')
+    conn = sqlite3.connect('bot3_data.db')
     cursor = conn.cursor()
 
     cursor.execute("SELECT COUNT(*) FROM fosh_list")
@@ -307,7 +307,7 @@ init_db()
 # کامند شروع
 @app.on_message(filters.command("start") & filters.user(admin_id))
 async def start_command(client, message: Message):
-    await message.edit_text(f"🤖 **ربات 1 آماده است!**\n\n📋 برای مشاهده کامندها: `/help`\n🆔 Admin: `{admin_id}`")
+    await message.edit_text(f"🤖 **ربات 3 آماده است!**\n\n📋 برای مشاهده کامندها: `/help`\n🆔 Admin: `{admin_id}`")
 
 # کامند اضافه کردن فحش (تمام انواع رسانه)
 @app.on_message(filters.command("addfosh") & filters.user(admin_id))
@@ -665,7 +665,7 @@ async def stats_command(client, message: Message):
     try:
         stats = get_stats()
 
-        text = "📊 **آمار کامل ربات 1:**\n\n"
+        text = "📊 **آمار کامل ربات 3:**\n\n"
         text += f"🔥 فحش‌ها: `{stats['fosh_count']}` عدد\n"
         text += f"👹 دشمنان: `{stats['enemy_count']}` نفر\n"
         text += f"😊 دوستان: `{stats['friend_count']}` نفر\n"
@@ -685,7 +685,7 @@ async def toggle_auto_reply(client, message: Message):
     global auto_reply_enabled
     try:
         auto_reply_enabled = True
-        await message.edit_text("🤖 **پاسخگویی خودکار فعال شد ✅**")
+        await message.edit_text("🤖 **پاسخگویی خودکار بات 3 فعال شد ✅**")
         log_action("toggle_auto_reply", admin_id, "فعال")
 
     except Exception as e:
@@ -696,13 +696,11 @@ async def off_auto_reply(client, message: Message):
     global auto_reply_enabled
     try:
         auto_reply_enabled = False
-        await message.edit_text("🤖 **پاسخگویی خودکار غیرفعال شد ❌**")
+        await message.edit_text("🤖 **پاسخگویی خودکار بات 3 غیرفعال شد ❌**")
         log_action("toggle_auto_reply", admin_id, "غیرفعال")
 
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
-
-# کامند اکو حذف شد
 
 # کامند ارسال همگانی
 @app.on_message(filters.command("broadcast") & filters.user(admin_id))
@@ -821,21 +819,19 @@ async def send_instant_reply(message, selected_content):
 )
 async def auto_reply_handler(client, message: Message):
     """هندلر فوری پاسخگویی"""
-    
-    # بررسی حالت اکو حذف شد
         
     if not auto_reply_enabled or not message.from_user:
         return
 
     user_id = message.from_user.id
     
-    # بررسی فوری دشمن بودن - بات 1 بدون تاخیر
+    # بررسی فوری دشمن بودن - بات 3 بدون تاخیر
     if user_id in enemy_cache and fosh_cache:
         selected = choice(fosh_cache)
         asyncio.create_task(send_instant_reply(message, selected))
         return
 
-    # بررسی فوری دوست بودن - بات 1 بدون تاخیر
+    # بررسی فوری دوست بودن - بات 3 بدون تاخیر
     if user_id in friend_cache and word_cache:
         selected = choice(word_cache)
         asyncio.create_task(send_instant_reply(message, selected))
@@ -911,10 +907,10 @@ async def bot_ready():
     """راه‌اندازی کش و تسک‌های پس‌زمینه پس از شروع بات"""
     asyncio.create_task(update_cache_async())
     asyncio.create_task(cache_updater())
-    logger.info("ربات 1 آماده شد و کش راه‌اندازی شد!")
+    logger.info("ربات 3 آماده شد و کش راه‌اندازی شد!")
 
-print("Bot 1 initialized and ready!")
-logger.info("ربات 1 آماده شد!")
+print("Bot 3 initialized and ready!")
+logger.info("ربات 3 آماده شد!")
 
 if __name__ == "__main__":
     # راه‌اندازی تسک‌های پس‌زمینه
