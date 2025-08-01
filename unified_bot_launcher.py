@@ -154,8 +154,8 @@ class UnifiedBotLauncher:
                 'auto_reply_enabled': True
             },
             8: {
-                'api_id': 15508294,
-                'api_hash': "778e5cd56ffcf22c2d62aa963ce85a0c",
+                'api_id': 23900003,
+                'api_hash': "5f6fb8f1c6d80d264d5eb08af3b038b6",
                 'session_name': "bots/bot8/my_bot8",
                 'db_path': "bots/bot8/bot8_data.db",
                 'log_path': "bots/bot8/bot8.log",
