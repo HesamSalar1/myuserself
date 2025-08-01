@@ -1,3 +1,4 @@
+
 import json
 import asyncio
 import sys
@@ -135,21 +136,167 @@ def init_db():
     conn = sqlite3.connect('bot8_data.db')
     cursor = conn.cursor()
 
+    # جدول فحش‌ها
     cursor.execute('''CREATE TABLE IF NOT EXISTS fosh_list (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        fosh TEXT,
+        fosh TEXT UNIQUE,
         media_type TEXT,
         file_id TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
+    # جدول دشمنان
+    cursor.execute('''CREATE TABLE IF NOT EXISTS enemy_list (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER UNIQUE,
+        username TEXT,
+        first_name TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # جدول دوستان
+    cursor.execute('''CREATE TABLE IF NOT EXISTS friend_list (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER UNIQUE,
+        username TEXT,
+        first_name TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_fosh_text ON fosh_list(fosh)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_enemy_user_id ON enemy_list(user_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_friend_user_id ON friend_list(user_id)')
+
     cursor.commit()
     conn.close()
 
-# شروع برنامه
-init_db()
+# توابع مدیریت فحش‌ها
+def add_fosh(fosh, media_type=None, file_id=None):
+    conn = sqlite3.connect('bot8_data.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO fosh_list (fosh, media_type, file_id) VALUES (?, ?, ?)", 
+                      (fosh, media_type, file_id))
+        conn.commit()
+        result = True
+    except sqlite3.IntegrityError:
+        logger.error(f"خطا در اضافه کردن فحش: فحش تکراری")
+        result = False
+    except Exception as e:
+        logger.error(f"خطا در اضافه کردن فحش: {e}")
+        result = False
+    conn.close()
+    return result
 
-# کامند لاگین
+def remove_fosh(fosh):
+    conn = sqlite3.connect('bot8_data.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM fosh_list WHERE fosh = ?", (fosh,))
+    result = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return result
+
+def get_fosh_list():
+    conn = sqlite3.connect('bot8_data.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT fosh, media_type, file_id FROM fosh_list")
+    result = cursor.fetchall()
+    conn.close()
+    return result
+
+def clear_fosh_list():
+    conn = sqlite3.connect('bot8_data.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM fosh_list")
+    count = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return count
+
+# توابع مدیریت دشمنان
+def add_enemy(user_id, username=None, first_name=None):
+    conn = sqlite3.connect('bot8_data.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM friend_list WHERE user_id = ?", (user_id,))
+        cursor.execute("INSERT INTO enemy_list (user_id, username, first_name) VALUES (?, ?, ?)", 
+                      (user_id, username, first_name))
+        conn.commit()
+        result = True
+    except sqlite3.IntegrityError:
+        result = False
+    conn.close()
+    return result
+
+def remove_enemy(user_id):
+    conn = sqlite3.connect('bot8_data.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM enemy_list WHERE user_id = ?", (user_id,))
+    result = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return result
+
+def get_enemy_list():
+    conn = sqlite3.connect('bot8_data.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id, username, first_name, created_at FROM enemy_list")
+    result = cursor.fetchall()
+    conn.close()
+    return result
+
+def clear_enemy_list():
+    conn = sqlite3.connect('bot8_data.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM enemy_list")
+    count = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return count
+
+# توابع مدیریت دوستان
+def add_friend(user_id, username=None, first_name=None):
+    conn = sqlite3.connect('bot8_data.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM enemy_list WHERE user_id = ?", (user_id,))
+        cursor.execute("INSERT INTO friend_list (user_id, username, first_name) VALUES (?, ?, ?)", 
+                      (user_id, username, first_name))
+        conn.commit()
+        result = True
+    except sqlite3.IntegrityError:
+        result = False
+    conn.close()
+    return result
+
+def remove_friend(user_id):
+    conn = sqlite3.connect('bot8_data.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM friend_list WHERE user_id = ?", (user_id,))
+    result = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return result
+
+def get_friend_list():
+    conn = sqlite3.connect('bot8_data.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id, username, first_name, created_at FROM friend_list")
+    result = cursor.fetchall()
+    conn.close()
+    return result
+
+def clear_friend_list():
+    conn = sqlite3.connect('bot8_data.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM friend_list")
+    count = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return count
+
+# کامندهای ربات
 @app.on_message(filters.command("login") & filters.user(admin_id))
 async def login_command(client, message: Message):
     await message.edit_text("🔐 شروع فرآیند لاگین مجدد...")
@@ -174,6 +321,18 @@ async def help_command(client, message: Message):
 • `/login` - لاگین مجدد و ایجاد session جدید
 • `/start` - شروع ربات
 
+📊 **مدیریت دیتابیس:**
+• `/addfosh [متن]` - اضافه کردن فحش
+• `/removefosh [متن]` - حذف فحش
+• `/foshlist` - لیست فحش‌ها
+• `/clearfosh` - پاک کردن همه فحش‌ها
+
+👥 **مدیریت کاربران:**
+• `/addenemy [ریپلای]` - اضافه کردن دشمن
+• `/removenemy [ریپلای]` - حذف دشمن
+• `/enemylist` - لیست دشمنان
+• `/clearenemy` - پاک کردن همه دشمنان
+
 💡 **نکات:**
 • برای لاگین اولیه از کامند `/login` استفاده کنید"""
 
@@ -181,6 +340,9 @@ async def help_command(client, message: Message):
 
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
+
+# شروع برنامه
+init_db()
 
 async def main():
     """تابع اصلی راه‌اندازی"""
