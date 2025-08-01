@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 ربات گزارش‌دهی - گزارش فوری توقف اسپم بخاطر ایموجی ممنوعه
@@ -15,16 +14,10 @@ from pyrogram.types import Message
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-# تنظیم لاگینگ
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('report_bot.log', encoding='utf-8'),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+# تنظیم لاگ - غیرفعال
+logging.disable(logging.CRITICAL)
 logger = logging.getLogger(__name__)
+logger.disabled = True
 
 class ReportBot:
     def __init__(self):
@@ -35,27 +28,27 @@ class ReportBot:
             logger.error("💡 توکن مورد نیاز: 7708355228:AAGPzhm47U5-4uPnALl6Oc6En91aCYLyydk")
             self.is_valid = False
             return
-        
+
         self.is_valid = True
         logger.info(f"✅ توکن ربات گزارش‌دهی یافت شد: {self.bot_token[:20]}...")
-            
+
         self.client = None
         self.admin_ids = {5533325167}  # ادمین اصلی - می‌توانید اضافه کنید
         self.subscribers = set()  # کاربرانی که /start کرده‌اند
         self.db_path = "report_bot.db"
-        
+
         # سیستم cache برای جلوگیری از ارسال چندگانه گزارش‌ها
         self.report_cache = {}  # {chat_id_emoji: last_report_time}
         self.cache_timeout = 60  # ثانیه - حداقل فاصله بین گزارش‌های مشابه
-        
+
         self.setup_database()
-        
+
     def setup_database(self):
         """تنظیم پایگاه داده ربات گزارش‌دهی"""
         os.makedirs(os.path.dirname(self.db_path) if os.path.dirname(self.db_path) else '.', exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         # جدول مشترکین
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS subscribers (
@@ -65,7 +58,7 @@ class ReportBot:
                 subscribed_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
+
         # جدول گزارش‌های ایموجی ممنوعه
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS emoji_reports (
@@ -77,11 +70,11 @@ class ReportBot:
                 reported_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
+
         conn.commit()
         conn.close()
         logger.info("✅ پایگاه داده ربات گزارش‌دهی آماده شد")
-        
+
     def load_subscribers(self):
         """بارگذاری مشترکین از دیتابیس"""
         conn = sqlite3.connect(self.db_path)
@@ -90,7 +83,7 @@ class ReportBot:
         self.subscribers = {row[0] for row in cursor.fetchall()}
         conn.close()
         logger.info(f"📋 {len(self.subscribers)} مشترک بارگذاری شد")
-        
+
     def add_subscriber(self, user_id, username=None, first_name=None):
         """اضافه کردن مشترک جدید"""
         conn = sqlite3.connect(self.db_path)
@@ -107,7 +100,7 @@ class ReportBot:
             logger.error(f"❌ خطا در اضافه کردن مشترک: {e}")
         finally:
             conn.close()
-            
+
     def remove_subscriber(self, user_id):
         """حذف مشترک"""
         conn = sqlite3.connect(self.db_path)
@@ -121,7 +114,7 @@ class ReportBot:
             logger.error(f"❌ خطا در حذف مشترک: {e}")
         finally:
             conn.close()
-            
+
     def log_emoji_report(self, chat_id, chat_title, emoji, stopped_bots_count):
         """ثبت گزارش ایموجی ممنوعه"""
         conn = sqlite3.connect(self.db_path)
@@ -137,57 +130,57 @@ class ReportBot:
             logger.error(f"❌ خطا در ثبت گزارش: {e}")
         finally:
             conn.close()
-            
+
     async def send_emoji_alert(self, chat_id, chat_title, emoji, stopped_bots_count):
         """ارسال فوری گزارش ایموجی ممنوعه به همه مشترکین - ساده و مؤثر"""
         if not self.subscribers:
             logger.warning("⚠️ هیچ مشترکی برای ارسال گزارش وجود ندارد")
             return
-        
+
         # ایجاد کلید ساده برای این گزارش
         import time
-        
+
         # تمیز کردن ایموجی و عنوان چت
         clean_emoji = str(emoji).strip() if emoji else "نامشخص"
         clean_title = str(chat_title).strip() if chat_title else f"چت {chat_id}"
-        
+
         # ایجاد کلید cache ساده
         cache_key = f"{chat_id}_{clean_emoji}"
-        
+
         current_time = time.time()
-        
+
         # بررسی cache با timeout مناسب
         timeout = 90.0  # 90 ثانیه
-        
+
         if cache_key in self.report_cache:
             last_report_time = self.report_cache[cache_key]
             if current_time - last_report_time < timeout:
                 time_left = int(timeout - (current_time - last_report_time))
                 logger.info(f"🔄 گزارش {clean_emoji} در {clean_title} قبلاً ارسال شده - {time_left} ثانیه تا ارسال مجدد")
                 return
-        
+
         # ثبت در cache
         self.report_cache[cache_key] = current_time
-        
+
         # پاک کردن cache قدیمی (نگه داشتن فقط 20 آیتم اخیر)
         if len(self.report_cache) > 20:
             # حذف 5 آیتم قدیمی‌ترین
             old_keys = sorted(self.report_cache.items(), key=lambda x: x[1])[:5]
             for old_key, _ in old_keys:
                 del self.report_cache[old_key]
-            
+
         # ثبت گزارش در دیتابیس
         self.log_emoji_report(chat_id, chat_title, emoji, stopped_bots_count)
-        
+
         # تعیین نام گروه با جزئیات بیشتر
         if chat_title and chat_title.strip():
             group_name = chat_title.strip()
         else:
             group_name = f"گروه {chat_id}"
-        
+
         # نرمال‌سازی ایموجی برای نمایش
         display_emoji = emoji.strip() if emoji else "نامشخص"
-        
+
         alert_message = f"""
 🚨 **هشدار: ایموجی ممنوعه تشخیص داده شد**
 
@@ -203,10 +196,10 @@ class ReportBot:
 
 💡 **توضیح:** وقتی ایموجی ممنوعه تشخیص داده می‌شود، همه ربات‌ها فوراً متوقف می‌شوند تا از مشکل جلوگیری کنند.
         """
-        
+
         failed_sends = []
         success_count = 0
-        
+
         for subscriber_id in self.subscribers.copy():
             try:
                 await self.client.send_message(
@@ -218,21 +211,21 @@ class ReportBot:
             except Exception as e:
                 logger.error(f"❌ خطا در ارسال به {subscriber_id}: {e}")
                 failed_sends.append(subscriber_id)
-                
+
         # حذف مشترکین غیرفعال
         for failed_id in failed_sends:
             self.remove_subscriber(failed_id)
-            
+
         logger.info(f"📤 گزارش یکتا ارسال شد به {success_count} مشترک، {len(failed_sends)} ناموفق - کلید: {cache_key}")
-        
+
     async def setup_handlers(self):
         """تنظیم هندلرهای ربات"""
-        
+
         @self.client.on_message(filters.command("start") & filters.private)
         async def start_command(client, message: Message):
             user = message.from_user
             self.add_subscriber(user.id, user.username, user.first_name)
-            
+
             welcome_text = f"""
 👋 سلام {user.first_name}!
 
@@ -248,14 +241,14 @@ class ReportBot:
 • /status - وضعیت سیستم
 • /reports - آخرین گزارش‌ها
             """
-            
+
             await message.reply_text(welcome_text)
-            
+
         @self.client.on_message(filters.command("stop") & filters.private)
         async def stop_command(client, message: Message):
             self.remove_subscriber(message.from_user.id)
             await message.reply_text("✅ شما از لیست گزارش‌دهی حذف شدید.\nبرای عضویت مجدد /start بفرستید.")
-            
+
         @self.client.on_message(filters.command("status") & filters.private)
         async def status_command(client, message: Message):
             status_text = f"""
@@ -267,7 +260,7 @@ class ReportBot:
 🤖 **عملکرد:** آماده دریافت گزارش از سیستم اصلی
             """
             await message.reply_text(status_text)
-            
+
         @self.client.on_message(filters.command("reports") & filters.private)
         async def reports_command(client, message: Message):
             conn = sqlite3.connect(self.db_path)
@@ -280,7 +273,7 @@ class ReportBot:
             ''')
             reports = cursor.fetchall()
             conn.close()
-            
+
             if reports:
                 reports_text = "📈 **آخرین گزارش‌های ایموجی ممنوعه:**\n\n"
                 for report in reports:
@@ -288,15 +281,15 @@ class ReportBot:
                     reports_text += f"• **{chat_title}** - {emoji} ({stopped_count} ربات) - {reported_at}\n"
             else:
                 reports_text = "📈 **هیچ گزارشی ثبت نشده است**"
-                
+
             await message.reply_text(reports_text)
-            
+
         # فقط ادمین‌ها می‌توانند تست کنند
         @self.client.on_message(filters.command("test") & filters.private)
         async def test_command(client, message: Message):
             if message.from_user.id not in self.admin_ids:
                 return
-                
+
             await self.send_emoji_alert(
                 chat_id=-1001234567890,
                 chat_title="گروه تست",
@@ -304,22 +297,22 @@ class ReportBot:
                 stopped_bots_count=9
             )
             await message.reply_text("✅ تست گزارش ارسال شد")
-            
+
         logger.info("✅ هندلرهای ربات گزارش‌دهی آماده شد")
-        
+
     async def start_bot(self):
         """شروع ربات گزارش‌دهی"""
         try:
             if not hasattr(self, 'is_valid') or not self.is_valid:
                 logger.error("❌ ربات گزارش‌دهی نامعتبر - توکن موجود نیست")
                 return False
-                
+
             if not self.bot_token:
                 logger.error("❌ توکن ربات موجود نیست")
                 return False
-                
+
             logger.info("🚀 شروع راه‌اندازی ربات گزارش‌دهی...")
-            
+
             # برای bot token، از API credentials پیش‌فرض استفاده می‌کنیم
             self.client = Client(
                 name="report_bot",
@@ -329,23 +322,23 @@ class ReportBot:
                 no_updates=False,
                 workdir="."
             )
-            
+
             await self.client.start()
             logger.info("✅ ربات گزارش‌دهی متصل شد")
-            
+
             self.load_subscribers()
             await self.setup_handlers()
-            
+
             me = await self.client.get_me()
             logger.info(f"🤖 ربات گزارش‌دهی راه‌اندازی شد: @{me.username} (ID: {me.id})")
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در راه‌اندازی ربات گزارش‌دهی: {e}")
             logger.error(f"📝 جزئیات خطا: {type(e).__name__}: {str(e)}")
             return False
-            
+
     async def stop_bot(self):
         """توقف ربات گزارش‌دهی"""
         try:
