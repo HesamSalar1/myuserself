@@ -21,6 +21,23 @@ try:
 except AttributeError:
     pass
 
+# تابع کمکی برای مدیریت امن Unicode
+def safe_text_process(text, max_length=100):
+    """پردازش امن متن با مدیریت خطاهای Unicode"""
+    try:
+        if not text:
+            return "[بدون متن]"
+        
+        # تبدیل به string و محدود کردن طول
+        safe_text = str(text)
+        if len(safe_text) > max_length:
+            return safe_text[:max_length] + "..."
+        return safe_text
+    except (UnicodeError, UnicodeDecodeError, UnicodeEncodeError):
+        return "[خطای کدگذاری]"
+    except Exception:
+        return "[خطای متن]"
+
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMember
 from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden, SessionPasswordNeeded, PhoneCodeInvalid, PhoneNumberInvalid
