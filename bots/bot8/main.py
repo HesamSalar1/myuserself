@@ -354,28 +354,40 @@ async def main():
     """تابع اصلی راه‌اندازی"""
     print("🚀 شروع ربات 8...")
 
-    # بررسی وجود session
-    if not os.path.exists("my_bot8.session"):
-        print("📱 Session یافت نشد. شروع فرآیند لاگین...")
-        success = await login_user()
-        if not success:
-            print("❌ لاگین ناموفق. خروج...")
-            return
+    try:
+        # بررسی وجود session
+        if not os.path.exists("my_bot8.session"):
+            print("📱 Session یافت نشد. شروع فرآیند لاگین...")
+            success = await login_user()
+            if not success:
+                print("❌ لاگین ناموفق. خروج...")
+                return
 
-    # راه‌اندازی ربات
-    print("✅ شروع ربات...")
-    await app.run()
+        # راه‌اندازی ربات
+        print("✅ شروع ربات...")
+        await app.start()
+        print("✅ ربات 8 با موفقیت راه‌اندازی شد!")
+        
+        # نگه داشتن ربات در حالت فعال
+        await asyncio.Event().wait()
+        
+    except KeyboardInterrupt:
+        print("🛑 متوقف شدن ربات...")
+    except Exception as e:
+        print(f"❌ خطا در راه‌اندازی ربات: {e}")
+    finally:
+        if app.is_connected:
+            await app.stop()
 
 if __name__ == "__main__":
     try:
-        # بررسی وجود event loop فعال
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # اگر loop در حال اجرا است، از create_task استفاده کنید
-            asyncio.create_task(main())
-        else:
-            # اگر loop فعال نیست، آن را اجرا کنید
-            loop.run_until_complete(main())
-    except RuntimeError:
-        # اگر هیچ loop وجود ندارد، یکی ایجاد کنید
+        # تلاش برای اجرای مستقیم
         asyncio.run(main())
+    except RuntimeError as e:
+        if "This event loop is already running" in str(e):
+            # در صورت وجود event loop فعال، از آن استفاده کنید
+            import nest_asyncio
+            nest_asyncio.apply()
+            asyncio.run(main())
+        else:
+            raise e
