@@ -154,8 +154,8 @@ class UnifiedBotLauncher:
                 'auto_reply_enabled': True
             },
             8: {
-                'api_id': 23900003,
-                'api_hash': "5f6fb8f1c6d80d264d5eb08af3b038b6",
+                'api_id': 15508294,
+                'api_hash': "778e5cd56ffcf22c2d62aa963ce85a0c",
                 'session_name': "bots/bot8/my_bot8",
                 'db_path': "bots/bot8/bot8_data.db",
                 'log_path': "bots/bot8/bot8.log",
@@ -2958,20 +2958,10 @@ class UnifiedBotLauncher:
                     logger.warning(f"   └ توسط: ADMIN - {sender_detail} (ID: {user_id})")
                     logger.warning(f"   └ ⚠️ حتی ادمین‌ها هم می‌توانند سیستم را متوقف کنند - هیچ استثنایی نیست")
 
-                    # نمایش محتوای پیام با بررسی امنیت و مدیریت Unicode
-                    try:
-                        message_content = message.text or message.caption or "[بدون متن]"
-                        if len(message_content) > 100:
-                            # استفاده از روش امن برای کوتاه کردن متن
-                            safe_content = str(message_content)[:100]
-                            message_content = safe_content + "..."
-                    except (UnicodeError, UnicodeDecodeError, UnicodeEncodeError) as e:
-                        message_content = "[خطای کدگذاری متن - ADMIN]"
-                        logger.warning(f"خطای Unicode در پردازش متن پیام ADMIN: {e}")
-                    except Exception as e:
-                        message_content = "[خطای نامشخص در متن - ADMIN]"
-                        logger.warning(f"خطای غیرمنتظره در پردازش متن ADMIN: {e}")
-                    
+                    # نمایش محتوای پیام با بررسی امنیت
+                    message_content = message.text or message.caption or "[بدون متن]"
+                    if len(message_content) > 100:
+                        message_content = message_content[:100] + "..."
                     logger.warning(f"   └ محتوای پیام ADMIN: {message_content}")
 
                     # **توقف کلی همه بات‌ها در این چت - حتی اگر ادمین باشد**
@@ -3008,20 +2998,10 @@ class UnifiedBotLauncher:
                     logger.warning(f"   └ توسط: ADMIN - {sender_detail} (ID: {user_id})")
                     logger.warning(f"   └ ⚠️ حتی در چت‌های خصوصی ادمین‌ها استثنا ندارند")
 
-                    # نمایش محتوای پیام با مدیریت Unicode
-                    try:
-                        message_content = message.text or message.caption or "[بدون متن]"
-                        if len(message_content) > 100:
-                            # استفاده از روش امن برای کوتاه کردن متن
-                            safe_content = str(message_content)[:100]
-                            message_content = safe_content + "..."
-                    except (UnicodeError, UnicodeDecodeError, UnicodeEncodeError) as e:
-                        message_content = "[خطای کدگذاری متن - خصوصی]"
-                        logger.warning(f"خطای Unicode در پردازش متن پیام خصوصی ADMIN: {e}")
-                    except Exception as e:
-                        message_content = "[خطای نامشخص در متن - خصوصی]"
-                        logger.warning(f"خطای غیرمنتظره در پردازش متن خصوصی: {e}")
-                    
+                    # نمایش محتوای پیام
+                    message_content = message.text or message.caption or "[بدون متن]"
+                    if len(message_content) > 100:
+                        message_content = message_content[:100] + "..."
                     logger.warning(f"   └ محتوای پیام ADMIN (خصوصی): {message_content}")
 
                     # لاگ عملیات امنیتی
@@ -3077,20 +3057,10 @@ class UnifiedBotLauncher:
                     logger.info(f"🛑 بات {bot_id} - ایموجی/کامند ممنوعه تشخیص داده شد در چت {chat_id}")
                     logger.info(f"   └ توسط: {sender_type} - {sender_detail} (ID: {user_id})")
 
-                    # نمایش محتوای پیام با بررسی امنیت و مدیریت Unicode
-                    try:
-                        message_content = message.text or message.caption or "[بدون متن]"
-                        if len(message_content) > 100:
-                            # استفاده از روش امن برای کوتاه کردن متن
-                            safe_content = str(message_content)[:100]
-                            message_content = safe_content + "..."
-                    except (UnicodeError, UnicodeDecodeError, UnicodeEncodeError) as e:
-                        message_content = "[خطای کدگذاری متن]"
-                        logger.warning(f"خطای Unicode در پردازش متن پیام: {e}")
-                    except Exception as e:
-                        message_content = "[خطای نامشخص در متن]"
-                        logger.warning(f"خطای غیرمنتظره در پردازش متن: {e}")
-                    
+                    # نمایش محتوای پیام با بررسی امنیت
+                    message_content = message.text or message.caption or "[بدون متن]"
+                    if len(message_content) > 100:
+                        message_content = message_content[:100] + "..."
                     logger.info(f"   └ محتوای پیام: {message_content}")
 
                     # **توقف کلی همه بات‌ها در این چت تا پیام بعدی دشمن**
