@@ -167,7 +167,7 @@ def init_db():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_enemy_user_id ON enemy_list(user_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_friend_user_id ON friend_list(user_id)')
 
-    cursor.commit()
+    conn.commit()
     conn.close()
 
 # توابع مدیریت فحش‌ها
