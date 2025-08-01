@@ -43,10 +43,7 @@ app = Client(
     max_concurrent_transmissions=30
 )
 
-# import ماژول کنترل اکو مشترک
-import sys
-sys.path.append('..')
-from echo_control import set_echo_active, is_echo_active
+# ماژول کنترل اکو حذف شد
 
 # متغیرهای کنترل
 auto_reply_enabled = True
@@ -705,101 +702,7 @@ async def off_auto_reply(client, message: Message):
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
 
-# کامند اکو (تکرار دقیق پیام)
-@app.on_message(filters.command("echo") & filters.user(admin_id))
-async def echo_command(client, message: Message):
-    """کامند اکو - تکرار دقیق پیام کاربر"""
-    try:
-        set_echo_active(True)  # فعال کردن حالت اکو
-        
-        if message.reply_to_message:
-            # اگر روی پیامی ریپلای شده، آن پیام را اکو کن
-            original_msg = message.reply_to_message
-            
-            # حذف پیام کامند اکو
-            await message.delete()
-            
-            # اکو کردن پیام اصلی
-            if original_msg.text:
-                await client.send_message(
-                    message.chat.id, 
-                    original_msg.text,
-                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
-                )
-            elif original_msg.photo:
-                await client.send_photo(
-                    message.chat.id,
-                    original_msg.photo.file_id,
-                    caption=original_msg.caption,
-                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
-                )
-            elif original_msg.video:
-                await client.send_video(
-                    message.chat.id,
-                    original_msg.video.file_id,
-                    caption=original_msg.caption,
-                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
-                )
-            elif original_msg.animation:
-                await client.send_animation(
-                    message.chat.id,
-                    original_msg.animation.file_id,
-                    caption=original_msg.caption,
-                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
-                )
-            elif original_msg.sticker:
-                await client.send_sticker(
-                    message.chat.id,
-                    original_msg.sticker.file_id,
-                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
-                )
-            elif original_msg.audio:
-                await client.send_audio(
-                    message.chat.id,
-                    original_msg.audio.file_id,
-                    caption=original_msg.caption,
-                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
-                )
-            elif original_msg.voice:
-                await client.send_voice(
-                    message.chat.id,
-                    original_msg.voice.file_id,
-                    caption=original_msg.caption,
-                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
-                )
-            elif original_msg.video_note:
-                await client.send_video_note(
-                    message.chat.id,
-                    original_msg.video_note.file_id,
-                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
-                )
-            elif original_msg.document:
-                await client.send_document(
-                    message.chat.id,
-                    original_msg.document.file_id,
-                    caption=original_msg.caption,
-                    reply_to_message_id=original_msg.reply_to_message_id if original_msg.reply_to_message else None
-                )
-            
-            log_action("echo", admin_id, f"اکو پیام در {message.chat.title}")
-            
-        else:
-            # اگر ریپلای نشده، متن بعد از کامند را اکو کن
-            if len(message.command) > 1:
-                echo_text = " ".join(message.command[1:])
-                await message.edit_text(echo_text)
-                log_action("echo", admin_id, f"اکو متن: {echo_text[:50]}")
-            else:
-                await message.edit_text("⚠️ لطفاً روی پیامی ریپلای کنید یا متنی وارد کنید.\n💡 استفاده: `/echo متن` یا ریپلای `/echo`")
-        
-        # تاخیر کوتاه برای اطمینان از اتمام عملیات اکو
-        await asyncio.sleep(0.5)
-        set_echo_active(False)  # غیرفعال کردن حالت اکو
-
-    except Exception as e:
-        set_echo_active(False)
-        await message.edit_text(f"❌ خطا در اکو: {str(e)}")
-        logger.error(f"خطا در echo_command: {e}")
+# کامند اکو حذف شد
 
 # کامند ارسال همگانی
 @app.on_message(filters.command("broadcast") & filters.user(admin_id))
@@ -919,9 +822,7 @@ async def send_instant_reply(message, selected_content):
 async def auto_reply_handler(client, message: Message):
     """هندلر فوری پاسخگویی"""
     
-    # اگر حالت اکو فعال است، هیچ پاسخی نده
-    if is_echo_active():
-        return
+    # بررسی حالت اکو حذف شد
         
     if not auto_reply_enabled or not message.from_user:
         return
@@ -992,10 +893,7 @@ async def help_command(client, message: Message):
 • `/start` - راه‌اندازی مجدد ربات
 • `/help` - نمایش این راهنما
 
-🔊 **قابلیت اکو:**
-• `/echo [متن]` - تکرار دقیق متن (ریپلای یا متنی)
-  └ حین اکو، سایر بات‌ها واکنش نشان نمی‌دهند
-  └ پشتیبانی کامل از تمام انواع رسانه و ریپلای
+🔊 **قابلیت اکو:** حذف شده
 
 💡 **نکات مهم:**
 • از ریپلای برای اضافه کردن رسانه استفاده کنید
