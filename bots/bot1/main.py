@@ -1,9 +1,9 @@
-
 import json
 import asyncio
 import sys
 import sqlite3
 import logging
+import getpass
 from datetime import datetime, timedelta
 import shutil
 import os
@@ -16,11 +16,11 @@ except AttributeError:
 
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMember
-from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
+from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden, SessionPasswordNeeded, PhoneCodeInvalid, PhoneNumberInvalid
 
 # تنظیمات اصلی بات 1
-api_id = 15508294
-api_hash = "778e5cd56ffcf22c2d62aa963ce85a0c"
+api_id = 23700094
+api_hash = "7cd6b0ba9c5b1a5f21b8b76f1e2b8e40"
 admin_id = 7850529246
 
 # تنظیم لاگ
@@ -52,6 +52,90 @@ from echo_control import set_echo_active, is_echo_active
 auto_reply_enabled = True
 count_tasks = {}
 scheduled_messages = {}
+
+async def login_user():
+    """سیستم پیشرفته لاگین و دریافت session"""
+    try:
+        print(f"🔐 شروع فرآیند لاگین برای بات 1...")
+        print(f"📱 API ID: {api_id}")
+        print(f"🔑 API Hash: {api_hash[:10]}...")
+
+        # تلاش برای اتصال
+        await app.connect()
+
+        # بررسی وضعیت احراز هویت
+        try:
+            me = await app.get_me()
+            print(f"✅ شما قبلاً وارد شده‌اید: {me.first_name} (@{me.username})")
+            print(f"📞 شماره تلفن: {me.phone_number}")
+            print(f"🆔 User ID: {me.id}")
+            return True
+        except:
+            print("❌ session موجود نیست یا منقضی شده. شروع فرآیند لاگین جدید...")
+
+        # درخواست شماره تلفن
+        phone_number = input("📱 شماره تلفن خود را وارد کنید (به همراه کد کشور): ").strip()
+
+        if not phone_number:
+            print("❌ شماره تلفن نمی‌تواند خالی باشد")
+            return False
+
+        print(f"📤 ارسال کد تأیید به {phone_number}...")
+
+        try:
+            # ارسال کد
+            sent_code = await app.send_code(phone_number)
+            print(f"✅ کد تأیید ارسال شد")
+            print(f"📋 نوع کد: {sent_code.type}")
+
+            # درخواست کد تأیید
+            verification_code = input("🔢 کد 5 رقمی ارسال شده را وارد کنید: ").strip()
+
+            if not verification_code or len(verification_code) != 5:
+                print("❌ کد تأیید باید 5 رقم باشد")
+                return False
+
+            try:
+                # تأیید کد و لاگین
+                await app.sign_in(phone_number, sent_code.phone_code_hash, verification_code)
+
+            except SessionPasswordNeeded:
+                print("🔐 احراز هویت دو مرحله‌ای فعال است")
+                password = getpass.getpass("🔑 رمز عبور خود را وارد کنید: ")
+
+                if not password:
+                    print("❌ رمز عبور نمی‌تواند خالی باشد")
+                    return False
+
+                await app.check_password(password)
+                print("✅ احراز هویت دو مرحله‌ای موفق")
+
+            # تأیید نهایی لاگین
+            me = await app.get_me()
+            print(f"🎉 لاگین موفقیت‌آمیز!")
+            print(f"👤 نام: {me.first_name} {me.last_name or ''}")
+            print(f"🏷️ نام کاربری: @{me.username}")
+            print(f"📞 شماره: {me.phone_number}")
+            print(f"🆔 User ID: {me.id}")
+            print(f"✅ Session ذخیره شد در: my_bot1.session")
+
+            return True
+
+        except PhoneCodeInvalid:
+            print("❌ کد تأیید نامعتبر است")
+            return False
+        except PhoneNumberInvalid:
+            print("❌ شماره تلفن نامعتبر است")
+            return False
+        except Exception as e:
+            print(f"❌ خطا در لاگین: {e}")
+            return False
+
+    except Exception as e:
+        print(f"❌ خطا در اتصال: {e}")
+        return False
+    finally:
+        await app.disconnect()
 
 # تابع اتصال به دیتابیس با جداول کامل
 def init_db():
@@ -306,6 +390,18 @@ def get_stats():
 
 # شروع برنامه
 init_db()
+
+# کامند لاگین
+@app.on_message(filters.command("login") & filters.user(admin_id))
+async def login_command(client, message: Message):
+    await message.edit_text("🔐 شروع فرآیند لاگین مجدد...")
+    await app.stop()
+    success = await login_user()
+    if success:
+        await app.start()
+        await message.edit_text("✅ لاگین موفقیت‌آمیز! بات مجدداً راه‌اندازی شد.")
+    else:
+        await message.edit_text("❌ لاگین ناموفق. لطفاً دوباره تلاش کنید.")
 
 # کامند شروع
 @app.on_message(filters.command("start") & filters.user(admin_id))
@@ -950,11 +1046,14 @@ async def cache_updater():
 @app.on_message(filters.command("help") & filters.user(admin_id))
 async def help_command(client, message: Message):
     try:
-        text = """🤖 **راهنمای جامع ربات مدیریت هوشمند دوست و دشمن v2.0**
+        text = """🤖 **راهنمای ربات 1 - نسخه پیشرفته**
 
-🔥 **مدیریت سیستم فحش‌ها:**
-• `/addfosh [متن]` - اضافه کردن فحش جدید (متن یا ریپلای رسانه)
-  └ پشتیبانی: متن، عکس، ویدیو، گیف، استیکر، صوت
+🔐 **مدیریت Session:**
+• `/login` - لاگین مجدد و ایجاد session جدید
+• `/start` - شروع ربات
+
+🔥 **مدیریت فحش‌ها:**
+• `/addfosh [متن]` - اضافه کردن فحش
 • `/delfosh [متن]` - حذف فحش مشخص از دیتابیس
 • `/listfosh` - نمایش کامل فحش‌ها با صفحه‌بندی خودکار
 • `/clearfosh` - حذف کلی تمام فحش‌ها (غیرقابل بازگشت)
@@ -973,7 +1072,6 @@ async def help_command(client, message: Message):
 
 💬 **بانک کلمات دوستانه:**
 • `/addword [متن]` - اضافه کردن پیام دوستانه (متن یا ریپلای رسانه)
-  └ پشتیبانی: متن، عکس، ویدیو، گیف، استیکر، صوت
 • `/delword [متن]` - حذف کلمه مشخص از بانک
 • `/listword` - مشاهده تمام پیام‌های دوستانه
 • `/clearword` - حذف کامل بانک
@@ -1015,11 +1113,21 @@ async def bot_ready():
     asyncio.create_task(cache_updater())
     logger.info("ربات 1 آماده شد و کش راه‌اندازی شد!")
 
-print("Bot 1 initialized and ready!")
-logger.info("ربات 1 آماده شد!")
+async def main():
+    """تابع اصلی راه‌اندازی"""
+    print("🚀 شروع ربات 1...")
+
+    # بررسی وجود session
+    if not os.path.exists("my_bot1.session"):
+        print("📱 Session یافت نشد. شروع فرآیند لاگین...")
+        success = await login_user()
+        if not success:
+            print("❌ لاگین ناموفق. خروج...")
+            return
+
+    # راه‌اندازی ربات
+    print("✅ شروع ربات...")
+    await app.start()
 
 if __name__ == "__main__":
-    # راه‌اندازی تسک‌های پس‌زمینه
-    loop = asyncio.get_event_loop()
-    loop.create_task(bot_ready())
-    app.run()
+    asyncio.run(main())

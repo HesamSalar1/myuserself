@@ -1,9 +1,9 @@
-
 import json
 import asyncio
 import sys
 import sqlite3
 import logging
+import getpass
 from datetime import datetime, timedelta
 import shutil
 import os
@@ -16,7 +16,7 @@ except AttributeError:
 
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMember
-from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
+from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden, SessionPasswordNeeded, PhoneCodeInvalid, PhoneNumberInvalid
 
 # تنظیمات اصلی بات 3
 api_id = 21555907
@@ -43,12 +43,94 @@ app = Client(
     max_concurrent_transmissions=30
 )
 
-# ماژول کنترل اکو حذف شد
-
 # متغیرهای کنترل
 auto_reply_enabled = True
 count_tasks = {}
 scheduled_messages = {}
+
+async def login_user():
+    """سیستم پیشرفته لاگین و دریافت session"""
+    try:
+        print(f"🔐 شروع فرآیند لاگین برای بات 3...")
+        print(f"📱 API ID: {api_id}")
+        print(f"🔑 API Hash: {api_hash[:10]}...")
+
+        # تلاش برای اتصال
+        await app.connect()
+
+        # بررسی وضعیت احراز هویت
+        try:
+            me = await app.get_me()
+            print(f"✅ شما قبلاً وارد شده‌اید: {me.first_name} (@{me.username})")
+            print(f"📞 شماره تلفن: {me.phone_number}")
+            print(f"🆔 User ID: {me.id}")
+            return True
+        except:
+            print("❌ session موجود نیست یا منقضی شده. شروع فرآیند لاگین جدید...")
+
+        # درخواست شماره تلفن
+        phone_number = input("📱 شماره تلفن خود را وارد کنید (به همراه کد کشور): ").strip()
+
+        if not phone_number:
+            print("❌ شماره تلفن نمی‌تواند خالی باشد")
+            return False
+
+        print(f"📤 ارسال کد تأیید به {phone_number}...")
+
+        try:
+            # ارسال کد
+            sent_code = await app.send_code(phone_number)
+            print(f"✅ کد تأیید ارسال شد")
+            print(f"📋 نوع کد: {sent_code.type}")
+
+            # درخواست کد تأیید
+            verification_code = input("🔢 کد 5 رقمی ارسال شده را وارد کنید: ").strip()
+
+            if not verification_code or len(verification_code) != 5:
+                print("❌ کد تأیید باید 5 رقم باشد")
+                return False
+
+            try:
+                # تأیید کد و لاگین
+                await app.sign_in(phone_number, sent_code.phone_code_hash, verification_code)
+
+            except SessionPasswordNeeded:
+                print("🔐 احراز هویت دو مرحله‌ای فعال است")
+                password = getpass.getpass("🔑 رمز عبور خود را وارد کنید: ")
+
+                if not password:
+                    print("❌ رمز عبور نمی‌تواند خالی باشد")
+                    return False
+
+                await app.check_password(password)
+                print("✅ احراز هویت دو مرحله‌ای موفق")
+
+            # تأیید نهایی لاگین
+            me = await app.get_me()
+            print(f"🎉 لاگین موفقیت‌آمیز!")
+            print(f"👤 نام: {me.first_name} {me.last_name or ''}")
+            print(f"🏷️ نام کاربری: @{me.username}")
+            print(f"📞 شماره: {me.phone_number}")
+            print(f"🆔 User ID: {me.id}")
+            print(f"✅ Session ذخیره شد در: my_bot3.session")
+
+            return True
+
+        except PhoneCodeInvalid:
+            print("❌ کد تأیید نامعتبر است")
+            return False
+        except PhoneNumberInvalid:
+            print("❌ شماره تلفن نامعتبر است")
+            return False
+        except Exception as e:
+            print(f"❌ خطا در لاگین: {e}")
+            return False
+
+    except Exception as e:
+        print(f"❌ خطا در اتصال: {e}")
+        return False
+    finally:
+        await app.disconnect()
 
 # تابع اتصال به دیتابیس با جداول کامل
 def init_db():
@@ -304,10 +386,22 @@ def get_stats():
 # شروع برنامه
 init_db()
 
+# کامند لاگین
+@app.on_message(filters.command("login") & filters.user(admin_id))
+async def login_command(client, message: Message):
+    await message.edit_text("🔐 شروع فرآیند لاگین مجدد...")
+    await app.stop()
+    success = await login_user()
+    if success:
+        await app.start()
+        await message.edit_text("✅ لاگین موفقیت‌آمیز! بات مجدداً راه‌اندازی شد.")
+    else:
+        await message.edit_text("❌ لاگین ناموفق. لطفاً دوباره تلاش کنید.")
+
 # کامند شروع
 @app.on_message(filters.command("start") & filters.user(admin_id))
 async def start_command(client, message: Message):
-    await message.edit_text(f"🤖 **ربات 3 آماده است!**\n\n📋 برای مشاهده کامندها: `/help`\n🆔 Admin: `{admin_id}`")
+    await message.edit_text(f"🤖 **ربات 3 آماده است!**\n\n📋 برای لاگین: `/login`\n🆔 Admin: `{admin_id}`")
 
 # کامند اضافه کردن فحش (تمام انواع رسانه)
 @app.on_message(filters.command("addfosh") & filters.user(admin_id))
@@ -909,11 +1003,80 @@ async def bot_ready():
     asyncio.create_task(cache_updater())
     logger.info("ربات 3 آماده شد و کش راه‌اندازی شد!")
 
-print("Bot 3 initialized and ready!")
-logger.info("ربات 3 آماده شد!")
+# کامند راهنما - تغییرات برای لاگین
+@app.on_message(filters.command("help") & filters.user(admin_id))
+async def help_command(client, message: Message):
+    try:
+        text = """🤖 **راهنمای ربات 3 - نسخه پیشرفته**
 
+🔐 **مدیریت Session:**
+• `/login` - لاگین مجدد و ایجاد session جدید
+• `/start` - شروع ربات
+
+🔥 **مدیریت سیستم فحش‌ها:**
+• `/addfosh [متن]` - اضافه کردن فحش جدید (متن یا ریپلای رسانه)
+  └ پشتیبانی: متن، عکس، ویدیو، گیف، استیکر، صوت
+• `/delfosh [متن]` - حذف فحش مشخص از دیتابیس
+• `/listfosh` - نمایش کامل فحش‌ها با صفحه‌بندی خودکار
+• `/clearfosh` - حذف کلی تمام فحش‌ها (غیرقابل بازگشت)
+
+👹 **سیستم مدیریت دشمنان:**
+• `/setenemy` (ریپلای) - افزودن کاربر به لیست سیاه
+• `/delenemy` (ریپلای) - حذف کاربر از لیست دشمنان
+• `/listenemy` - نمایش جزئیات کامل دشمنان + تاریخ
+• `/clearenemy` - پاک‌سازی کامل لیست دشمنان
+
+😊 **سیستم مدیریت دوستان:**
+• `/setfriend` (ریپلای) - افزودن کاربر به لیست VIP
+• `/delfriend` (ریپلای) - حذف کاربر از لیست دوستان
+• `/listfriend` - نمایش اطلاعات کامل دوستان + آمار
+• `/clearfriend` - حذف کلی لیست دوستان
+
+💬 **بانک کلمات دوستانه:**
+• `/addword [متن]` - اضافه کردن پیام دوستانه (متن یا ریپلای رسانه)
+  └ پشتیبانی: متن، عکس، ویدیو، گیف، استیکر، صوت
+• `/delword [متن]` - حذف کلمه مشخص از بانک
+• `/listword` - مشاهده تمام پیام‌های دوستانه
+• `/clearword` - حذف کامل بانک
+
+📢 **سیستم ارسال همگانی:**
+• `/broadcast [پیام]` - ارسال همگانی متن به تمام گروه‌ها
+• پشتیبانی از ارسال رسانه با ریپلای در broadcast
+  └ شامل گزارش دقیق موفقیت/ناموفقی
+  └ مدیریت خطای Flood + تاخیر هوشمند
+  └ فقط گروه‌ها (نه چت خصوصی/کانال)
+
+🤖 **تنظیمات سیستم:**
+• `/runself` - فعال کردن پاسخگویی خودکار
+• `/offself` - غیرفعال کردن پاسخگویی
+• `/stats` - نمایش آمار کامل سیستم
+• `/start` - راه‌اندازی مجدد ربات
+• `/help` - نمایش این راهنما
+
+💡 **نکات:**
+• برای لاگین اولیه از کامند `/login` استفاده کنید"""
+
+        await message.edit_text(text)
+
+    except Exception as e:
+        await message.edit_text(f"❌ خطا: {str(e)}")
+
+async def main():
+    """تابع اصلی راه‌اندازی"""
+    print("🚀 شروع ربات 3...")
+
+    # بررسی وجود session
+    if not os.path.exists("my_bot3.session"):
+        print("📱 Session یافت نشد. شروع فرآیند لاگین...")
+        success = await login_user()
+        if not success:
+            print("❌ لاگین ناموفق. خروج...")
+            return
+
+    # راه‌اندازی ربات
+    print("✅ شروع ربات...")
+    await app.start()
+    await bot_ready() # Initialize cache and background tasks after bot starts
+    
 if __name__ == "__main__":
-    # راه‌اندازی تسک‌های پس‌زمینه
-    loop = asyncio.get_event_loop()
-    loop.create_task(bot_ready())
-    app.run()
+    asyncio.run(main())

@@ -117,6 +117,60 @@ mode = "sequential"
 task = "shell.exec"
 args = "python3 unified_bot_launcher.py"
 
+[[workflows.workflow]]
+name = "Setup Bot 1 Login"
+author = 41025977
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd bots/bot1 && python3 main.py"
+
+[[workflows.workflow]]
+name = "Setup Bot 2 Login"
+author = 41025977
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd bots/bot2 && python3 main.py"
+
+[[workflows.workflow]]
+name = "Setup Bot 3 Login"
+author = 41025977
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd bots/bot3 && python3 main.py"
+
+[[workflows.workflow]]
+name = "Setup Bot 4 Login"
+author = 41025977
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd bots/bot4 && python3 main.py"
+
+[[workflows.workflow]]
+name = "Setup Bot 6 Login"
+author = 41025977
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd bots/bot6 && python3 main.py"
+
+[[workflows.workflow]]
+name = "Setup Bot 9 Login"
+author = 41025977
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd bots/bot9 && python3 main.py"
+
 [[ports]]
 localPort = 3000
 externalPort = 3000
