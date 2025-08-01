@@ -11,6 +11,12 @@ import os
 from random import choice
 
 try:
+    import nest_asyncio
+    nest_asyncio.apply()
+except ImportError:
+    pass
+
+try:
     sys.stdout.reconfigure(encoding='utf-8')
 except AttributeError:
     pass
@@ -361,4 +367,15 @@ async def main():
     await app.run()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        # بررسی وجود event loop فعال
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # اگر loop در حال اجرا است، از create_task استفاده کنید
+            asyncio.create_task(main())
+        else:
+            # اگر loop فعال نیست، آن را اجرا کنید
+            loop.run_until_complete(main())
+    except RuntimeError:
+        # اگر هیچ loop وجود ندارد، یکی ایجاد کنید
+        asyncio.run(main())
