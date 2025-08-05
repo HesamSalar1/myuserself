@@ -19,8 +19,8 @@ from pyrogram.types import Message, ChatMember
 from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden, SessionPasswordNeeded, PhoneCodeInvalid, PhoneNumberInvalid
 
 # تنظیمات اصلی بات 1
-api_id = 23700094
-api_hash = "7cd6b0ba9c5b1a5f21b8b76f1e2b8e40"
+api_id = 15508294
+api_hash = "778e5cd56ffcf22c2d62aa963ce85a0c"
 admin_id = 7850529246
 
 # تنظیم لاگ
