@@ -366,9 +366,17 @@ class UnifiedBotLauncher:
                     emoji TEXT UNIQUE NOT NULL,
                     description TEXT,
                     added_by_user_id INTEGER,
-                    category TEXT DEFAULT 'default',
+                    added_by_username TEXT,
+                    category TEXT DEFAULT 'custom',
                     is_active BOOLEAN DEFAULT 1,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    severity_level INTEGER DEFAULT 1,
+                    auto_pause BOOLEAN DEFAULT 1,
+                    notification_enabled BOOLEAN DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    last_triggered DATETIME,
+                    trigger_count INTEGER DEFAULT 0,
+                    notes TEXT
                 )
             ''')
 
@@ -379,11 +387,20 @@ class UnifiedBotLauncher:
                     word TEXT UNIQUE NOT NULL,
                     description TEXT,
                     added_by_user_id INTEGER,
-                    category TEXT DEFAULT 'default',
+                    added_by_username TEXT,
+                    category TEXT DEFAULT 'custom',
                     is_active BOOLEAN DEFAULT 1,
                     case_sensitive BOOLEAN DEFAULT 0,
                     partial_match BOOLEAN DEFAULT 1,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    regex_pattern TEXT,
+                    severity_level INTEGER DEFAULT 1,
+                    auto_pause BOOLEAN DEFAULT 1,
+                    notification_enabled BOOLEAN DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    last_triggered DATETIME,
+                    trigger_count INTEGER DEFAULT 0,
+                    notes TEXT
                 )
             ''')
 
@@ -738,6 +755,121 @@ class UnifiedBotLauncher:
     # =================================================================
     # سیستم مدیریت پیشرفته ایموجی‌های ممنوعه - Enhanced Forbidden Emoji System
     # =================================================================
+
+    def add_forbidden_emoji_ultra_advanced(self, emoji, description=None, severity_level=1, added_by_user_id=None, added_by_username=None, category='custom', auto_pause=True, notification_enabled=True):
+        """🚀 سیستم فوق‌پیشرفته اضافه کردن ایموجی ممنوعه"""
+        try:
+            db_path = self.bot_configs[1]['db_path']
+            self.setup_database(1, db_path)
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # نرمال‌سازی پیشرفته ایموجی
+            normalized_emoji = self.normalize_emoji(emoji)
+
+            # بررسی وجود قبلی
+            cursor.execute("SELECT id, is_active FROM forbidden_emojis WHERE emoji = ?", (emoji,))
+            existing = cursor.fetchone()
+
+            if existing:
+                # اگر موجود است، بروزرسانی اطلاعات
+                cursor.execute("""
+                    UPDATE forbidden_emojis 
+                    SET is_active = 1, description = ?, severity_level = ?, 
+                        auto_pause = ?, notification_enabled = ?, updated_at = CURRENT_TIMESTAMP,
+                        added_by_username = ?, notes = ?
+                    WHERE emoji = ?
+                """, (description, severity_level, auto_pause, notification_enabled, added_by_username, f"Updated by {added_by_username}", emoji))
+                result = True
+                action = "updated"
+            else:
+                # اضافه کردن جدید
+                cursor.execute("""
+                    INSERT INTO forbidden_emojis (emoji, description, added_by_user_id, added_by_username, 
+                                                category, severity_level, auto_pause, notification_enabled, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+                """, (emoji, description, added_by_user_id, added_by_username, category, severity_level, auto_pause, notification_enabled))
+                result = cursor.rowcount > 0
+                action = "added"
+
+            if result:
+                # به‌روزرسانی کش
+                self.forbidden_emojis.add(emoji)
+
+                # لاگ امنیتی پیشرفته
+                self.log_security_action(
+                    f"emoji_{action}",
+                    emoji,
+                    added_by_user_id, added_by_username, None, None, None,
+                    f"Emoji {action} with severity {severity_level}"
+                )
+
+            conn.commit()
+            conn.close()
+            return result
+
+        except Exception as e:
+            logger.error(f"❌ خطا در اضافه کردن ایموجی {emoji}: {e}")
+            return False
+
+    def add_forbidden_word_ultra_advanced(self, word, description=None, case_sensitive=False, partial_match=True, severity_level=1, added_by_user_id=None, added_by_username=None, category='custom', auto_pause=True, notification_enabled=True):
+        """🚀 سیستم فوق‌پیشرفته اضافه کردن کلمه ممنوعه"""
+        try:
+            db_path = self.bot_configs[1]['db_path']
+            self.setup_database(1, db_path)
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # بررسی وجود قبلی
+            cursor.execute("SELECT id, is_active FROM forbidden_words WHERE word = ?", (word,))
+            existing = cursor.fetchone()
+
+            if existing:
+                # اگر موجود است، بروزرسانی اطلاعات
+                cursor.execute("""
+                    UPDATE forbidden_words 
+                    SET is_active = 1, description = ?, case_sensitive = ?, partial_match = ?,
+                        severity_level = ?, auto_pause = ?, notification_enabled = ?, 
+                        updated_at = CURRENT_TIMESTAMP, added_by_username = ?, 
+                        notes = ?
+                    WHERE word = ?
+                """, (description, case_sensitive, partial_match, severity_level, auto_pause, 
+                     notification_enabled, added_by_username, f"Updated by {added_by_username}", word))
+                result = True
+                action = "updated"
+            else:
+                # اضافه کردن جدید
+                cursor.execute("""
+                    INSERT INTO forbidden_words (word, description, case_sensitive, partial_match,
+                                               added_by_user_id, added_by_username, category, 
+                                               severity_level, auto_pause, notification_enabled, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                """, (word, description, case_sensitive, partial_match, added_by_user_id, 
+                     added_by_username, category, severity_level, auto_pause, notification_enabled))
+                result = cursor.rowcount > 0
+                action = "added"
+
+            if result:
+                # به‌روزرسانی کش
+                self.forbidden_words.add(word)
+
+                # لاگ امنیتی پیشرفته
+                self.log_security_action(
+                    f"word_{action}",
+                    word,
+                    added_by_user_id, added_by_username, None, None, None,
+                    f"Word {action} with severity {severity_level}, case_sensitive: {case_sensitive}"
+                )
+
+            conn.commit()
+            conn.close()
+            return result
+
+        except Exception as e:
+            logger.error(f"❌ خطا در اضافه کردن کلمه {word}: {e}")
+            return False
 
     def add_forbidden_emoji_advanced(self, emoji, description=None, category='custom', added_by_user_id=None):
         """اضافه کردن ایموجی ممنوعه با ویژگی‌های پیشرفته"""
@@ -1494,8 +1626,9 @@ class UnifiedBotLauncher:
         return user_id in self.all_admin_ids
 
     def normalize_emoji(self, emoji):
-        """نرمال‌سازی پیشرفته ایموجی برای مقایسه دقیق‌تر"""
+        """🔬 نرمال‌سازی فوق‌پیشرفته ایموجی - Advanced Unicode Processing"""
         import unicodedata
+        import re
 
         if not emoji:
             return ""
@@ -2992,21 +3125,52 @@ class UnifiedBotLauncher:
             # کامند مدیریت ایموجی‌های ممنوعه
             @app.on_message(filters.command("addemoji") & admin_filter)
             async def add_emoji_command(client, message):
+                """🆕 اضافه کردن ایموجی ممنوعه با ویژگی‌های پیشرفته"""
                 try:
                     if len(message.command) < 2:
-                        await message.reply_text("⚠️ لطفاً ایموجی را وارد کنید.\n💡 استفاده: `/addemoji ⚡ توضیحات اختیاری`")
+                        await message.reply_text(
+                            "⚠️ **استفاده صحیح:**\n"
+                            "`/addemoji [ایموجی] [توضیحات] [سطح خطر: 1-3]`\n\n"
+                            "**مثال‌ها:**\n"
+                            "• `/addemoji ⚡`\n"
+                            "• `/addemoji 🔮 ایموجی خطرناک`\n"
+                            "• `/addemoji 💎 الماس گران‌بها 3`"
+                        )
                         return
 
                     emoji = message.command[1]
-                    description = " ".join(message.command[2:]) if len(message.command) > 2 else "بدون توضیحات"
+                    
+                    # پردازش آرگومان‌ها
+                    args = message.command[2:]
+                    description = ""
+                    severity_level = 1
+                    
+                    # جدا کردن سطح خطر از توضیحات
+                    if args:
+                        # بررسی آخرین آرگومان برای سطح خطر
+                        try:
+                            severity_level = int(args[-1])
+                            if 1 <= severity_level <= 3:
+                                description = " ".join(args[:-1]) if len(args) > 1 else ""
+                            else:
+                                severity_level = 1
+                                description = " ".join(args)
+                        except ValueError:
+                            description = " ".join(args)
+                    
+                    if not description:
+                        description = "بدون توضیحات"
+
                     user_id = message.from_user.id
+                    username = message.from_user.username or message.from_user.first_name
 
-                    print(f"🔍 تلاش برای اضافه کردن ایموجی: '{emoji}' با توضیحات: '{description}'")
+                    print(f"🔍 اضافه کردن ایموجی: '{emoji}' | توضیحات: '{description}' | سطح: {severity_level}")
 
-                    if self.add_forbidden_emoji_advanced(emoji, description, 'custom', user_id):
+                    if self.add_forbidden_emoji_ultra_advanced(emoji, description, severity_level, user_id, username):
+                        severity_text = ["", "🟢 کم", "🟡 متوسط", "🔴 بالا"][severity_level]
                         await message.reply_text(
                             f"✅ **ایموجی ممنوعه اضافه شد**\n\n"
-                            f"🔹 **ایموجی:** {emoji}\n"
+                            f"🎯 **ایموجی:** {emoji}\n"
                             f"🔹 **توضیحات:** {description}\n"
                             f"🔹 **کدهای Unicode:** {' '.join([f'U+{ord(c):04X}' for c in emoji])}\n"
                             f"🔹 **مجموع ایموجی‌ها:** {len(self.forbidden_emojis)} عدد"
@@ -3796,7 +3960,7 @@ class UnifiedBotLauncher:
 
 🔥 **سیستم فحش نامحدود:**
 • فحش خودکار و مداوم به دشمنان تا دریافت ایموجی توقف
-• توقف هوشمند با ایموجی‌های ممنوعه: 🔮💎⚡🎯🏆❤️💰🎁
+• توقف هوشمند با ایموجی‌های ممنوعه (قابل تنظیم ۱۰۰٪ از تلگرام)
 • مانیتورینگ real-time تعداد فحش‌های ارسالی"""
 
                     # اضافه کردن توضیح اکو برای بات 3
@@ -3845,7 +4009,7 @@ class UnifiedBotLauncher:
 • `/resume` - ادامه کار همه بات‌ها
 
 🛑 **ایموجی‌های توقف:**
-🔮 💎 ⚡ 🎯 🏆 ❤️ 💰 🎁
+⭐ هیچ ایموجی پیش‌فرضی - کاملاً قابل تنظیم از تلگرام ⭐
 
 هنگام دیدن این ایموجی‌ها، تمام بات‌ها متوقف می‌شوند.
 
@@ -3932,7 +4096,7 @@ class UnifiedBotLauncher:
 • `/resumespam [chat_id]` - ازسرگیری دستی اسپم در چت مشخص
 
 🛑 **توقف خودکار اسپم:**
-• ایموجی‌های توقف (همگانی): 🎐🔮⚜️❓🪅🏵🌤☀️🌧⚡️💮
+• ایموجی‌های توقف: کاملاً قابل تنظیم از طریق کامندهای تلگرام
 • کامندهای ممنوعه (فقط دشمن): /catch /grab /guess /arise /take /secure
 
 🚫 **مدیریت ایموجی‌های ممنوعه:**
