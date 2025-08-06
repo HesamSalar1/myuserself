@@ -9,9 +9,12 @@ import os
 from pathlib import Path
 from random import choice
 
-sys.stdout.reconfigure(encoding='utf-8')
+# تنظیم encoding برای خروجی
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
 
 from pyrogram import Client, filters
+from pyrogram.client import Client as PyrogramClient
 from pyrogram.types import Message, ChatMember
 from pyrogram.errors import FloodWait, UserNotParticipant, ChatWriteForbidden
 
@@ -123,11 +126,48 @@ class UnifiedBotLauncher:
         self.report_cooldown = 30.0  # ثانیه - حداقل فاصله بین گزارش‌های مشابه
 
         # ادمین اصلی لانچر (کنترل همه بات‌ها)
-        self.launcher_admin_id = 5533325167
-
-        # سیستم گفتگوی خودکار بین ربات‌ها
-        self.auto_chat_enabled = False  # فعال/غیرفعال بودن حالت گفتگو
-        self.auto_chat_tasks = {}  # تسک‌های گفتگوی خودکار برای هر چت
+        self.launcher_admin_id = 5533325167  # ادمین اصلی سیستم
+        
+        # سیستم ربات گزارش‌دهی
+        self.report_bot_instance = None
+        
+        # متدهای مفقود شده
+        self.emergency_stop_event = {}  # برای هر چت
+        
+    async def send_report_safely(self, message, chat_id=None, chat_title=None):
+        """ارسال گزارش به ربات گزارش‌دهی"""
+        try:
+            if self.report_bot_instance:
+                # ارسال گزارش ایموجی ممنوعه
+                await self.report_bot_instance.send_emoji_alert(
+                    chat_id or "unknown", 
+                    chat_title or "چت نامشخص", 
+                    "⚠️", 
+                    9
+                )
+        except Exception as e:
+            print(f"خطا در ارسال گزارش: {e}")
+    
+    async def clear_emergency_stop(self, chat_id):
+        """پاک کردن وضعیت توقف اضطراری"""
+        if chat_id in self.emergency_stop_event:
+            self.emergency_stop_event[chat_id].clear()
+    
+    async def start_web_panel(self):
+        """شروع پنل وب"""
+        pass  # پیاده‌سازی بعدی
+    
+    async def stop_web_panel(self):
+        """توقف پنل وب"""
+        pass  # پیاده‌سازی بعدی
+    
+    @property 
+    def web_process(self):
+        """فرآیند وب"""
+        return None  # پیاده‌سازی بعدی
+    
+    def initialize_chat_system(self):
+        """راه‌اندازی سیستم چت"""
         self.bot_online_status = {i: True for i in range(1, 10)}  # وضعیت آنلاین/آفلاین ربات‌ها
         self.last_bot_activity = {i: time.time() for i in range(1, 10)}  # آخرین فعالیت هر ربات
         self.conversation_topics = []  # موضوعات گفتگو
@@ -3100,10 +3140,13 @@ class UnifiedBotLauncher:
                             return  # اگر دشمن نیست، هیچ کاری نکن
 
                         # فعال کردن حالت اکو
-                        import sys
-                        sys.path.append('./bots')
-                        from echo_control import set_echo_active
-                        set_echo_active(True)
+                        try:
+                            import sys
+                            sys.path.append('./bots')
+                            from echo_control import set_echo_active
+                            set_echo_active(True)
+                        except ImportError:
+                            pass  # اگر ماژول وجود نداشت، ادامه بده
 
                         # استخراج متن بعد از /echo
                         echo_text = None

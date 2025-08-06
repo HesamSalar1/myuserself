@@ -12,12 +12,20 @@ from datetime import datetime
 from pyrogram import Client, filters
 from pyrogram.types import Message
 
-sys.stdout.reconfigure(encoding='utf-8')
+# تنظیم encoding برای خروجی
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
 
-# تنظیم لاگ - غیرفعال
-logging.disable(logging.CRITICAL)
+# تنظیم لاگ - فعال برای debugging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('report_bot.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
-logger.disabled = True
 
 class ReportBot:
     def __init__(self):
@@ -46,7 +54,7 @@ class ReportBot:
     def setup_database(self):
         """تنظیم پایگاه داده ربات گزارش‌دهی"""
         os.makedirs(os.path.dirname(self.db_path) if os.path.dirname(self.db_path) else '.', exist_ok=True)
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30.0)  # افزایش timeout
         cursor = conn.cursor()
 
         # جدول مشترکین
@@ -77,7 +85,7 @@ class ReportBot:
 
     def load_subscribers(self):
         """بارگذاری مشترکین از دیتابیس"""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
         cursor = conn.cursor()
         cursor.execute('SELECT user_id FROM subscribers')
         self.subscribers = {row[0] for row in cursor.fetchall()}
@@ -313,11 +321,11 @@ class ReportBot:
 
             logger.info("🚀 شروع راه‌اندازی ربات گزارش‌دهی...")
 
-            # برای bot token، از API credentials پیش‌فرض استفاده می‌کنیم
+            # برای bot token، از API credentials معتبر استفاده می‌کنیم
             self.client = Client(
                 name="report_bot",
-                api_id=21724,  # API ID عمومی تلگرام
-                api_hash="3e0cb5efcd52300aec5994fdfc5bdc16",  # API Hash عمومی تلگرام
+                api_id=15508294,  # API ID معتبر تست شده
+                api_hash="778e5cd56ffcf22c2d62aa963ce85a0c",  # API Hash معتبر تست شده
                 bot_token=self.bot_token,
                 no_updates=False,
                 workdir="."

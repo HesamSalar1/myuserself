@@ -773,8 +773,7 @@ async def stats_command(client, message: Message):
         text += f"⏰ **آخرین بروزرسانی:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
         await message.edit_text(text)
-log_action("stats_view", admin_id, "نمایش آمار")
-
+        log_action("stats_view", admin_id, "نمایش آمار")
     except Exception as e:
         await message.edit_text(f"❌ خطا: {str(e)}")
 
@@ -1130,4 +1129,4 @@ async def bot_ready():
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.create_task(bot_ready())
-    asyncio.run(main())```python
+    asyncio.run(main())

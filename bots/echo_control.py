@@ -1,18 +1,23 @@
-
+#!/usr/bin/env python3
 """
-ماژول کنترل مشترک برای حالت اکو
-این فایل بین تمام بات‌ها مشترک است
+ماژول کنترل اکو برای بات‌های تلگرام
 """
 
-# متغیر کنترل اکو
-echo_active = False
+# وضعیت اکو سراسری
+_echo_active = False
 
-def set_echo_active(status):
+def set_echo_active(active: bool):
     """تنظیم وضعیت اکو"""
-    global echo_active
-    echo_active = status
+    global _echo_active
+    _echo_active = active
 
-def is_echo_active():
+def is_echo_active() -> bool:
     """بررسی وضعیت اکو"""
-    global echo_active
-    return echo_active
+    global _echo_active
+    return _echo_active
+
+def toggle_echo() -> bool:
+    """تغییر وضعیت اکو"""
+    global _echo_active
+    _echo_active = not _echo_active
+    return _echo_active
