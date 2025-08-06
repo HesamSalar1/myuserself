@@ -40,16 +40,16 @@ class UnifiedBotLauncher:
         self.bots = {}
         # متغیرهای کنترل
         self.running = False
-        
+
         # ربات گزارش‌دهی
         self.report_bot = None
         self.count_tasks = {}  # برای ذخیره تسک‌های شمارش
         self.global_paused = {}  # برای توقف کلی {chat_id: user_id} - وقتی ایموجی ممنوعه تشخیص داده شه
         self.continuous_spam_tasks = {}  # برای نگه داشتن تسک‌های فحش مداوم {bot_id: {user_id: task}}
-        
+
         # تنظیمات تاخیر فحش برای هر بات (ثانیه)
         self.bot_spam_delays = {i: 1.0 for i in range(1, 10)}  # تاخیر پیش‌فرض: 1 ثانیه
-        
+
         # سیستم پیشرفته ایموجی‌ها و کلمات ممنوعه (کاملا قابل تنظیم از تلگرام)
         self.forbidden_emojis = set()
         self.forbidden_words = set()
@@ -63,12 +63,12 @@ class UnifiedBotLauncher:
             'auto_pause_on_detection': True,
             'admin_exemption': False  # ادمین‌ها مستثنی نیستند
         }
-        
+
         # کش تشخیص برای بهبود کارایی
         self.detection_cache = {}
         self.cache_max_size = 1000
         self.cache_expiry = 300  # 5 دقیقه
-        
+
         # آمار امنیتی
         self.security_stats = {
             'emoji_detections': 0,
@@ -76,37 +76,37 @@ class UnifiedBotLauncher:
             'total_pauses': 0,
             'last_reset': time.time()
         }
-        
+
         # کامندهای ممنوعه فقط برای دشمنان
         self.enemy_forbidden_commands = ['/catch', '/grab', '/guess', '/arise', '/take', '/secure']
-        
+
         # سیستم rate limiting مشترک برای جلوگیری از ارسال همزمان
         self.global_rate_limiter = asyncio.Lock()
         self.last_message_time = {}  # {chat_id: timestamp}
         self.min_global_delay = 0.5  # حداقل تاخیر بین پیام‌های همه بات‌ها در یک چت
         self.bot_message_queues = {}  # صف پیام برای هر بات
-        
+
         # سیستم محدودیت همزمان برای جلوگیری از spam flooding
         self.concurrent_message_limit = 1  # فقط یک بات در هر لحظه در یک چت
         self.active_senders = {}  # {chat_id: set of bot_ids}
         self.chat_locks = {}  # {chat_id: asyncio.Lock}
-        
+
         # سیستم توقف فوری برای ایموجی‌های ممنوعه (مجزا برای هر چت)
         self.chat_emergency_stops = {}  # {chat_id: asyncio.Event}
         self.last_emoji_detection_time = {}  # {chat_id: timestamp}
-        
+
         # سیستم هماهنگی تشخیص ایموجی بین همه بات‌ها
         self.emoji_detection_cache = {}  # {message_id: detection_time} - جلوگیری از تشخیص چندگانه
         self.emoji_sync_lock = asyncio.Lock()  # قفل برای همگام‌سازی
         self.detection_cooldown = 0.5  # ثانیه - فاصله بین تشخیص‌های مجدد همان پیام (کاهش یافت)
-        
+
         # سیستم ساده برای جلوگیری از ارسال چندگانه گزارش
         self.report_sent_cache = {}  # {chat_id_emoji: sent_time} - جلوگیری از گزارش چندگانه
         self.report_cooldown = 30.0  # ثانیه - حداقل فاصله بین گزارش‌های مشابه
 
         # ادمین اصلی لانچر (کنترل همه بات‌ها)
         self.launcher_admin_id = 5533325167
-        
+
         # سیستم گفتگوی خودکار بین ربات‌ها
         self.auto_chat_enabled = False  # فعال/غیرفعال بودن حالت گفتگو
         self.auto_chat_tasks = {}  # تسک‌های گفتگوی خودکار برای هر چت
@@ -115,7 +115,7 @@ class UnifiedBotLauncher:
         self.conversation_topics = []  # موضوعات گفتگو
         self.conversation_messages = []  # پیام‌های گفتگو
         self.active_conversations = {}  # گفتگوهای فعال در هر چت {chat_id: conversation_state}
-        
+
         # تنظیمات بات‌ها - با استفاده از متغیرهای محیطی برای Stack Host
         self.bot_configs = {
             1: {
@@ -203,19 +203,19 @@ class UnifiedBotLauncher:
 
         # لیست همه admin_id های بات‌ها (بدون ادمین لانچر)
         self.bot_admin_ids = {config['admin_id'] for config in self.bot_configs.values()}
-        
+
         # لیست کامل همه ادمین‌ها (شامل ادمین لانچر + ادمین‌های بات‌ها)
         self.all_admin_ids = self.bot_admin_ids | {self.launcher_admin_id}
-        
+
         # تنظیمات خاص Stack Host
         self.is_stackhost_environment = self.detect_stackhost_environment()
-        
+
         # وضعیت اتصال بات‌ها
         self.bot_connection_status = {i: False for i in range(1, 10)}
-        
+
         if self.is_stackhost_environment:
             logger.info("🔧 Stack Host environment detected - using optimized settings")
-    
+
     def detect_stackhost_environment(self):
         """تشخیص محیط Stack Host"""
         stackhost_indicators = [
@@ -225,28 +225,28 @@ class UnifiedBotLauncher:
             'stack' in os.getenv('PLATFORM', '').lower()
         ]
         return any(stackhost_indicators)
-    
+
     def validate_bot_credentials(self, bot_id):
         """بررسی اعتبار تنظیمات بات"""
         config = self.bot_configs.get(bot_id)
         if not config:
             return False, f"پیکربندی بات {bot_id} یافت نشد"
-        
+
         api_id = config.get('api_id')
         api_hash = config.get('api_hash')
-        
+
         if not api_id or not api_hash:
             return False, f"API ID یا API Hash برای بات {bot_id} وجود ندارد"
-        
+
         if api_hash in ['YOUR_BOT5_API_HASH', 'YOUR_BOT6_API_HASH', 'YOUR_BOT7_API_HASH', 
                        'YOUR_BOT8_API_HASH', 'YOUR_BOT9_API_HASH', 'unique_hash_for_bot5_placeholder',
                        'unique_hash_for_bot6_placeholder', 'unique_hash_for_bot7_placeholder',
                        'unique_hash_for_bot8_placeholder', 'unique_hash_for_bot9_placeholder']:
             return False, f"بات {bot_id} نیاز به API credentials معتبر دارد"
-        
+
         if str(api_id).startswith('25101'):  # پیش‌فرض‌های جعلی
             return False, f"بات {bot_id} نیاز به API ID واقعی دارد"
-        
+
         return True, "تنظیمات معتبر است"
 
     async def test_bot_connection(self, bot_id):
@@ -254,10 +254,10 @@ class UnifiedBotLauncher:
         config = self.bot_configs.get(bot_id)
         if not config:
             return False
-        
+
         try:
             from pyrogram import Client
-            
+
             # تست سریع اتصال
             test_client = Client(
                 f"test_bot_{bot_id}",
@@ -265,15 +265,15 @@ class UnifiedBotLauncher:
                 api_hash=config['api_hash'],
                 in_memory=True  # استفاده از session حافظه‌ای برای تست
             )
-            
+
             await test_client.connect()
             me = await test_client.get_me()
             await test_client.disconnect()
-            
+
             self.bot_connection_status[bot_id] = True
             logger.info(f"✅ بات {bot_id} اتصال تست شد - @{me.username}")
             return True
-            
+
         except Exception as e:
             self.bot_connection_status[bot_id] = False
             logger.error(f"❌ تست اتصال بات {bot_id} ناموفق: {e}")
@@ -288,7 +288,7 @@ class UnifiedBotLauncher:
             'invalid_credentials': 0,
             'credential_issues': []
         }
-        
+
         for bot_id in self.bot_configs:
             is_valid, message = self.validate_bot_credentials(bot_id)
             if is_valid:
@@ -296,10 +296,10 @@ class UnifiedBotLauncher:
             else:
                 status['invalid_credentials'] += 1
                 status['credential_issues'].append(f"بات {bot_id}: {message}")
-        
+
         return status
 
-    
+
 
     def setup_database(self, bot_id, db_path):
         """تنظیم پایگاه داده برای هر بات"""
@@ -371,7 +371,7 @@ class UnifiedBotLauncher:
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
+
             # جدول جدید برای کلمات ممنوعه
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS forbidden_words (
@@ -386,7 +386,7 @@ class UnifiedBotLauncher:
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
+
             # جدول تنظیمات سیستم ایموجی و کلمات ممنوعه
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS security_settings (
@@ -398,7 +398,7 @@ class UnifiedBotLauncher:
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
+
             # جدول لاگ امنیتی
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS security_log (
@@ -414,7 +414,7 @@ class UnifiedBotLauncher:
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
+
             # جدول تنظیمات تاخیر فحش
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS spam_delay_settings (
@@ -423,7 +423,7 @@ class UnifiedBotLauncher:
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
+
             # جدول پیام‌های گفتگوی خودکار
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS conversation_messages (
@@ -435,7 +435,7 @@ class UnifiedBotLauncher:
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
+
             # جدول موضوعات گفتگو
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS conversation_topics (
@@ -445,12 +445,12 @@ class UnifiedBotLauncher:
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
+
             # اگر تنظیمات تاخیر وجود ندارد، مقدار پیش‌فرض را وارد کن
             cursor.execute('SELECT COUNT(*) FROM spam_delay_settings')
             if cursor.fetchone()[0] == 0:
                 cursor.execute('INSERT INTO spam_delay_settings (delay_seconds) VALUES (1.0)')
-            
+
             # وارد کردن موضوعات پیش‌فرض گفتگو
             cursor.execute('SELECT COUNT(*) FROM conversation_topics')
             if cursor.fetchone()[0] == 0:
@@ -465,7 +465,7 @@ class UnifiedBotLauncher:
                     ('کتاب', 'صحبت درباره کتاب و مطالعه')
                 ]
                 cursor.executemany('INSERT INTO conversation_topics (topic_name, description) VALUES (?, ?)', default_topics)
-            
+
             # وارد کردن پیام‌های پیش‌فرض گفتگو
             cursor.execute('SELECT COUNT(*) FROM conversation_messages')
             if cursor.fetchone()[0] == 0:
@@ -476,32 +476,32 @@ class UnifiedBotLauncher:
                     ('starter', 'کسی فیلم خوب دیده؟', 'روزمره', None),
                     ('starter', 'هوا امروز خیلی قشنگه', 'هواشناسی', None),
                     ('starter', 'دیشب چه بازی جالبی بود!', 'ورزش', None),
-                    
+
                     # پاسخ‌های معمولی
                     ('response', 'آره واقعاً', None, 'agreement'),
                     ('response', 'کاملاً موافقم', None, 'agreement'),
                     ('response', 'من که چندان موافق نیستم', None, 'disagreement'),
                     ('response', 'جالب بود این که گفتی', None, 'acknowledgment'),
                     ('response', 'حق با توئه', None, 'agreement'),
-                    
+
                     # سوالات متقابل
                     ('question', 'تو چی فکر می‌کنی؟', None, None),
                     ('question', 'تجربه‌ای داری از این موضوع؟', None, None),
                     ('question', 'کجا شنیدی این رو؟', None, None),
                     ('question', 'واقعاً همینطوره؟', None, None),
-                    
+
                     # پیام‌های روزمره
                     ('casual', 'خب بچه‌ها، برم کارام رو انجام بدم', 'روزمره', None),
                     ('casual', 'فعلاً بای', 'روزمره', None),
                     ('casual', 'حوصله‌م سر رفت', 'روزمره', None),
                     ('casual', 'کسی هست؟', 'روزمره', None),
                     ('casual', 'الآن برمی‌گردم', 'روزمره', None),
-                    
+
                     # پیام‌های هواشناسی
                     ('weather', 'امروز آفتابی خوبی بود', 'هواشناسی', None),
                     ('weather', 'انگار بارون می‌آد', 'هواشناسی', None),
                     ('weather', 'هوا سرد شده', 'هواشناسی', None),
-                    
+
                     # پیام‌های ورزشی
                     ('sports', 'چه بازی خفنی بود', 'ورزش', None),
                     ('sports', 'تیم محبوبتون چیه؟', 'ورزش', None),
@@ -514,6 +514,7 @@ class UnifiedBotLauncher:
             pass
 
         except Exception as e:
+            logger.error(f"❌ خطا هنگام تنظیم پایگاه داده: {e}")
             pass
 
     # توابع مدیریت پایگاه داده
@@ -527,6 +528,7 @@ class UnifiedBotLauncher:
             conn.commit()
             result = True
         except Exception as e:
+            logger.error(f"خطا در add_fosh بات {bot_id}: {e}")
             result = False
         conn.close()
         return result
@@ -572,6 +574,9 @@ class UnifiedBotLauncher:
             result = True
         except sqlite3.IntegrityError:
             result = False
+        except Exception as e:
+            logger.error(f"خطا در add_enemy بات {bot_id}: {e}")
+            result = False
         conn.close()
         return result
 
@@ -615,6 +620,9 @@ class UnifiedBotLauncher:
             conn.commit()
             result = True
         except sqlite3.IntegrityError:
+            result = False
+        except Exception as e:
+            logger.error(f"خطا در add_friend بات {bot_id}: {e}")
             result = False
         conn.close()
         return result
@@ -727,44 +735,23 @@ class UnifiedBotLauncher:
             'word_count': word_count
         }
 
-    def add_forbidden_emoji_to_db(self, emoji):
-        """اضافه کردن ایموجی ممنوعه به دیتابیس (از بات 1)"""
-        db_path = self.bot_configs[1]['db_path']  # استفاده از دیتابیس بات 1 برای ذخیره مشترک
-        
-        # اطمینان از وجود دیتابیس و جدول
-        self.setup_database(1, db_path)
-        
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        try:
-            cursor.execute("INSERT INTO forbidden_emojis (emoji) VALUES (?)", (emoji,))
-            conn.commit()
-            result = True
-        except sqlite3.IntegrityError:
-            result = False  # ایموجی از قبل وجود دارد
-        except Exception as e:
-            logger.error(f"خطا در اضافه کردن ایموجی ممنوعه: {e}")
-            result = False
-        conn.close()
-        return result
-
     # =================================================================
     # سیستم مدیریت پیشرفته ایموجی‌های ممنوعه - Enhanced Forbidden Emoji System
     # =================================================================
-    
+
     def add_forbidden_emoji_advanced(self, emoji, description=None, category='custom', added_by_user_id=None):
         """اضافه کردن ایموجی ممنوعه با ویژگی‌های پیشرفته"""
         try:
             db_path = self.bot_configs[1]['db_path']
             self.setup_database(1, db_path)
-            
+
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
+
             # بررسی وجود قبلی
             cursor.execute("SELECT id, is_active FROM forbidden_emojis WHERE emoji = ?", (emoji,))
             existing = cursor.fetchone()
-            
+
             if existing:
                 # اگر موجود است، فعال کردن آن
                 cursor.execute("""
@@ -783,11 +770,11 @@ class UnifiedBotLauncher:
                 """, (emoji, description, added_by_user_id, category))
                 result = cursor.rowcount > 0
                 action = "added"
-            
+
             if result:
                 # به‌روزرسانی کش
                 self.forbidden_emojis.add(emoji)
-                
+
                 # لاگ امنیتی
                 self.log_security_action(
                     f"emoji_{action}",
@@ -795,11 +782,11 @@ class UnifiedBotLauncher:
                     added_by_user_id,
                     action_taken=f"Forbidden emoji {action}"
                 )
-            
+
             conn.commit()
             conn.close()
             return result
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در اضافه کردن ایموجی ممنوعه: {e}")
             return False
@@ -809,29 +796,29 @@ class UnifiedBotLauncher:
         try:
             db_path = self.bot_configs[1]['db_path']
             self.setup_database(1, db_path)
-            
+
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
+
             # بررسی وجود
             cursor.execute("SELECT id FROM forbidden_emojis WHERE emoji = ? AND is_active = 1", (emoji,))
             if not cursor.fetchone():
                 conn.close()
                 return False, "ایموجی در لیست ممنوعه‌ها موجود نیست"
-            
+
             # غیرفعال کردن (حذف نرم)
             cursor.execute("""
                 UPDATE forbidden_emojis 
                 SET is_active = 0 
                 WHERE emoji = ?
             """, (emoji,))
-            
+
             result = cursor.rowcount > 0
-            
+
             if result:
                 # حذف از کش
                 self.forbidden_emojis.discard(emoji)
-                
+
                 # لاگ امنیتی
                 self.log_security_action(
                     "emoji_removed",
@@ -839,11 +826,11 @@ class UnifiedBotLauncher:
                     removed_by_user_id,
                     action_taken="Forbidden emoji removed"
                 )
-            
+
             conn.commit()
             conn.close()
             return result, "ایموجی با موفقیت حذف شد" if result else "خطا در حذف ایموجی"
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در حذف ایموجی ممنوعه: {e}")
             return False, f"خطا: {str(e)}"
@@ -854,30 +841,30 @@ class UnifiedBotLauncher:
             db_path = self.bot_configs[1]['db_path']
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
+
             query = """
                 SELECT emoji, description, category, added_by_user_id, 
                        is_active, created_at 
                 FROM forbidden_emojis
             """
             params = []
-            
+
             conditions = []
             if active_only:
                 conditions.append("is_active = 1")
             if category:
                 conditions.append("category = ?")
                 params.append(category)
-            
+
             if conditions:
                 query += " WHERE " + " AND ".join(conditions)
-            
+
             query += " ORDER BY created_at DESC"
-            
+
             cursor.execute(query, params)
             result = cursor.fetchall()
             conn.close()
-            
+
             return [
                 {
                     'emoji': row[0],
@@ -889,7 +876,7 @@ class UnifiedBotLauncher:
                 }
                 for row in result
             ]
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در دریافت لیست ایموجی‌ها: {e}")
             return []
@@ -897,21 +884,21 @@ class UnifiedBotLauncher:
     # =================================================================
     # سیستم مدیریت پیشرفته کلمات ممنوعه - Enhanced Forbidden Words System
     # =================================================================
-    
+
     def add_forbidden_word_advanced(self, word, description=None, category='custom', 
                                    case_sensitive=False, partial_match=True, added_by_user_id=None):
         """اضافه کردن کلمه ممنوعه با ویژگی‌های پیشرفته"""
         try:
             db_path = self.bot_configs[1]['db_path']
             self.setup_database(1, db_path)
-            
+
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
+
             # بررسی وجود قبلی
             cursor.execute("SELECT id, is_active FROM forbidden_words WHERE word = ?", (word,))
             existing = cursor.fetchone()
-            
+
             if existing:
                 # اگر موجود است، به‌روزرسانی
                 cursor.execute("""
@@ -930,13 +917,13 @@ class UnifiedBotLauncher:
                     VALUES (?, ?, ?, ?, 1, ?, ?)
                 """, (word, description, added_by_user_id, category, case_sensitive, partial_match))
                 action = "added"
-            
+
             result = cursor.rowcount > 0
-            
+
             if result:
                 # به‌روزرسانی کش
                 self.forbidden_words.add(word.lower() if not case_sensitive else word)
-                
+
                 # لاگ امنیتی
                 self.log_security_action(
                     f"word_{action}",
@@ -944,11 +931,11 @@ class UnifiedBotLauncher:
                     added_by_user_id,
                     action_taken=f"Forbidden word {action}"
                 )
-            
+
             conn.commit()
             conn.close()
             return result
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در اضافه کردن کلمه ممنوعه: {e}")
             return False
@@ -958,25 +945,25 @@ class UnifiedBotLauncher:
         try:
             db_path = self.bot_configs[1]['db_path']
             self.setup_database(1, db_path)
-            
+
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
+
             # بررسی وجود
             cursor.execute("SELECT id FROM forbidden_words WHERE word = ? AND is_active = 1", (word,))
             if not cursor.fetchone():
                 conn.close()
                 return False, "کلمه در لیست ممنوعه‌ها موجود نیست"
-            
+
             # غیرفعال کردن
             cursor.execute("UPDATE forbidden_words SET is_active = 0 WHERE word = ?", (word,))
             result = cursor.rowcount > 0
-            
+
             if result:
                 # حذف از کش
                 self.forbidden_words.discard(word.lower())
                 self.forbidden_words.discard(word)
-                
+
                 # لاگ امنیتی
                 self.log_security_action(
                     "word_removed",
@@ -984,11 +971,11 @@ class UnifiedBotLauncher:
                     removed_by_user_id,
                     action_taken="Forbidden word removed"
                 )
-            
+
             conn.commit()
             conn.close()
             return result, "کلمه با موفقیت حذف شد" if result else "خطا در حذف کلمه"
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در حذف کلمه ممنوعه: {e}")
             return False, f"خطا: {str(e)}"
@@ -999,30 +986,30 @@ class UnifiedBotLauncher:
             db_path = self.bot_configs[1]['db_path']
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
+
             query = """
                 SELECT word, description, category, added_by_user_id, 
                        is_active, case_sensitive, partial_match, created_at 
                 FROM forbidden_words
             """
             params = []
-            
+
             conditions = []
             if active_only:
                 conditions.append("is_active = 1")
             if category:
                 conditions.append("category = ?")
                 params.append(category)
-            
+
             if conditions:
                 query += " WHERE " + " AND ".join(conditions)
-            
+
             query += " ORDER BY created_at DESC"
-            
+
             cursor.execute(query, params)
             result = cursor.fetchall()
             conn.close()
-            
+
             return [
                 {
                     'word': row[0],
@@ -1036,7 +1023,7 @@ class UnifiedBotLauncher:
                 }
                 for row in result
             ]
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در دریافت لیست کلمات: {e}")
             return []
@@ -1050,15 +1037,15 @@ class UnifiedBotLauncher:
                 "bots/bot1/bot_database.db",
                 "bots/bot1/bot1_data.db"
             ]
-            
+
             emojis = set()
-            
+
             for db_path in possible_paths:
                 if os.path.exists(db_path):
                     try:
                         conn = sqlite3.connect(db_path)
                         cursor = conn.cursor()
-                        
+
                         # بررسی وجود جدول
                         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='forbidden_emojis'")
                         if cursor.fetchone():
@@ -1066,16 +1053,16 @@ class UnifiedBotLauncher:
                             cursor.execute("SELECT emoji FROM forbidden_emojis WHERE is_active = 1")
                             result = cursor.fetchall()
                             emojis.update({row[0] for row in result})
-                        
+
                         conn.close()
                         break  # اولین دیتابیس موفق کافی است
                     except Exception as e:
                         continue
-            
+
             # هیچ ایموجی پیش‌فرضی اضافه نمی‌شود - کاملا قابل تنظیم از تلگرام
             logger.info(f"✅ {len(emojis)} ایموجی ممنوعه بارگذاری شد")
             return emojis
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در بارگذاری ایموجی‌ها: {e}")
             return set()
@@ -1086,58 +1073,58 @@ class UnifiedBotLauncher:
             db_path = self.bot_configs[1]['db_path']
             if not os.path.exists(db_path):
                 return set()
-                
+
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
+
             # بررسی وجود جدول
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='forbidden_words'")
             if not cursor.fetchone():
                 conn.close()
                 return set()
-            
+
             # دریافت کلمات فعال
             cursor.execute("SELECT word, case_sensitive FROM forbidden_words WHERE is_active = 1")
             result = cursor.fetchall()
             conn.close()
-            
+
             words = set()
             for word, case_sensitive in result:
                 if case_sensitive:
                     words.add(word)
                 else:
                     words.add(word.lower())
-            
+
             logger.info(f"✅ {len(words)} کلمه ممنوعه بارگذاری شد")
             return words
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در بارگذاری کلمات: {e}")
             return set()
-    
+
     def get_spam_delay(self, bot_id):
         """دریافت تاخیر فحش برای بات مشخص"""
         try:
             db_path = self.bot_configs[bot_id]['db_path']
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
+
             cursor.execute("SELECT delay_seconds FROM spam_delay_settings ORDER BY id DESC LIMIT 1")
             result = cursor.fetchone()
-            
+
             conn.close()
-            
+
             if result:
                 delay = float(result[0])
                 self.bot_spam_delays[bot_id] = delay
                 return delay
             else:
                 return self.bot_spam_delays.get(bot_id, 1.0)
-                
+
         except Exception as e:
             logger.error(f"❌ خطا در دریافت تاخیر فحش بات {bot_id}: {e}")
             return self.bot_spam_delays.get(bot_id, 1.0)
-    
+
     def set_spam_delay(self, bot_id, delay_seconds):
         """تنظیم تاخیر فحش برای بات مشخص"""
         try:
@@ -1145,24 +1132,24 @@ class UnifiedBotLauncher:
             delay = float(delay_seconds)
             if delay < 0:
                 return False, "تاخیر نمی‌تواند منفی باشد"
-            
+
             db_path = self.bot_configs[bot_id]['db_path']
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
+
             # به‌روزرسانی یا درج مقدار جدید
             cursor.execute("DELETE FROM spam_delay_settings")  # حذف تنظیمات قبلی
             cursor.execute("INSERT INTO spam_delay_settings (delay_seconds) VALUES (?)", (delay,))
-            
+
             conn.commit()
             conn.close()
-            
+
             # به‌روزرسانی کش
             self.bot_spam_delays[bot_id] = delay
-            
+
             logger.info(f"⏱️ تاخیر فحش بات {bot_id} به {delay} ثانیه تنظیم شد")
             return True, f"تاخیر فحش بات {bot_id} به {delay} ثانیه تنظیم شد"
-            
+
         except ValueError:
             return False, "مقدار تاخیر باید عدد باشد"
         except Exception as e:
@@ -1176,7 +1163,7 @@ class UnifiedBotLauncher:
             db_path = self.bot_configs[1]['db_path']
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
+
             if message_type and topic:
                 cursor.execute("SELECT content FROM conversation_messages WHERE message_type = ? AND topic = ?", (message_type, topic))
             elif message_type:
@@ -1185,7 +1172,7 @@ class UnifiedBotLauncher:
                 cursor.execute("SELECT content FROM conversation_messages WHERE topic = ?", (topic,))
             else:
                 cursor.execute("SELECT content FROM conversation_messages")
-            
+
             result = cursor.fetchall()
             conn.close()
             return [row[0] for row in result]
@@ -1211,32 +1198,32 @@ class UnifiedBotLauncher:
         """انتخاب ربات برای ارسال پیام در گفتگو"""
         if exclude_bots is None:
             exclude_bots = set()
-        
+
         # فقط ربات‌هایی که آنلاین هستند و کانفیگ دارند
         online_bots = []
         for bot_id in range(1, 10):
             # بررسی آنلاین بودن
             if not self.bot_online_status.get(bot_id, True):
                 continue
-            
+
             # بررسی عدم حضور در لیست مستثنیات
             if bot_id in exclude_bots:
                 continue
-                
+
             # بررسی وجود کانفیگ ربات
             if bot_id not in self.bot_configs:
                 continue
-                
+
             # اگر ربات‌ها در حال اجرا هستند، بررسی وضعیت
             if hasattr(self, 'bots') and self.bots and bot_id in self.bots:
                 if self.bots[bot_id]['status'] != 'running':
                     continue
-            
+
             online_bots.append(bot_id)
-        
+
         if not online_bots:
             return None
-        
+
         # انتخاب ربات با کمترین فعالیت اخیر
         selected_bot = min(online_bots, key=lambda x: self.last_bot_activity.get(x, 0))
         return selected_bot
@@ -1246,23 +1233,23 @@ class UnifiedBotLauncher:
         import random
         if duration is None:
             duration = random.randint(30, 180)  # 30 ثانیه تا 3 دقیقه
-        
+
         self.bot_online_status[bot_id] = False
         logger.info(f"🔴 ربات {bot_id} آفلاین شد برای {duration} ثانیه")
-        
+
         # تسک برای آنلاین کردن مجدد
         async def bring_back_online():
             await asyncio.sleep(duration)
             self.bot_online_status[bot_id] = True
             logger.info(f"🟢 ربات {bot_id} مجدداً آنلاین شد")
-        
+
         asyncio.create_task(bring_back_online())
 
     async def start_auto_conversation(self, chat_id):
         """شروع گفتگوی خودکار در چت"""
         if chat_id in self.auto_chat_tasks:
             return False, "گفتگوی خودکار در این چت فعال است"
-        
+
         self.active_conversations[chat_id] = {
             'started_at': time.time(),
             'last_message_time': 0,
@@ -1271,10 +1258,10 @@ class UnifiedBotLauncher:
             'message_count': 0,
             'participants': set()
         }
-        
+
         task = asyncio.create_task(self.auto_conversation_loop(chat_id))
         self.auto_chat_tasks[chat_id] = task
-        
+
         logger.info(f"🗣️ گفتگوی خودکار در چت {chat_id} شروع شد")
         return True, "گفتگوی خودکار شروع شد"
 
@@ -1283,79 +1270,79 @@ class UnifiedBotLauncher:
         if chat_id in self.auto_chat_tasks:
             self.auto_chat_tasks[chat_id].cancel()
             del self.auto_chat_tasks[chat_id]
-            
+
         if chat_id in self.active_conversations:
             del self.active_conversations[chat_id]
-            
+
         logger.info(f"🤐 گفتگوی خودکار در چت {chat_id} متوقف شد")
         return True, "گفتگوی خودکار متوقف شد"
 
     async def auto_conversation_loop(self, chat_id):
         """حلقه اصلی گفتگوی خودکار"""
         import random
-        
+
         try:
             conversation = self.active_conversations[chat_id]
-            
+
             while self.auto_chat_enabled and chat_id in self.active_conversations:
                 current_time = time.time()
-                
+
                 # انتظار تصادفی بین پیام‌ها (10 ثانیه تا 2 دقیقه)
                 wait_time = random.randint(10, 120)
                 await asyncio.sleep(wait_time)
-                
+
                 # انتخاب ربات برای ارسال پیام
                 exclude_last = {conversation['last_bot']} if conversation['last_bot'] else set()
                 selected_bot = self.select_bot_for_conversation(chat_id, exclude_last)
-                
+
                 if not selected_bot:
                     await asyncio.sleep(30)
                     continue
-                
+
                 # شبیه‌سازی آفلاین شدن تصادفی
                 if random.random() < 0.1:  # 10% احتمال آفلاین شدن
                     self.simulate_bot_offline(selected_bot)
                     continue
-                
+
                 # انتخاب نوع پیام و محتوا
                 message_content = await self.generate_conversation_message(chat_id, selected_bot)
-                
+
                 if message_content:
                     await self.send_auto_conversation_message(chat_id, selected_bot, message_content)
-                    
+
                     # به‌روزرسانی وضعیت گفتگو
                     conversation['last_message_time'] = current_time
                     conversation['last_bot'] = selected_bot
                     conversation['message_count'] += 1
                     conversation['participants'].add(selected_bot)
                     self.last_bot_activity[selected_bot] = current_time
-                    
+
                     # تغییر موضوع گاهی اوقات
                     if random.random() < 0.15:  # 15% احتمال تغییر موضوع
                         conversation['current_topic'] = choice(self.get_conversation_topics())
                         logger.info(f"📝 موضوع گفتگو در چت {chat_id} تغییر یافت: {conversation['current_topic']}")
-                
+
         except asyncio.CancelledError:
             logger.info(f"🛑 حلقه گفتگوی خودکار چت {chat_id} متوقف شد")
         except Exception as e:
             logger.error(f"❌ خطا در حلقه گفتگوی خودکار چت {chat_id}: {e}")
 
-    async def generate_conversation_message(self, chat_id, bot_id):
+    def generate_conversation_message(self, chat_id, bot_id):
         """تولید پیام طبیعی و متنوع برای گفتگوی خودکار با دیکشنری گسترده"""
         import random
-        
+
         conversation = self.active_conversations.get(chat_id)
         if not conversation:
             return None
-        
+
         current_topic = conversation['current_topic']
         message_count = conversation['message_count']
         last_bot = conversation.get('last_bot')
-        
+
         # جلوگیری از تکرار پیام توسط همان ربات
         if last_bot == bot_id and random.random() < 0.7:
             return None
-        
+
         # دیکشنری گسترده پیام‌های طبیعی بر اساس شخصیت ربات
         personality_messages = {
             1: {  # ربات شوخ و بامزه
@@ -1364,7 +1351,7 @@ class UnifiedBotLauncher:
                 'food': ['شکمم گرسنه‌ست بچه‌ها', 'کی غذا درست کرده؟ میمیرم از گرسنگی', 'پیتزا سفارش بدیم؟ من خرج میدم 😄']
             },
             2: {  # ربات جدی و منطقی  
-                'casual': ['سلام دوستان، امروز چطور بود؟', 'نظرتون درباره این موضوع چیه؟', 'فکر کنم باید یه برنامه‌ریزی داشته باشیم'],
+                'casual': ['سلام دوستان, چطور بود امروز؟', 'نظرتون درباره این موضوع چیه؟', 'فکر کنم باید یه برنامه‌ریزی داشته باشیم'],
                 'thoughtful': ['این که جالب بود، قبلاً فکرش رو نکرده بودم', 'درسته، منطقی به نظر میرسه', 'باید بیشتر در موردش فکر کنیم'],
                 'tech': ['آپدیت جدید رو نصب کردین؟', 'گوشیتون چطوره؟ مشکلی نداره؟', 'یه مقاله جالب درباره تکنولوژی خوندم']
             },
@@ -1404,10 +1391,10 @@ class UnifiedBotLauncher:
                 'friendly': ['دوست دارم همه‌تون رو ببینم', 'چه جمع خوبی داریم', 'همیشه خوش میگذره با شما']
             }
         }
-        
+
         # انتخاب پیام بر اساس شخصیت ربات
         bot_messages = personality_messages.get(bot_id, personality_messages[1])
-        
+
         # انتخاب دسته پیام بر اساس موضوع و شرایط
         if current_topic == 'تکنولوژی' and 'tech' in bot_messages:
             selected_messages = bot_messages['tech']
@@ -1429,7 +1416,7 @@ class UnifiedBotLauncher:
             for msg_list in bot_messages.values():
                 all_messages.extend(msg_list)
             selected_messages = all_messages
-        
+
         # پیام‌های اضافی عامیانه و طبیعی
         extra_casual_messages = [
             'چطورین بچه‌ها؟', 'چه خبرا امروز؟', 'کسی هست؟', 'سلاااام',
@@ -1441,34 +1428,34 @@ class UnifiedBotLauncher:
             # پیام‌های هندی مخلوط  
             'Namaste دوستان', 'Kya haal hai؟', 'Sab theek hai؟'
         ]
-        
+
         # ترکیب پیام‌های شخصیتی با پیام‌های عمومی
         if isinstance(selected_messages, list):
             all_available = selected_messages + extra_casual_messages
         else:
             all_available = extra_casual_messages
-        
+
         # انتخاب پیام نهایی
         final_message = choice(all_available)
-        
+
         # اضافه کردن عناصر طبیعی تصادفی
         if random.random() < 0.2:
             # اضافه کردن کلمات تأکیدی
             emphasis_words = ['واقعاً', 'یعنی', 'راستی', 'ببینین', 'والا', 'اصلاً']
             final_message = f"{choice(emphasis_words)} {final_message}"
-        
+
         if random.random() < 0.15:
             # اضافه کردن ایموجی
             emojis = ['😊', '🤔', '😅', '🙂', '😄', '💬', '👍', '❤️']
             final_message += f" {choice(emojis)}"
-        
+
         if random.random() < 0.1:
             # تکرار حروف برای تأکید
             if 'خیلی' in final_message:
                 final_message = final_message.replace('خیلی', 'خیلیییی')
             elif 'سلام' in final_message and final_message.count('ا') < 4:
                 final_message = final_message.replace('سلام', 'سلاااام')
-        
+
         return final_message
 
     async def send_auto_conversation_message(self, chat_id, bot_id, message_content):
@@ -1476,13 +1463,13 @@ class UnifiedBotLauncher:
         try:
             if bot_id not in self.bots or self.bots[bot_id]['status'] != 'running':
                 return False
-            
+
             client = self.bots[bot_id]['client']
-            
+
             # ارسال پیام با هماهنگی rate limiting
             if chat_id not in self.chat_locks:
                 self.chat_locks[chat_id] = asyncio.Lock()
-            
+
             async with self.chat_locks[chat_id]:
                 # بررسی تاخیر global
                 current_time = time.time()
@@ -1491,13 +1478,13 @@ class UnifiedBotLauncher:
                     if time_since_last < self.min_global_delay:
                         wait_time = self.min_global_delay - time_since_last
                         await asyncio.sleep(wait_time)
-                
+
                 await client.send_message(chat_id, message_content)
                 self.last_message_time[chat_id] = time.time()
-                
+
                 logger.info(f"🤖 ربات {bot_id} پیام گفتگو ارسال کرد: {message_content[:50]}...")
                 return True
-                
+
         except Exception as e:
             logger.error(f"❌ خطا در ارسال پیام گفتگوی خودکار بات {bot_id}: {e}")
             return False
@@ -1509,14 +1496,14 @@ class UnifiedBotLauncher:
     def normalize_emoji(self, emoji):
         """نرمال‌سازی پیشرفته ایموجی برای مقایسه دقیق‌تر"""
         import unicodedata
-        
+
         if not emoji:
             return ""
-        
+
         # نرمال‌سازی Unicode (هر دو حالت NFC و NFD)
         normalized_nfc = unicodedata.normalize('NFC', emoji)
         normalized_nfd = unicodedata.normalize('NFD', emoji)
-        
+
         # حذف کاراکترهای اضافی
         variations_to_remove = [
             '\uFE0F',   # Variation Selector-16
@@ -1531,46 +1518,46 @@ class UnifiedBotLauncher:
             '\u200F',   # Right-to-Left Mark
             '\uFEFF',   # Zero Width No-Break Space
         ]
-        
+
         cleaned_nfc = normalized_nfc
         cleaned_nfd = normalized_nfd
         for variation in variations_to_remove:
             cleaned_nfc = cleaned_nfc.replace(variation, '')
             cleaned_nfd = cleaned_nfd.replace(variation, '')
-        
+
         # انتخاب بهترین حالت نرمال‌سازی
         final_cleaned = cleaned_nfc.strip()
         if not final_cleaned:
             final_cleaned = cleaned_nfd.strip()
-        
+
         return final_cleaned
 
     # =================================================================
     # سیستم تشخیص پیشرفته - Enhanced Detection System
     # =================================================================
-    
+
     def log_security_action(self, detection_type, content, user_id=None, username=None, 
                           chat_id=None, chat_title=None, bot_id=None, action_taken=None):
         """لاگ امنیتی برای تمام فعالیت‌های تشخیص"""
         try:
             if not self.security_settings.get('log_detections', True):
                 return
-                
+
             db_path = self.bot_configs[1]['db_path']
             self.setup_database(1, db_path)
-            
+
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
+
             cursor.execute("""
                 INSERT INTO security_log 
                 (detection_type, detected_content, user_id, username, chat_id, chat_title, bot_id, action_taken)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (detection_type, content, user_id, username, chat_id, chat_title, bot_id, action_taken))
-            
+
             conn.commit()
             conn.close()
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در لاگ امنیتی: {e}")
 
@@ -1578,64 +1565,64 @@ class UnifiedBotLauncher:
         """تشخیص کلمات ممنوعه در متن - with memory fallback"""
         if not text or not self.security_settings.get('word_detection_enabled', True):
             return False
-        
+
         # کش تشخیص
         cache_key = f"word_{hash(text)}"
         current_time = time.time()
-        
+
         if hasattr(self, 'detection_cache') and cache_key in self.detection_cache:
             cache_data = self.detection_cache[cache_key]
             if current_time - cache_data['time'] < getattr(self, 'cache_expiry', 60):
                 if found_word_ref is not None and cache_data['found']:
                     found_word_ref.append(cache_data['found'])
                 return cache_data['result']
-        
+
         # متغیرهای تنظیمات
         case_sensitive = self.security_settings.get('case_sensitive_words', False)
         partial_match = self.security_settings.get('partial_word_matching', True)
-        
+
         # آماده‌سازی متن برای جستجو
         search_text = text if case_sensitive else text.lower()
-        
+
         words_to_check = []
-        
+
         try:
             # دریافت کلمات از دیتابیس اگر موجود باشد
             if hasattr(self, 'bot_configs') and self.bot_configs and 1 in self.bot_configs:
                 db_path = self.bot_configs[1]['db_path']
                 conn = sqlite3.connect(db_path)
                 cursor = conn.cursor()
-                
+
                 cursor.execute("""
                     SELECT word, case_sensitive, partial_match 
                     FROM forbidden_words 
                     WHERE is_active = 1
                 """)
-                
+
                 words_data = cursor.fetchall()
                 conn.close()
-                
+
                 words_to_check.extend(words_data)
         except Exception as e:
             logger.debug(f"Database access failed, using memory fallback: {e}")
-        
+
         # Fallback: استفاده از کلمات در حافظه اگر دیتابیس در دسترس نباشد
         if not words_to_check and hasattr(self, 'forbidden_words') and self.forbidden_words:
             for word in self.forbidden_words:
                 words_to_check.append((word, case_sensitive, partial_match))
-        
+
         # بررسی کلمات
         for word_data in words_to_check:
             word, word_case_sensitive, word_partial_match = word_data
-            
+
             # تنظیمات مخصوص کلمه
             check_text = search_text
             check_word = word
-            
+
             if not word_case_sensitive:
                 check_word = word.lower()
                 check_text = text.lower()
-            
+
             # بررسی تطبیق
             found = False
             if word_partial_match:
@@ -1646,7 +1633,7 @@ class UnifiedBotLauncher:
                 import re
                 pattern = r'\b' + re.escape(check_word) + r'\b'
                 found = bool(re.search(pattern, check_text, re.IGNORECASE if not word_case_sensitive else 0))
-            
+
             if found:
                 # کش کردن نتیجه
                 if hasattr(self, 'detection_cache'):
@@ -1656,16 +1643,16 @@ class UnifiedBotLauncher:
                         'found': word,
                         'time': current_time
                     }
-                
+
                 if found_word_ref is not None:
                     found_word_ref.append(word)
-                
+
                 # آپدیت آمار
                 if hasattr(self, 'security_stats'):
                     self.security_stats['word_detections'] += 1
-                
+
                 return True
-        
+
         # کش کردن نتیجه منفی
         if hasattr(self, 'detection_cache'):
             self.manage_detection_cache()
@@ -1674,7 +1661,7 @@ class UnifiedBotLauncher:
                 'found': None,
                 'time': current_time
             }
-        
+
         return False
 
     def contains_stop_emoji(self, text, found_emoji_ref=None):
@@ -1685,7 +1672,7 @@ class UnifiedBotLauncher:
         # کش تشخیص
         cache_key = f"emoji_{hash(text)}"
         current_time = time.time()
-        
+
         if cache_key in self.detection_cache:
             cache_data = self.detection_cache[cache_key]
             if current_time - cache_data['time'] < self.cache_expiry:
@@ -1694,7 +1681,7 @@ class UnifiedBotLauncher:
                 return cache_data['result']
 
         import unicodedata
-        
+
         # تبدیل متن به حالات مختلف برای بررسی جامع
         text_variants = [
             text,
@@ -1707,12 +1694,12 @@ class UnifiedBotLauncher:
             unicodedata.normalize('NFC', text).replace('\uFE0F', ''),
             unicodedata.normalize('NFD', text).replace('\uFE0F', '')
         ]
-        
+
         # بررسی همه ایموجی‌های ممنوعه
         for emoji in self.forbidden_emojis:
             if not emoji or len(emoji.strip()) == 0:
                 continue
-            
+
             # تولید حالات مختلف ایموجی
             emoji_variants = [
                 emoji,
@@ -1727,7 +1714,7 @@ class UnifiedBotLauncher:
                 # نرمال‌سازی پیشرفته
                 self.normalize_emoji(emoji)
             ]
-            
+
             # بررسی تمام ترکیبات
             for text_variant in text_variants:
                 for emoji_variant in emoji_variants:
@@ -1739,15 +1726,15 @@ class UnifiedBotLauncher:
                             'found': emoji,
                             'time': current_time
                         }
-                        
+
                         if found_emoji_ref is not None:
                             found_emoji_ref.append(emoji)
-                        
+
                         # آپدیت آمار
                         self.security_stats['emoji_detections'] += 1
-                        
+
                         return True
-        
+
         # کش کردن نتیجه منفی
         self.manage_detection_cache()
         self.detection_cache[cache_key] = {
@@ -1755,7 +1742,7 @@ class UnifiedBotLauncher:
             'found': None,
             'time': current_time
         }
-        
+
         return False
 
     def manage_detection_cache(self):
@@ -1767,10 +1754,10 @@ class UnifiedBotLauncher:
                 key for key, data in self.detection_cache.items()
                 if current_time - data['time'] > self.cache_expiry
             ]
-            
+
             for key in expired_keys:
                 del self.detection_cache[key]
-            
+
             # اگر هنوز پر است، حذف نصف
             if len(self.detection_cache) >= self.cache_max_size:
                 keys_to_remove = list(self.detection_cache.keys())[:self.cache_max_size // 2]
@@ -1781,7 +1768,7 @@ class UnifiedBotLauncher:
                                    chat_id=None, chat_title=None, bot_id=None):
         """بررسی جامع امنیتی (ایموجی + کلمات)"""
         detected_issues = []
-        
+
         # بررسی ایموجی‌های ممنوعه
         found_emojis = []
         if self.contains_stop_emoji(text, found_emojis):
@@ -1791,7 +1778,7 @@ class UnifiedBotLauncher:
                     'content': emoji,
                     'description': f"ایموجی ممنوعه تشخیص داده شد: {emoji}"
                 })
-                
+
                 # لاگ امنیتی
                 self.log_security_action(
                     "emoji_detected",
@@ -1799,7 +1786,7 @@ class UnifiedBotLauncher:
                     user_id, username, chat_id, chat_title, bot_id,
                     "Security pause triggered"
                 )
-        
+
         # بررسی کلمات ممنوعه
         found_words = []
         if self.contains_forbidden_word(text, found_words):
@@ -1809,7 +1796,7 @@ class UnifiedBotLauncher:
                     'content': word,
                     'description': f"کلمه ممنوعه تشخیص داده شد: {word}"
                 })
-                
+
                 # لاگ امنیتی
                 self.log_security_action(
                     "word_detected",
@@ -1817,16 +1804,16 @@ class UnifiedBotLauncher:
                     user_id, username, chat_id, chat_title, bot_id,
                     "Security pause triggered"
                 )
-        
+
         return detected_issues
 
     async def should_pause_spam(self, message, bot_id):
         """بررسی جامع امنیتی برای توقف اسپم - ایموجی و کلمات ممنوعه"""
-        
+
         chat_id = message.chat.id
         message_id = message.id
         current_time = time.time()
-        
+
         # بررسی cache سریع برای جلوگیری از تشخیص چندگانه
         if hasattr(message, 'id') and message.id:
             cache_key = f"{message_id}_{chat_id}"
@@ -1834,20 +1821,20 @@ class UnifiedBotLauncher:
                 cache_time = self.emoji_detection_cache[cache_key]
                 if current_time - cache_time < self.detection_cooldown:
                     return False
-        
+
         detected_issues = []
         user_id = None
         username = None
         chat_title = None
-        
+
         # جمع‌آوری اطلاعات کاربر و چت
         if message.from_user:
             user_id = message.from_user.id
             username = message.from_user.first_name or message.from_user.username
-        
+
         if message.chat:
             chat_title = getattr(message.chat, 'title', f'Chat {chat_id}')
-        
+
         # بررسی جامع متن اصلی پیام
         if message.text:
             detected_issues.extend(
@@ -1869,19 +1856,14 @@ class UnifiedBotLauncher:
             # ثبت در cache
             cache_key = f"{message_id}_{chat_id}"
             self.emoji_detection_cache[cache_key] = current_time
-            
+
             # پاک کردن cache قدیمی (نگه داشتن فقط 50 آیتم اخیر)
             if len(self.emoji_detection_cache) > 50:
                 # پاک کردن قدیمی‌ترین آیتم‌ها
                 old_items = sorted(self.emoji_detection_cache.items(), key=lambda x: x[1])[:10]
                 for old_key, _ in old_items:
                     del self.emoji_detection_cache[old_key]
-            
-            # آماده‌سازی اطلاعات توقف
-            detected_content = []
-            for issue in detected_issues:
-                detected_content.append(f"{issue['type']}: {issue['content']}")
-            
+
             # فراخوانی توقف اضطراری جامع
             await self.trigger_comprehensive_emergency_stop(
                 chat_id, detected_issues, message, bot_id
@@ -1893,7 +1875,7 @@ class UnifiedBotLauncher:
             user_id = message.from_user.id
             enemy_list = self.get_enemy_list(bot_id)
             enemy_ids = {row[0] for row in enemy_list}
-            
+
             if user_id in enemy_ids:
                 message_text = message.text or message.caption or ""
                 if message_text:
@@ -1910,17 +1892,17 @@ class UnifiedBotLauncher:
     async def trigger_comprehensive_emergency_stop(self, chat_id, detected_issues, message, bot_id):
         """توقف فوری جامع برای تمام انواع تشخیص‌های امنیتی"""
         self.last_emoji_detection_time[chat_id] = time.time()
-        
+
         # ایجاد event برای چت در صورت عدم وجود
         if chat_id not in self.chat_emergency_stops:
             self.chat_emergency_stops[chat_id] = asyncio.Event()
-        
+
         self.chat_emergency_stops[chat_id].set()
-        
+
         # تجمیع اطلاعات تشخیص
         emoji_issues = [issue for issue in detected_issues if issue['type'] == 'forbidden_emoji']
         word_issues = [issue for issue in detected_issues if issue['type'] == 'forbidden_word']
-        
+
         detected_summary = []
         if emoji_issues:
             emojis = [issue['content'] for issue in emoji_issues]
@@ -1928,11 +1910,11 @@ class UnifiedBotLauncher:
         if word_issues:
             words = [issue['content'] for issue in word_issues]
             detected_summary.append(f"کلمات ممنوعه: {', '.join(words)}")
-        
+
         detection_summary = " | ".join(detected_summary)
-        
+
         logger.warning(f"🛡️ توقف فوری جامع برای چت {chat_id} - {detection_summary}")
-        
+
         # لغو فقط تسک‌های فحش مربوط به این چت
         cancelled_count = 0
         for spam_key, task in list(self.continuous_spam_tasks.items()):
@@ -1947,15 +1929,15 @@ class UnifiedBotLauncher:
                         del self.continuous_spam_tasks[spam_key]
                     except:
                         pass
-        
+
         if cancelled_count > 0:
             logger.warning(f"🛡️ {cancelled_count} تسک فحش در چت {chat_id} متوقف شد")
-        
+
         # ارسال گزارش جامع
         await self.send_comprehensive_security_report(
             chat_id, cancelled_count, detected_issues, message, bot_id
         )
-        
+
         # پاک کردن خودکار حالت توقف
         asyncio.create_task(self.auto_clear_emergency_stop_for_chat(chat_id))
 
@@ -1972,12 +1954,18 @@ class UnifiedBotLauncher:
 
             chat_info = f"چت: {chat_id}"
             try:
-                if message.chat.title:
-                    chat_info = f"گروه: {message.chat.title} ({chat_id})"
-                elif message.chat.first_name:
-                    chat_info = f"خصوصی: {message.chat.first_name} ({chat_id})"
-            except:
-                pass
+                if hasattr(message, 'chat') and message.chat:
+                    chat_title = message.chat.title or message.chat.first_name or f"چت {chat_id}"
+                else:
+                    # تلاش برای گرفتن از یکی از بات‌ها
+                    for bot_info in self.bots.values():
+                        if bot_info.get('client') and bot_info.get('status') == 'running':
+                            chat = await bot_info['client'].get_chat(chat_id)
+                            chat_title = chat.title or chat.first_name or f"چت {chat_id}"
+                            break
+            except Exception as e:
+                logger.debug(f"نتوانست اطلاعات چت {chat_id} را دریافت کند: {e}")
+                chat_title = f"چت {chat_id}"
 
             # تجمیع مشکلات تشخیص داده شده
             emoji_list = []
@@ -1990,21 +1978,21 @@ class UnifiedBotLauncher:
 
             # ساخت متن گزارش
             report_text = "🚨 **تشخیص امنیتی جامع - توقف فوری**\n\n"
-            
+
             if emoji_list:
                 report_text += f"🚫 **ایموجی‌های ممنوعه:** {', '.join(emoji_list)}\n"
             if word_list:
                 report_text += f"🚫 **کلمات ممنوعه:** {', '.join(word_list)}\n"
-            
+
             report_text += f"\n👤 **کاربر:** {user_info}\n"
             report_text += f"💬 **{chat_info}**\n"
             report_text += f"🤖 **بات تشخیص‌دهنده:** {bot_id}\n"
-            
+
             if stopped_count > 0:
                 report_text += f"⏹️ **تسک‌های متوقف شده:** {stopped_count} عدد\n"
-            
+
             report_text += f"⏰ **زمان:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-            
+
             # اضافه کردن متن پیام اگر موجود باشد
             if message.text:
                 preview = message.text[:100] + "..." if len(message.text) > 100 else message.text
@@ -2022,14 +2010,14 @@ class UnifiedBotLauncher:
     async def trigger_emergency_stop_for_chat(self, chat_id, detected_item, message):
         """فعال‌سازی توقف فوری فقط برای چت مشخص با گزارش یکپارچه"""
         self.last_emoji_detection_time[chat_id] = time.time()
-        
+
         # ایجاد event برای چت در صورت عدم وجود
         if chat_id not in self.chat_emergency_stops:
             self.chat_emergency_stops[chat_id] = asyncio.Event()
-        
+
         self.chat_emergency_stops[chat_id].set()
         logger.warning(f"⚡ توقف فوری فقط برای چت {chat_id} - چت‌های دیگر تأثیر نمی‌پذیرند")
-        
+
         # لغو فقط تسک‌های فحش مربوط به این چت
         cancelled_count = 0
         for spam_key, task in list(self.continuous_spam_tasks.items()):
@@ -2045,13 +2033,13 @@ class UnifiedBotLauncher:
                         del self.continuous_spam_tasks[spam_key]
                     except:
                         pass
-        
+
         if cancelled_count > 0:
             logger.warning(f"⚡ {cancelled_count} تسک فحش در چت {chat_id} متوقف شد - چت‌های دیگر عادی ادامه می‌دهند")
-        
+
         # ارسال گزارش یکپارچه به ربات گزارش‌دهی (فقط یک بار)
         await self.send_emoji_report_to_report_bot(chat_id, cancelled_count, detected_item, message)
-        
+
         # پاک کردن خودکار حالت توقف برای این چت
         asyncio.create_task(self.auto_clear_emergency_stop_for_chat(chat_id))
 
@@ -2062,40 +2050,40 @@ class UnifiedBotLauncher:
             if not self.report_bot:
                 logger.warning("⚠️ ربات گزارش‌دهی تعریف نشده")
                 return
-                
+
             if not hasattr(self.report_bot, 'is_valid') or not self.report_bot.is_valid:
                 logger.warning("⚠️ ربات گزارش‌دهی نامعتبر - احتمالاً مشکل در توکن")
                 return
-            
+
             if not self.report_bot.client:
                 logger.warning("⚠️ کلاینت ربات گزارش‌دهی موجود نیست")
                 return
-            
+
             # کنترل cache برای جلوگیری از spam
             import time
             current_time = time.time()
-            
+
             # ایجاد کلید یکتا
             cache_key = f"{chat_id}_{str(detected_item).strip()}"
-            
+
             # بررسی cache (کاهش زمان انتظار به 30 ثانیه)
             cooldown = 30.0
-            
+
             if cache_key in self.report_sent_cache:
                 last_sent = self.report_sent_cache[cache_key]
                 if current_time - last_sent < cooldown:
                     logger.debug(f"🔄 گزارش {detected_item} قبلاً ارسال شده")
                     return
-            
+
             # ثبت زمان جدید
             self.report_sent_cache[cache_key] = current_time
-            
+
             # پاک کردن cache قدیمی (نگه داشتن فقط 20 آیتم اخیر)
             if len(self.report_sent_cache) > 20:
                 old_keys = sorted(self.report_sent_cache.items(), key=lambda x: x[1])[:5]
                 for old_key, _ in old_keys:
                     del self.report_sent_cache[old_key]
-            
+
             # تلاش برای دریافت اطلاعات چت
             chat_title = "نامشخص"
             try:
@@ -2111,13 +2099,13 @@ class UnifiedBotLauncher:
             except Exception as e:
                 logger.debug(f"نتوانست اطلاعات چت {chat_id} را دریافت کند: {e}")
                 chat_title = f"چت {chat_id}"
-            
+
             # تمیز کردن ایموجی برای نمایش
             display_item = str(detected_item).strip() if detected_item else "نامشخص"
-            
+
             # شمارش بات‌های فعال
             active_bots = sum(1 for bot_info in self.bots.values() if bot_info.get('status') == 'running')
-            
+
             # ارسال گزارش به ربات گزارش‌دهی
             if self.report_bot and self.report_bot.client:
                 await self.report_bot.send_emoji_alert(
@@ -2127,7 +2115,7 @@ class UnifiedBotLauncher:
                     stopped_bots_count=active_bots
                 )
                 logger.info(f"📤 گزارش ارسال شد: {display_item} در {chat_title} - {active_bots} ربات متأثر شد")
-            
+
         except Exception as e:
             logger.error(f"❌ خطا در ارسال گزارش به ربات گزارش‌دهی: {e}")
 
@@ -2179,32 +2167,32 @@ class UnifiedBotLauncher:
             if config['admin_id'] == user_id:
                 return bot_id
         return None
-    
+
     def is_launcher_admin(self, user_id):
         """بررسی آیا کاربر ادمین اصلی لانچر است"""
         return user_id == self.launcher_admin_id
-    
+
     def can_control_bot(self, user_id, target_bot_id):
         """بررسی آیا کاربر مجاز به کنترل بات مشخصی است"""
         # ادمین اصلی لانچر می‌تواند همه بات‌ها را کنترل کند
         if self.is_launcher_admin(user_id):
             return True
-        
+
         # ادمین‌های بات فقط می‌توانند بات‌هایی که به آن‌ها اختصاص داده شده را کنترل کنند
         accessible_bots = self.get_accessible_bots(user_id)
         return target_bot_id in accessible_bots
-    
+
     def get_accessible_bots(self, user_id):
         """دریافت لیست بات‌هایی که کاربر مجاز به کنترل آن‌ها است"""
         if self.is_launcher_admin(user_id):
             return list(self.bot_configs.keys())  # همه بات‌ها
-        
+
         # پیدا کردن همه بات‌هایی که این ادمین کنترل می‌کند
         accessible_bots = []
         for bot_id, config in self.bot_configs.items():
             if config['admin_id'] == user_id:
                 accessible_bots.append(bot_id)
-        
+
         return accessible_bots
 
     async def create_bot(self, bot_id, config):
@@ -2212,7 +2200,7 @@ class UnifiedBotLauncher:
         try:
             # تنظیم پایگاه داده
             self.setup_database(bot_id, config['db_path'])
-            
+
             # بارگذاری تنظیمات تاخیر فحش از دیتابیس
             self.get_spam_delay(bot_id)
 
@@ -2223,21 +2211,21 @@ class UnifiedBotLauncher:
                 api_hash=config['api_hash']
             )
 
-            admin_id = config['admin_id']
+            admin_id= config['admin_id']
 
             # تعریف هندلرها - کنترل دسترسی بر اساس نوع ادمین
             def is_admin_user(_, __, message):
                 if not message.from_user:
                     return False
                 user_id = message.from_user.id
-                
+
                 # بررسی آیا کاربر اصلاً ادمین است
                 if user_id not in self.all_admin_ids:
                     return False
-                
+
                 # بررسی آیا کاربر مجاز به کنترل این بات است
                 can_control = self.can_control_bot(user_id, bot_id)
-                
+
                 if can_control:
                     if self.is_launcher_admin(user_id):
                         logger.info(f"👑 ادمین اصلی لانچر: {user_id} - کنترل بات {bot_id}")
@@ -2245,7 +2233,7 @@ class UnifiedBotLauncher:
                         logger.info(f"🔧 ادمین بات: {user_id} - کنترل بات {bot_id}")
                 else:
                     logger.warning(f"🚫 ادمین {user_id} مجاز به کنترل بات {bot_id} نیست")
-                
+
                 return can_control
 
             admin_filter = filters.create(is_admin_user)
@@ -2268,14 +2256,14 @@ class UnifiedBotLauncher:
 
                     text = f"🔍 **تست تشخیص ادمین:**\n\n"
                     text += f"👤 شما: `{user_id}`\n"
-                    
+
                     if is_launcher:
                         text += f"👑 نوع: ادمین اصلی لانچر\n"
                         text += f"🎯 دسترسی: کنترل همه بات‌ها\n"
                     else:
                         text += f"🔧 نوع: ادمین بات شخصی\n"
                         text += f"🤖 بات مربوطه: `{user_bot or 'یافت نشد'}`\n"
-                    
+
                     text += f"🎮 بات‌های قابل کنترل: `{accessible_bots}`\n"
                     text += f"🎯 بات فعلی: `{bot_id}`\n"
                     text += f"✅ وضعیت: دسترسی تایید شده"
@@ -2292,16 +2280,16 @@ class UnifiedBotLauncher:
                     if not self.is_launcher_admin(user_id):
                         await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
                         return
-                    
+
                     chat_id = message.chat.id
                     self.auto_chat_enabled = True
                     success, msg = await self.start_auto_conversation(chat_id)
-                    
+
                     if success:
                         await message.reply_text(f"🗣️ **گفتگوی خودکار شروع شد!**\n\n✨ ربات‌ها در این گروه شروع به گفتگوی طبیعی می‌کنند\n🤖 شرکت‌کنندگان: {len([b for b in range(1,10) if self.bot_online_status.get(b, True)])} ربات\n⏰ بازه زمانی: 10 ثانیه تا 2 دقیقه بین پیام‌ها\n🎯 موضوع فعلی: {self.active_conversations[chat_id]['current_topic']}")
                     else:
                         await message.reply_text(f"❌ {msg}")
-                        
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
@@ -2312,16 +2300,16 @@ class UnifiedBotLauncher:
                     if not self.is_launcher_admin(user_id):
                         await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
                         return
-                    
+
                     chat_id = message.chat.id
                     success, msg = await self.stop_auto_conversation(chat_id)
-                    
+
                     if success:
                         self.auto_chat_enabled = False
                         await message.reply_text("🤐 **گفتگوی خودکار متوقف شد**\n\n✅ ربات‌ها دیگر به صورت خودکار گفتگو نمی‌کنند")
                     else:
                         await message.reply_text(f"❌ {msg}")
-                        
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
@@ -2332,20 +2320,20 @@ class UnifiedBotLauncher:
                     if not self.is_launcher_admin(user_id):
                         await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
                         return
-                    
+
                     chat_id = message.chat.id
-                    
+
                     text = f"📊 **وضعیت گفتگوی خودکار**\n\n"
                     text += f"🔄 حالت کلی: {'فعال' if self.auto_chat_enabled else 'غیرفعال'}\n"
                     text += f"💬 این چت: {'فعال' if chat_id in self.auto_chat_tasks else 'غیرفعال'}\n\n"
-                    
+
                     # وضعیت ربات‌ها
                     online_count = sum(1 for i in range(1, 10) if self.bot_online_status.get(i, True))
                     offline_count = 9 - online_count
                     text += f"🤖 **ربات‌ها:**\n"
                     text += f"🟢 آنلاین: {online_count} ربات\n"
                     text += f"🔴 آفلاین: {offline_count} ربات\n\n"
-                    
+
                     # جزئیات گفتگوی فعال
                     if chat_id in self.active_conversations:
                         conv = self.active_conversations[chat_id]
@@ -2357,9 +2345,9 @@ class UnifiedBotLauncher:
                         text += f"👥 شرکت‌کنندگان: {len(conv['participants'])} ربات"
                     else:
                         text += "📈 **آمار گفتگو:** هیچ گفتگوی فعالی موجود نیست"
-                    
+
                     await message.reply_text(text)
-                    
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
@@ -2370,13 +2358,13 @@ class UnifiedBotLauncher:
                     if not self.is_launcher_admin(user_id):
                         await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
                         return
-                    
+
                     if len(message.command) < 2:
                         await message.reply_text("⚠️ لطفاً شماره ربات را وارد کنید.\n💡 استفاده: `/setoffline 1` یا `/setoffline 1-5`")
                         return
-                    
+
                     bot_range = message.command[1]
-                    
+
                     if '-' in bot_range:
                         # محدوده ربات‌ها
                         start, end = map(int, bot_range.split('-'))
@@ -2384,15 +2372,15 @@ class UnifiedBotLauncher:
                     else:
                         # ربات منفرد
                         bots_to_offline = [int(bot_range)]
-                    
+
                     offline_count = 0
                     for target_bot in bots_to_offline:
                         if 1 <= target_bot <= 9:
                             self.simulate_bot_offline(target_bot)
                             offline_count += 1
-                    
+
                     await message.reply_text(f"🔴 **{offline_count} ربات آفلاین شد**\n\n📱 ربات‌های آفلاین: {', '.join(map(str, bots_to_offline[:offline_count]))}\n⏰ مدت آفلاین: 30 ثانیه تا 3 دقیقه (تصادفی)")
-                    
+
                 except ValueError:
                     await message.reply_text("❌ فرمت نامعتبر. از اعداد 1-9 استفاده کنید")
                 except Exception as e:
@@ -3005,82 +2993,97 @@ class UnifiedBotLauncher:
             @app.on_message(filters.command("addemoji") & admin_filter)
             async def add_forbidden_emoji_command(client, message):
                 try:
-                    if len(message.command) < 2:
-                        await message.reply_text("⚠️ لطفاً ایموجی مورد نظر را وارد کنید.\n💡 استفاده: `/addemoji 🚫`")
+                    parts = message.text.split(None, 2)
+                    if len(parts) < 2:
+                        await message.reply_text("❌ **استفاده صحیح:** `/addemoji [ایموجی] [توضیحات]`\n\n**مثال:** `/addemoji ⚡ برق گیمینگ`")
                         return
 
-                    new_emoji = " ".join(message.command[1:])
-                    
-                    if new_emoji in self.forbidden_emojis:
-                        await message.reply_text(f"⚠️ این ایموجی قبلاً در لیست ممنوعه است: {new_emoji}")
+                    emoji = parts[1]
+                    description = parts[2] if len(parts) > 2 else "بدون توضیحات"
+
+                    # بررسی صحت ایموجی
+                    if len(emoji.strip()) == 0:
+                        await message.reply_text("❌ **ایموجی نمی‌تواند خالی باشد**")
                         return
-                    
-                    # اضافه کردن با سیستم پیشرفته
-                    result = self.add_forbidden_emoji_advanced(
-                        new_emoji, 
-                        "اضافه شده توسط ادمین", 
-                        'custom', 
-                        message.from_user.id
-                    )
-                    
-                    if result:
+
+                    print(f"🔍 تلاش برای اضافه کردن ایموجی: '{emoji}' با توضیحات: '{description}'")
+
+                    if self.add_forbidden_emoji_to_db(emoji, description):
+                        # بارگذاری مجدد ایموجی‌ها
+                        self.forbidden_emojis = self.load_forbidden_emojis_from_db()
+
                         await message.reply_text(
-                            f"✅ **ایموجی ممنوعه اضافه شد - همه بات‌ها:**\n\n"
-                            f"🚫 ایموجی: `{new_emoji}`\n"
-                            f"📊 تعداد کل: {len(self.forbidden_emojis)} ایموجی\n"
-                            f"👤 اضافه‌کننده: {message.from_user.first_name}\n"
-                            f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                            f"⚡ تشخیص در تمام ۹ بات فعال شد!"
+                            f"✅ **ایموجی ممنوعه با موفقیت اضافه شد**\n\n"
+                            f"🔹 **ایموجی:** {emoji}\n"
+                            f"🔹 **توضیحات:** {description}\n"
+                            f"🔹 **کدهای Unicode:** {' '.join([f'U+{ord(c):04X}' for c in emoji])}\n"
+                            f"🔹 **مجموع ایموجی‌ها:** {len(self.forbidden_emojis)} عدد"
                         )
-                        
-                        # گزارش پیشرفته
-                        if self.report_bot:
-                            report_text = f"🚨 ایموجی ممنوعه جدید: {new_emoji}\n"
-                            report_text += f"👤 توسط: {message.from_user.first_name} ({message.from_user.id})"
-                            await self.send_report_safely(report_text)
-                        
-                        self.log_action(bot_id, "add_forbidden_emoji", message.from_user.id, new_emoji)
-                        logger.info(f"✅ ایموجی {new_emoji} با سیستم پیشرفته اضافه شد")
+
+                        self.log_security_action("emoji_added", emoji, message.from_user.id, 
+                                               message.from_user.username, message.chat.id, 
+                                               message.chat.title, bot_id)
                     else:
-                        await message.reply_text(f"❌ خطا در اضافه کردن ایموجی یا قبلاً موجود است")
+                        # بررسی دقیق‌تر برای نمایش علت
+                        if emoji in self.forbidden_emojis:
+                            await message.reply_text(
+                                f"⚠️ **ایموجی از قبل موجود است**\n\n"
+                                f"🔹 **ایموجی:** {emoji}\n"
+                                f"🔹 **وضعیت:** در لیست ممنوعه‌ها موجود است\n"
+                                f"🔹 **برای مشاهده:** `/listemoji`"
+                            )
+                        else:
+                            await message.reply_text(
+                                f"❌ **خطا در اضافه کردن ایموجی**\n\n"
+                                f"🔹 **ایموجی:** {emoji}\n"
+                                f"🔹 **علت احتمالی:** مشکل در دیتابیس یا نرمال‌سازی\n"
+                                f"🔹 **راهکار:** از ایموجی دیگری استفاده کنید"
+                            )
 
                 except Exception as e:
-                    await message.reply_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(
+                        f"❌ **خطای سیستمی**\n\n"
+                        f"🔹 **پیام خطا:** {str(e)}\n"
+                        f"🔹 **راهکار:** دوباره تلاش کنید"
+                    )
+                    print(f"❌ خطا در کامند addemoji: {e}")
 
             @app.on_message(filters.command("delemoji") & admin_filter)
             async def del_forbidden_emoji_command(client, message):
                 try:
-                    if len(message.command) < 2:
-                        await message.reply_text("⚠️ لطفاً ایموجی مورد نظر را وارد کنید.\n💡 استفاده: `/delemoji 🚫`")
+                    parts = message.text.split(None, 1)
+                    if len(parts) < 2:
+                        await message.reply_text("❌ **استفاده صحیح:** `/delemoji [ایموجی]`")
                         return
 
-                    emoji_to_remove = " ".join(message.command[1:])
-                    
+                    emoji_to_remove = parts[1]
+
                     if emoji_to_remove not in self.forbidden_emojis:
                         await message.reply_text(f"⚠️ این ایموجی در لیست ممنوعه یافت نشد: {emoji_to_remove}")
                         return
-                    
+
                     # حذف با سیستم پیشرفته
                     result, msg = self.remove_forbidden_emoji_advanced(emoji_to_remove, message.from_user.id)
-                    
+
                     if result:
+                        # بارگذاری مجدد ایموجی‌ها
+                        self.forbidden_emojis = self.load_forbidden_emojis_from_db()
+
                         await message.reply_text(
-                            f"✅ **ایموجی ممنوعه حذف شد - همه بات‌ها:**\n\n"
-                            f"🗑️ ایموجی: `{emoji_to_remove}`\n"
-                            f"📊 تعداد باقی‌مانده: {len(self.forbidden_emojis)} ایموجی\n"
-                            f"👤 حذف‌کننده: {message.from_user.first_name}\n"
-                            f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                            f"⚡ تشخیص از تمام ۹ بات حذف شد!"
+                            f"✅ **ایموجی ممنوعه حذف شد**\n\n"
+                            f"🔹 **ایموجی:** {emoji_to_remove}\n"
+                            f"🔹 **مجموع ایموجی‌ها:** {len(self.forbidden_emojis)} عدد"
                         )
-                        
+
                         # گزارش
                         if self.report_bot:
                             report_text = f"🗑️ ایموجی ممنوعه حذف شد: {emoji_to_remove}\n"
                             report_text += f"👤 توسط: {message.from_user.first_name} ({message.from_user.id})"
                             await self.send_report_safely(report_text)
-                        
-                        self.log_action(bot_id, "del_forbidden_emoji", message.from_user.id, emoji_to_remove)
-                        logger.info(f"✅ ایموجی {emoji_to_remove} با سیستم پیشرفته حذف شد")
+
+                        self.log_security_action("emoji_removed", emoji_to_remove, message.from_user.id, 
+                                               message.from_user.username, message.chat.id, 
+                                               message.chat.title, bot_id)
                     else:
                         await message.reply_text(f"⚠️ {msg}")
 
@@ -3092,7 +3095,7 @@ class UnifiedBotLauncher:
                 """لیست پیشرفته ایموجی‌های ممنوعه"""
                 try:
                     emoji_list = self.list_forbidden_emojis_advanced()
-                    
+
                     if not emoji_list:
                         await message.reply_text(
                             "📝 **لیست ایموجی‌های ممنوعه خالی است**\n\n"
@@ -3105,7 +3108,7 @@ class UnifiedBotLauncher:
                         return
 
                     text = "🚫 **لیست ایموجی‌های ممنوعه (همه بات‌ها):**\n\n"
-                    
+
                     for i, emoji_data in enumerate(emoji_list[:15], 1):
                         text += f"`{i}.` {emoji_data['emoji']}"
                         if emoji_data['description'] and emoji_data['description'] != 'اضافه شده توسط ادمین':
@@ -3120,7 +3123,7 @@ class UnifiedBotLauncher:
                     text += f"• وضعیت تشخیص: {'✅ فعال' if self.security_settings['emoji_detection_enabled'] else '❌ غیرفعال'}\n"
                     text += f"• آخرین بروزرسانی: {datetime.now().strftime('%H:%M:%S')}\n\n"
                     text += f"💡 **راهنما:** `/testemoji [ایموجی]` برای تست تشخیص"
-                    
+
                     await message.reply_text(text)
 
                 except Exception as e:
@@ -3129,22 +3132,23 @@ class UnifiedBotLauncher:
             @app.on_message(filters.command("testemoji") & admin_filter)
             async def test_emoji_command(client, message):
                 try:
-                    if len(message.command) < 2:
-                        await message.reply_text("⚠️ استفاده: `/testemoji [ایموجی]`\nمثال: `/testemoji ⚡️`")
+                    parts = message.text.split(None, 1)
+                    if len(parts) < 2:
+                        await message.reply_text("❌ **استفاده صحیح:** `/testemoji [ایموجی]`\nمثال: `/testemoji ⚡️`")
                         return
 
-                    test_emoji = " ".join(message.command[1:])
-                    
+                    test_emoji = parts[1]
+
                     # تست تشخیص
                     found_emoji_ref = []
                     is_detected = self.contains_stop_emoji(test_emoji, found_emoji_ref)
-                    
+
                     # نمایش جزئیات
                     import unicodedata
                     unicode_codes = [f"U+{ord(char):04X}" for char in test_emoji]
                     normalized = self.normalize_emoji(test_emoji)
                     normalized_codes = [f"U+{ord(char):04X}" for char in normalized] if normalized else []
-                    
+
                     text = f"🔍 **تست تشخیص ایموجی:**\n\n"
                     text += f"ایموجی: {test_emoji}\n"
                     text += f"کد اصلی: `{' '.join(unicode_codes)}`\n"
@@ -3154,13 +3158,14 @@ class UnifiedBotLauncher:
                     text += f"تشخیص داده شد: {'✅ بله' if is_detected else '❌ خیر'}\n"
                     if found_emoji_ref:
                         text += f"ایموجی یافت شده: {found_emoji_ref[0]}\n"
-                    text += f"\n📊 تعداد کل ایموجی‌های ممنوعه: {len(self.forbidden_emojis)}"
-                    
+                    text += f"\n📊 تعداد کل ایموجی‌های ممنوعه: {len(self.forbidden_emojis)}\n"
+                    text += f"🚀 سرعت تشخیص: {self.detection_cooldown} ms"
+
                     await message.reply_text(text)
 
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
-            
+
             @app.on_message(filters.command("syncemojis") & admin_filter)
             async def sync_emojis_command(client, message):
                 try:
@@ -3169,17 +3174,17 @@ class UnifiedBotLauncher:
                     fresh_emojis = self.load_forbidden_emojis_from_db()
                     self.forbidden_emojis = fresh_emojis
                     new_count = len(self.forbidden_emojis)
-                    
+
                     status_text = f"🔄 **همگام‌سازی ایموجی‌های ممنوعه:**\n\n"
                     status_text += f"📊 تعداد قبل: {old_count} ایموجی\n"
                     status_text += f"📊 تعداد بعد: {new_count} ایموجی\n"
                     status_text += f"🔄 تغییر: {new_count - old_count:+d} ایموجی\n\n"
                     status_text += f"✅ همه ۹ بات هماهنگ شدند\n"
                     status_text += f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                    
+
                     await message.reply_text(status_text)
                     self.log_action(bot_id, "sync_emojis", message.from_user.id, f"همگام‌سازی: {old_count} -> {new_count}")
-                    
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
@@ -3187,11 +3192,11 @@ class UnifiedBotLauncher:
             async def debug_emoji_command(client, message):
                 try:
                     if len(message.command) < 2:
-                        await message.reply_text("⚠️ استفاده: `/debugemoji [متن]`\nمثال: `/debugemoji A CHARACTER HAS SPAWNED ⚡`")
+                        await message.reply_text("❌ **استفاده صحیح:** `/debugemoji [متن]`\nمثال: `/debugemoji A CHARACTER HAS SPAWNED ⚡`")
                         return
 
                     test_text = " ".join(message.command[1:])
-                    
+
                     # تست تشخیص با زمان‌سنجی
                     import time
                     start_time = time.time()
@@ -3199,22 +3204,22 @@ class UnifiedBotLauncher:
                     is_detected = self.contains_stop_emoji(test_text, found_emoji_ref)
                     end_time = time.time()
                     detection_time = (end_time - start_time) * 1000  # میلی‌ثانیه
-                    
+
                     # نمایش جزئیات کامل
                     debug_text = f"🔍 **دیباگ تشخیص ایموجی (نسخه بهبود یافته):**\n\n"
                     debug_text += f"📝 متن تست: `{test_text}`\n"
                     debug_text += f"🎯 تشخیص داده شد: {'✅ بله' if is_detected else '❌ خیر'}\n"
                     debug_text += f"⏱️ زمان تشخیص: {detection_time:.2f}ms\n"
-                    
+
                     if found_emoji_ref:
                         debug_text += f"⚡ ایموجی یافت شده: `{found_emoji_ref[0]}`\n"
                         # نمایش کدهای Unicode
                         unicode_codes = [f"U+{ord(c):04X}" for c in found_emoji_ref[0]]
                         debug_text += f"🔢 کدهای Unicode: `{' '.join(unicode_codes)}`\n"
-                    
+
                     debug_text += f"📊 تعداد ایموجی‌های ممنوعه: {len(self.forbidden_emojis)}\n"
-                    debug_text += f"🔄 وضعیت cache: {len(self.emoji_detection_cache)} آیتم\n\n"
-                    
+                    debug_text += f"🔄 وضعیت cache: {len(self.detection_cache)} آیتم\n\n"
+
                     # نمایش تمام ایموجی‌های ممنوعه فعلی
                     if self.forbidden_emojis:
                         debug_text += "📋 **ایموجی‌های ممنوعه فعلی:**\n"
@@ -3223,12 +3228,12 @@ class UnifiedBotLauncher:
                             debug_text += f"{i}. `{emoji}` ({' '.join(unicode_codes)})\n"
                         if len(self.forbidden_emojis) > 10:
                             debug_text += f"... و {len(self.forbidden_emojis) - 10} مورد دیگر\n"
-                    
+
                     await message.reply_text(debug_text)
-                    
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
-            
+
             @app.on_message(filters.command("quicktest") & admin_filter)
             async def quick_test_command(client, message):
                 """تست سریع تشخیص ایموجی‌های معمول"""
@@ -3241,11 +3246,11 @@ class UnifiedBotLauncher:
                         "A CHARACTER HAS SPAWNED ⚡",
                         "متن عادی",
                     ]
-                    
+
                     result_text = "🧪 **تست سریع تشخیص:**\n\n"
                     detected_count = 0
                     total_time = 0
-                    
+
                     for i, test_text in enumerate(test_cases, 1):
                         import time
                         start_time = time.time()
@@ -3254,7 +3259,7 @@ class UnifiedBotLauncher:
                         end_time = time.time()
                         detection_time = (end_time - start_time) * 1000
                         total_time += detection_time
-                        
+
                         if is_detected:
                             detected_count += 1
                             status = "✅"
@@ -3262,24 +3267,24 @@ class UnifiedBotLauncher:
                         else:
                             status = "❌"
                             found_text = ""
-                        
+
                         result_text += f"`{i}.` {test_text[:20]}... → {status}{found_text}\n"
-                    
+
                     avg_time = total_time / len(test_cases)
                     result_text += f"\n📊 **نتایج:**\n"
                     result_text += f"🎯 تشخیص: {detected_count}/{len(test_cases)}\n"
                     result_text += f"⏱️ میانگین: {avg_time:.2f}ms\n"
                     result_text += f"🚀 سرعت: {1000/avg_time:.0f}/ثانیه"
-                    
+
                     await message.reply_text(result_text)
-                    
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
             # =================================================================
             # کامندهای پیشرفته مدیریت کلمات ممنوعه - Enhanced Forbidden Words Commands
             # =================================================================
-            
+
             @app.on_message(filters.command("addword") & admin_filter)
             async def add_word_advanced_command(client, message):
                 """اضافه کردن کلمه ممنوعه با ویژگی‌های پیشرفته"""
@@ -3298,7 +3303,7 @@ class UnifiedBotLauncher:
                     parts = message.text.split(maxsplit=2)
                     word = parts[1] if len(parts) > 1 else ""
                     description = parts[2] if len(parts) > 2 else "اضافه شده توسط ادمین"
-                    
+
                     result = self.add_forbidden_word_advanced(
                         word, 
                         description, 
@@ -3307,7 +3312,7 @@ class UnifiedBotLauncher:
                         partial_match=True,    # پیش‌فرض: تطبیق جزئی
                         added_by_user_id=message.from_user.id
                     )
-                    
+
                     if result:
                         await message.reply_text(
                             f"✅ **کلمه ممنوعه اضافه شد - همه بات‌ها:**\n\n"
@@ -3319,7 +3324,7 @@ class UnifiedBotLauncher:
                             f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
                             f"⚡ تشخیص در تمام ۹ بات فعال شد!"
                         )
-                        
+
                         # گزارش
                         if self.report_bot:
                             report_text = f"🚨 کلمه ممنوعه جدید: {word}\n"
@@ -3355,10 +3360,10 @@ class UnifiedBotLauncher:
                     match_type = parts[2].lower()
                     case_type = parts[3].lower()
                     description = parts[4] if len(parts) > 4 else f"کلمه {match_type} {case_type}"
-                    
+
                     partial_match = match_type == "partial"
                     case_sensitive = case_type == "sensitive"
-                    
+
                     result = self.add_forbidden_word_advanced(
                         word, 
                         description, 
@@ -3367,11 +3372,11 @@ class UnifiedBotLauncher:
                         partial_match=partial_match,
                         added_by_user_id=message.from_user.id
                     )
-                    
+
                     if result:
                         match_desc = "جزئی (در هر جای متن)" if partial_match else "دقیق (کلمه کامل)"
                         case_desc = "حساس به کوچک/بزرگ" if case_sensitive else "عدم تمایز کوچک/بزرگ"
-                        
+
                         await message.reply_text(
                             f"✅ **کلمه ممنوعه پیشرفته اضافه شد:**\n\n"
                             f"🚫 کلمه: `{word}`\n"
@@ -3391,13 +3396,14 @@ class UnifiedBotLauncher:
             async def del_word_advanced_command(client, message):
                 """حذف کلمه ممنوعه با تأیید"""
                 try:
-                    if len(message.command) < 2:
-                        await message.reply_text("⚠️ استفاده: `/delword [کلمه]`\nمثال: `/delword character`")
+                    parts = message.text.split(None, 1)
+                    if len(parts) < 2:
+                        await message.reply_text("❌ **استفاده صحیح:** `/delword [کلمه]`\nمثال: `/delword character`")
                         return
 
-                    word = " ".join(message.command[1:])
+                    word = parts[1]
                     result, msg = self.remove_forbidden_word_advanced(word, message.from_user.id)
-                    
+
                     if result:
                         await message.reply_text(
                             f"✅ **کلمه ممنوعه حذف شد - همه بات‌ها:**\n\n"
@@ -3406,7 +3412,7 @@ class UnifiedBotLauncher:
                             f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
                             f"⚡ تشخیص از تمام ۹ بات حذف شد!"
                         )
-                        
+
                         # گزارش
                         if self.report_bot:
                             report_text = f"🗑️ کلمه ممنوعه حذف شد: {word}\n"
@@ -3423,7 +3429,7 @@ class UnifiedBotLauncher:
                 """لیست پیشرفته کلمات ممنوعه"""
                 try:
                     word_list = self.list_forbidden_words_advanced()
-                    
+
                     if not word_list:
                         await message.reply_text(
                             "📝 **لیست کلمات ممنوعه خالی است**\n\n"
@@ -3436,11 +3442,11 @@ class UnifiedBotLauncher:
                         return
 
                     text = "🚫 **لیست کلمات ممنوعه (همه بات‌ها):**\n\n"
-                    
+
                     for i, word_data in enumerate(word_list[:12], 1):
                         match_type = "دقیق" if not word_data['partial_match'] else "جزئی"
                         case_type = "حساس" if word_data['case_sensitive'] else "عادی"
-                        
+
                         text += f"`{i}.` **{word_data['word']}** ({match_type}, {case_type})"
                         if word_data['description'] and word_data['description'] != 'اضافه شده توسط ادمین':
                             text += f"\n    └ {word_data['description'][:35]}"
@@ -3454,7 +3460,7 @@ class UnifiedBotLauncher:
                     text += f"• وضعیت تشخیص: {'✅ فعال' if self.security_settings['word_detection_enabled'] else '❌ غیرفعال'}\n"
                     text += f"• آخرین بروزرسانی: {datetime.now().strftime('%H:%M:%S')}\n\n"
                     text += f"💡 **راهنما:** `/testword [متن]` برای تست تشخیص"
-                    
+
                     await message.reply_text(text)
 
                 except Exception as e:
@@ -3464,12 +3470,13 @@ class UnifiedBotLauncher:
             async def test_word_command(client, message):
                 """تست تشخیص کلمات ممنوعه"""
                 try:
-                    if len(message.command) < 2:
-                        await message.reply_text("⚠️ استفاده: `/testword [متن]`\nمثال: `/testword A CHARACTER HAS SPAWNED`")
+                    parts = message.text.split(None, 1)
+                    if len(parts) < 2:
+                        await message.reply_text("❌ **استفاده صحیح:** `/testword [متن]`\nمثال: `/testword A CHARACTER HAS SPAWNED`")
                         return
 
-                    test_text = " ".join(message.command[1:])
-                    
+                    test_text = parts[1]
+
                     # تست تشخیص با زمان‌سنجی
                     import time
                     start_time = time.time()
@@ -3477,19 +3484,19 @@ class UnifiedBotLauncher:
                     is_detected = self.contains_forbidden_word(test_text, found_words)
                     end_time = time.time()
                     detection_time = (end_time - start_time) * 1000  # میلی‌ثانیه
-                    
+
                     # نمایش جزئیات کامل
                     debug_text = f"🔍 **تست تشخیص کلمات ممنوعه:**\n\n"
                     debug_text += f"📝 متن تست: `{test_text}`\n"
                     debug_text += f"🎯 تشخیص داده شد: {'✅ بله' if is_detected else '❌ خیر'}\n"
                     debug_text += f"⏱️ زمان تشخیص: {detection_time:.2f}ms\n"
-                    
+
                     if found_words:
                         debug_text += f"⚡ کلمه یافت شده: `{found_words[0]}`\n"
-                    
+
                     debug_text += f"📊 تعداد کلمات ممنوعه: {len(self.forbidden_words)}\n"
                     debug_text += f"🔄 وضعیت cache: {len(self.detection_cache)} آیتم\n\n"
-                    
+
                     # نمایش تمام کلمات ممنوعه فعلی
                     if self.forbidden_words:
                         debug_text += "📋 **کلمات ممنوعه فعلی:**\n"
@@ -3497,9 +3504,9 @@ class UnifiedBotLauncher:
                             debug_text += f"{i}. `{word}`\n"
                         if len(self.forbidden_words) > 8:
                             debug_text += f"... و {len(self.forbidden_words) - 8} مورد دیگر\n"
-                    
+
                     await message.reply_text(debug_text)
-                    
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
@@ -3509,11 +3516,11 @@ class UnifiedBotLauncher:
                 try:
                     # دریافت تعداد کلمات قبل از حذف
                     count = len(self.forbidden_words)
-                    
+
                     if count == 0:
                         await message.reply_text("📝 لیست کلمات ممنوعه خالی است.")
                         return
-                    
+
                     # حذف از دیتابیس
                     db_path = self.bot_configs[1]['db_path']
                     conn = sqlite3.connect(db_path)
@@ -3521,10 +3528,10 @@ class UnifiedBotLauncher:
                     cursor.execute("DELETE FROM forbidden_words")
                     conn.commit()
                     conn.close()
-                    
+
                     # حذف از حافظه
                     self.forbidden_words.clear()
-                    
+
                     await message.reply_text(
                         f"✅ **همه کلمات ممنوعه حذف شدند:**\n\n"
                         f"🗑️ تعداد حذف شده: {count} کلمه\n"
@@ -3532,15 +3539,15 @@ class UnifiedBotLauncher:
                         f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
                         f"⚡ تشخیص از تمام ۹ بات حذف شد!"
                     )
-                    
+
                     # گزارش
                     if self.report_bot:
                         report_text = f"🗑️ همه کلمات ممنوعه حذف شدند ({count} کلمه)\n"
                         report_text += f"👤 توسط: {message.from_user.first_name} ({message.from_user.id})"
                         await self.send_report_safely(report_text)
-                    
+
                     self.log_action(bot_id, "clear_words", message.from_user.id, f"حذف {count} کلمه")
-                    
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
@@ -3550,45 +3557,45 @@ class UnifiedBotLauncher:
                 try:
                     emoji_count = len(self.forbidden_emojis)
                     word_count = len(self.forbidden_words)
-                    
+
                     text = f"🛡️ **آمار کامل امنیتی (همه بات‌ها):**\n\n"
-                    
+
                     # آمار کلی
                     text += f"📊 **آمار کلی:**\n"
                     text += f"• ایموجی‌های ممنوعه: {emoji_count} عدد\n"
                     text += f"• کلمات ممنوعه: {word_count} عدد\n"
                     text += f"• مجموع: {emoji_count + word_count} مورد\n\n"
-                    
+
                     # وضعیت تشخیص
                     text += f"⚙️ **وضعیت تشخیص:**\n"
                     text += f"• ایموجی‌ها: {'✅ فعال' if self.security_settings['emoji_detection_enabled'] else '❌ غیرفعال'}\n"
                     text += f"• کلمات: {'✅ فعال' if self.security_settings['word_detection_enabled'] else '❌ غیرفعال'}\n"
                     text += f"• لاگ امنیتی: {'✅ فعال' if self.security_settings['log_detections'] else '❌ غیرفعال'}\n\n"
-                    
+
                     # آمار تشخیص
                     text += f"📈 **آمار تشخیص (این جلسه):**\n"
                     text += f"• تشخیص ایموجی: {self.security_stats['emoji_detections']} بار\n"
                     text += f"• تشخیص کلمه: {self.security_stats['word_detections']} بار\n"
                     text += f"• مجموع: {self.security_stats['emoji_detections'] + self.security_stats['word_detections']} بار\n\n"
-                    
+
                     # وضعیت کش
                     text += f"💾 **وضعیت کش:**\n"
                     text += f"• آیتم‌های کش: {len(self.detection_cache)} عدد\n"
                     text += f"• حد اکثر: {self.cache_max_size} عدد\n"
                     text += f"• مدت انقضا: {self.cache_expiry} ثانیه\n\n"
-                    
+
                     # آخرین بروزرسانی
                     text += f"🕐 **آخرین بروزرسانی:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                    
+
                     # کامندهای مفید
                     text += f"💡 **کامندهای مفید:**\n"
                     text += f"• `/listemoji` - لیست ایموجی‌ها\n"
                     text += f"• `/listword` - لیست کلمات\n"
                     text += f"• `/testemoji [ایموجی]` - تست ایموجی\n"
                     text += f"• `/testword [متن]` - تست کلمه"
-                    
+
                     await message.reply_text(text)
-                    
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
@@ -3600,20 +3607,20 @@ class UnifiedBotLauncher:
                         return
 
                     text = f"🔥 **فحش‌های نامحدود فعال:**\n\n"
-                    
+
                     for i, (spam_key, task) in enumerate(self.continuous_spam_tasks.items(), 1):
                         bot_id, user_id, chat_id = spam_key.split('_')
-                        
+
                         try:
                             chat_info = await client.get_chat(int(chat_id))
                             chat_name = chat_info.title or f"چت {chat_id}"
                         except:
                             chat_name = f"چت {chat_id}"
-                        
+
                         text += f"`{i}.` بات {bot_id} → دشمن `{user_id}`\n"
                         text += f"    └ در: {chat_name}\n"
                         text += f"    └ وضعیت: {'✅ فعال' if not task.done() else '❌ متوقف'}\n\n"
-                        
+
                         if i >= 10:  # محدود به 10 مورد
                             text += f"... و {len(self.continuous_spam_tasks) - 10} مورد دیگر\n"
                             break
@@ -3643,13 +3650,13 @@ class UnifiedBotLauncher:
                             except:
                                 pass
                         self.continuous_spam_tasks.clear()
-                        
+
                         await message.reply_text(f"🛑 **همه فحش‌های نامحدود متوقف شدند**\n📊 تعداد متوقف شده: {stopped_count}")
-                        
+
                     else:
                         try:
                             target_bot_id = int(target)
-                            
+
                             # متوقف کردن فحش‌های مربوط به بات مشخص
                             keys_to_remove = []
                             for spam_key, task in self.continuous_spam_tasks.items():
@@ -3661,15 +3668,15 @@ class UnifiedBotLauncher:
                                         stopped_count += 1
                                     except:
                                         pass
-                            
+
                             for key in keys_to_remove:
                                 del self.continuous_spam_tasks[key]
-                            
+
                             if stopped_count > 0:
                                 await message.reply_text(f"🛑 **فحش‌های نامحدود بات {target_bot_id} متوقف شدند**\n📊 تعداد متوقف شده: {stopped_count}")
                             else:
                                 await message.reply_text(f"ℹ️ هیچ فحش نامحدودی برای بات {target_bot_id} یافت نشد")
-                                
+
                         except ValueError:
                             await message.reply_text("❌ شماره بات نامعتبر")
 
@@ -3683,16 +3690,16 @@ class UnifiedBotLauncher:
                     if len(message.command) < 2:
                         await message.reply_text("⚠️ استفاده: /setdelay [ثانیه]\nمثال: /setdelay 2.5")
                         return
-                    
+
                     delay_str = message.command[1]
                     success, msg = self.set_spam_delay(bot_id, delay_str)
-                    
+
                     if success:
                         await message.reply_text(f"✅ {msg}")
                         self.log_action(bot_id, "set_delay", message.from_user.id, f"تاخیر: {delay_str} ثانیه")
                     else:
                         await message.reply_text(f"❌ {msg}")
-                        
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
@@ -3711,23 +3718,23 @@ class UnifiedBotLauncher:
                     if not self.is_launcher_admin(user_id):
                         await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
                         return
-                    
+
                     if len(message.command) < 2:
                         await message.reply_text("⚠️ استفاده: /setglobaldelay [ثانیه]\nمثال: /setglobaldelay 1.0")
                         return
-                    
+
                     try:
                         delay_seconds = float(message.command[1])
                         if delay_seconds < 0:
                             await message.reply_text("❌ تاخیر نمی‌تواند منفی باشد")
                             return
-                        
+
                         self.min_global_delay = delay_seconds
                         await message.reply_text(f"✅ تاخیر عمومی تنظیم شد: {delay_seconds} ثانیه\n\n📝 این تاخیر بین پیام‌های همه بات‌ها در هر چت اعمال می‌شود\n💡 حالا می‌توانید هر عددی از 0 به بالا تنظیم کنید")
-                        
+
                     except ValueError:
                         await message.reply_text("❌ لطفاً عدد معتبر وارد کنید")
-                        
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
@@ -3737,7 +3744,7 @@ class UnifiedBotLauncher:
                     active_chats = len(self.last_message_time)
                     active_locks = len(self.chat_locks)
                     emergency_active = self.emergency_stop_event.is_set()
-                    
+
                     text = f"📊 **وضعیت Rate Limiting:**\n\n"
                     text += f"🌐 تاخیر عمومی: {self.min_global_delay} ثانیه\n"
                     text += f"💬 چت‌های فعال: {active_chats}\n"
@@ -3745,9 +3752,9 @@ class UnifiedBotLauncher:
                     text += f"🔥 تسک‌های فحش فعال: {len(self.continuous_spam_tasks)}\n"
                     text += f"🚨 توقف اضطراری: {'فعال' if emergency_active else 'غیرفعال'}\n\n"
                     text += f"📝 سیستم rate limiting جلوگیری از ارسال همزمان پیام‌ها توسط بات‌های مختلف را می‌کند"
-                    
+
                     await message.reply_text(text)
-                    
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
@@ -3758,13 +3765,13 @@ class UnifiedBotLauncher:
                     if not self.is_launcher_admin(user_id):
                         await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
                         return
-                    
+
                     if self.emergency_stop_event.is_set():
                         self.clear_emergency_stop()
                         await message.reply_text("✅ حالت توقف اضطراری پاک شد\n\n💡 بات‌ها می‌توانند مجدداً شروع به کار کنند")
                     else:
                         await message.reply_text("ℹ️ هیچ توقف اضطراری فعالی وجود ندارد")
-                        
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
@@ -3773,20 +3780,20 @@ class UnifiedBotLauncher:
                 try:
                     emergency_active = self.emergency_stop_event.is_set()
                     last_detection = self.last_emoji_detection_time
-                    
+
                     text = f"🛑 **وضعیت سیستم توقف:**\n\n"
                     text += f"🚨 توقف اضطراری: {'🔴 فعال' if emergency_active else '🟢 غیرفعال'}\n"
                     text += f"🔥 تسک‌های فحش فعال: {len(self.continuous_spam_tasks)}\n"
-                    
+
                     if last_detection > 0:
                         import datetime
                         detection_time = datetime.datetime.fromtimestamp(last_detection)
                         text += f"⏰ آخرین تشخیص: {detection_time.strftime('%H:%M:%S')}\n"
-                    
+
                     text += f"\n📝 ایموجی‌های ممنوعه فعال: {len(self.forbidden_emojis)}"
-                    
+
                     await message.reply_text(text)
-                    
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
@@ -3797,7 +3804,7 @@ class UnifiedBotLauncher:
                     user_id = message.from_user.id
                     is_launcher = self.is_launcher_admin(user_id)
                     accessible_bots = self.get_accessible_bots(user_id)
-                    
+
                     help_text = f"""🤖 **راهنمای جامع سیستم ۹ بات هوشمند - بات {bot_id}**
 
 👤 **دسترسی شما:**
@@ -3859,7 +3866,7 @@ class UnifiedBotLauncher:
 هنگام دیدن این ایموجی‌ها، تمام بات‌ها متوقف می‌شوند.
 
 📊 **وضعیت سیستم:**
-• 9 بات همزمان فعال
+• ۹ بات همزمان فعال
 • فحش نامحدود تا دریافت ایموجی توقف
 • مدیریت خودکار flood wait
 • آمارگیری لحظه‌ای
@@ -3893,7 +3900,7 @@ class UnifiedBotLauncher:
 
 🎯 **دسترسی شما:** کنترل کامل همه ۹ بات
 ⚠️ **توجه:** این کامندها فقط برای شما قابل استفاده هستند"""
-                    
+
                     text += """
 
 💡 **نکات مهم:**
@@ -3914,14 +3921,14 @@ class UnifiedBotLauncher:
                     user_id = message.from_user.id
                     is_launcher = self.is_launcher_admin(user_id)
                     accessible_bots = self.get_accessible_bots(user_id)
-                    
+
                     help2_text = f"""🔧 **راهنمای پیشرفته - بات {bot_id}**
 
 👤 **دسترسی شما:**
 {'👑 ادمین اصلی لانچر - کنترل همه بات‌ها' if is_launcher else f'🔧 ادمین بات شخصی - کنترل بات‌های: {accessible_bots}'}
 
 🔥 **مدیریت سیستم فحش‌ها:**
-• `/addfosh [متن]` - اضافه کردن فحش جدید (متن یا ریپلای رسانه)
+• `/addfosh [متن/رسانه]` - اضافه کردن فحش جدید (متن یا ریپلای رسانه)
   └ پشتیبانی: متن، عکس، ویدیو، گیف، استیکر، صوت
 • `/delfosh [متن]` - حذف فحش مشخص از دیتابیس
 • `/listfosh` - نمایش کامل فحش‌ها با صفحه‌بندی خودکار
@@ -3932,7 +3939,7 @@ class UnifiedBotLauncher:
 • پشتیبانی از ارسال رسانه با ریپلای در broadcast
 
 🤖 **تنظیمات سیستم:**
-• `/runself` - فعال کردن پاسخگویی خودکار
+• `/autoreply` - فعال کردن پاسخگویی خودکار
 • `/offself` - غیرفعال کردن پاسخگویی
 • `/start` - راه‌اندازی مجدد ربات
 
@@ -3986,7 +3993,7 @@ class UnifiedBotLauncher:
 
 🎯 **دسترسی شما:** کنترل کامل همه ۹ بات
 ⚠️ **توجه:** این کامندها فقط برای شما قابل استفاده هستند"""
-                    
+
                     help2_text += """
 
 💡 **نکات پیشرفته:**
@@ -4013,7 +4020,7 @@ class UnifiedBotLauncher:
                     if not self.is_launcher_admin(user_id):
                         await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
                         return
-                        
+
                     status = self.get_status()
                     status_text = f"""
 👑 **وضعیت لانچر واحد - ادمین اصلی:**
@@ -4039,7 +4046,7 @@ class UnifiedBotLauncher:
             async def restart_bot_command(client, message):
                 try:
                     user_id = message.from_user.id
-                    
+
                     if len(message.command) < 2:
                         await message.reply_text("⚠️ استفاده: /restartbot [شماره_بات]\nمثال: /restartbot 2")
                         return
@@ -4048,7 +4055,7 @@ class UnifiedBotLauncher:
                     if target_bot_id not in self.bot_configs:
                         await message.reply_text(f"❌ بات {target_bot_id} یافت نشد")
                         return
-                    
+
                     # بررسی دسترسی
                     if not self.can_control_bot(user_id, target_bot_id):
                         await message.reply_text(f"🚫 شما مجاز به راه‌اندازی مجدد بات {target_bot_id} نیستید")
@@ -4066,7 +4073,7 @@ class UnifiedBotLauncher:
                     await message.reply_text("❌ شماره بات نامعتبر")
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {e}")
-            
+
             # کامند جدید برای مدیریت کردن همه بات‌ها (فقط ادمین اصلی)
             @app.on_message(filters.command("manageall") & admin_filter)
             async def manage_all_bots_command(client, message):
@@ -4075,22 +4082,22 @@ class UnifiedBotLauncher:
                     if not self.is_launcher_admin(user_id):
                         await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
                         return
-                    
+
                     if len(message.command) < 3:
                         await message.reply_text("⚠️ استفاده: /manageall [کامند] [پارامتر]\nمثال: /manageall autoreply on")
                         return
-                    
+
                     command = message.command[1].lower()
                     parameter = message.command[2].lower()
-                    
+
                     if command == "autoreply":
                         enabled = parameter == "on"
                         for bot_id in self.bot_configs.keys():
                             self.bot_configs[bot_id]['auto_reply_enabled'] = enabled
-                        
+
                         status = "فعال" if enabled else "غیرفعال" 
                         await message.reply_text(f"✅ پاسخگویی خودکار همه بات‌ها {status} شد")
-                    
+
                     elif command == "webpanel":
                         if parameter == "restart":
                             await self.stop_web_panel()
@@ -4106,11 +4113,11 @@ class UnifiedBotLauncher:
                             else:
                                 await message.reply_text("❌ پنل وب غیرفعال")
                         else:
-                            await message.reply_text("❌ پارامتر نامعتبر. استفاده: /manageall webpanel [restart|status]")
-                    
+                            await message.reply_text("❌ پارامتر نامعتبر. کامندهای موجود: autoreply, webpanel")
+
                     else:
                         await message.reply_text("❌ کامند نامعتبر. کامندهای موجود: autoreply, webpanel")
-                        
+
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {e}")
 
@@ -4125,7 +4132,7 @@ class UnifiedBotLauncher:
             async def admin_emoji_security_handler(client, message):
                 """تشخیص ایموجی ممنوعه برای ادمین‌ها - هیچ استثنایی نیست"""
                 chat_id = message.chat.id
-                
+
                 # **بررسی ایموجی/کامند ممنوعه حتی برای ادمین‌ها - هیچ استثنایی نیست**
                 if await self.should_pause_spam(message, bot_id):
                     # دریافت اطلاعات ادمین
@@ -4165,7 +4172,7 @@ class UnifiedBotLauncher:
             async def admin_private_emoji_security_handler(client, message):
                 """تشخیص ایموجی ممنوعه برای ادمین‌ها در چت‌های خصوصی - هیچ استثنایی نیست"""
                 chat_id = message.chat.id
-                
+
                 # **بررسی ایموجی/کامند ممنوعه حتی برای ادمین‌ها در خصوصی**
                 if await self.should_pause_spam(message, bot_id):
                     # دریافت اطلاعات ادمین
@@ -4261,7 +4268,7 @@ class UnifiedBotLauncher:
                         user_id = message.from_user.id
                         enemy_list = self.get_enemy_list(bot_id)
                         enemy_ids = {row[0] for row in enemy_list}
-                        
+
                         if user_id in enemy_ids:
                             # دشمن پیام فرستاده - ازسرگیری فعالیت
                             paused_by = self.global_paused[chat_id]
@@ -4294,7 +4301,7 @@ class UnifiedBotLauncher:
                     if fosh_list:
                         # ایجاد کلید یونیک برای این دشمن در این بات
                         spam_key = f"{bot_id}_{user_id}_{chat_id}"
-                        
+
                         # اگر قبلاً تسک فعال برای این دشمن وجود دارد، آن را متوقف کن
                         if spam_key in self.continuous_spam_tasks:
                             try:
@@ -4302,12 +4309,12 @@ class UnifiedBotLauncher:
                                 logger.info(f"🔄 تسک قبلی فحش برای دشمن {user_id} در بات {bot_id} متوقف شد")
                             except:
                                 pass
-                        
+
                         # پاک کردن حالت توقف اضطراری برای این چت اگر فعال است
                         if chat_id in self.chat_emergency_stops and self.chat_emergency_stops[chat_id].is_set():
                             logger.info(f"⚡ پاک کردن توقف اضطراری چت {chat_id} برای شروع مجدد فحش به دشمن {user_id}")
                             self.chat_emergency_stops[chat_id].clear()
-                        
+
                         # شروع تسک جدید فحش نامحدود
                         spam_task = asyncio.create_task(
                             self.continuous_spam_attack(client, message, user_id, fosh_list, bot_id, chat_id)
@@ -4325,18 +4332,18 @@ class UnifiedBotLauncher:
                         response_messages = self.get_conversation_messages('response')
                         if response_messages:
                             selected_response = choice(response_messages)
-                            
+
                             # با تاخیر کوتاه پاسخ بده تا طبیعی به نظر برسد
                             await asyncio.sleep(random.uniform(2, 8))
                             await self.send_auto_conversation_message(chat_id, bot_id, selected_response)
-                            
+
                             # به‌روزرسانی آمار گفتگو
                             conv = self.active_conversations[chat_id]
                             conv['message_count'] += 1
                             conv['last_bot'] = bot_id
                             conv['last_message_time'] = time.time()
                             self.last_bot_activity[bot_id] = time.time()
-                            
+
                             logger.info(f"💬 ربات {bot_id} به پیام کاربر {user_id} پاسخ داد: {selected_response[:30]}...")
                             return
 
@@ -4360,36 +4367,37 @@ class UnifiedBotLauncher:
             return app
 
         except Exception as e:
+            logger.error(f"❌ خطا در ایجاد بات {bot_id}: {e}")
             return None
 
     async def send_coordinated_reply(self, message, selected_content, bot_id):
         """ارسال پاسخ با کنترل rate limiting مشترک"""
         chat_id = message.chat.id
-        
+
         # ایجاد lock برای چت در صورت عدم وجود
         if chat_id not in self.chat_locks:
             self.chat_locks[chat_id] = asyncio.Lock()
-        
+
         async with self.chat_locks[chat_id]:
             try:
                 # بررسی آخرین زمان ارسال پیام در این چت
                 current_time = time.time()
-                
+
                 if chat_id in self.last_message_time:
                     time_since_last = current_time - self.last_message_time[chat_id]
                     if time_since_last < self.min_global_delay:
                         # انتظار تا رسیدن به حداقل تاخیر
                         wait_time = self.min_global_delay - time_since_last
                         await asyncio.sleep(wait_time)
-                
+
                 # ارسال پاسخ
                 await self.send_reply(message, selected_content)
-                
+
                 # ثبت زمان ارسال
                 self.last_message_time[chat_id] = time.time()
-                
+
                 logger.debug(f"📤 بات {bot_id} پاسخ دوستانه در چت {chat_id} ارسال کرد")
-                
+
             except Exception as e:
                 logger.error(f"❌ خطا در ارسال پاسخ هماهنگ بات {bot_id}: {e}")
                 raise
@@ -4425,7 +4433,7 @@ class UnifiedBotLauncher:
 
         # بارگذاری ایموجی‌های ممنوعه قبل از شروع
         self.forbidden_emojis = self.load_forbidden_emojis_from_db()
-        
+
         # شروع ربات گزارش‌دهی
         await self.start_report_bot()
 
@@ -4439,19 +4447,19 @@ class UnifiedBotLauncher:
         # شروع همه بات‌ها به صورت موازی
         if tasks:
             results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # بررسی کدام بات‌ها متصل شدند
         connected_bots = []
         for bot_id in self.bot_configs.keys():
             if bot_id in self.bots and self.bots[bot_id]['status'] == 'running':
                 connected_bots.append(bot_id)
-        
+
         # تنها پیام نهایی نمایش داده می‌شود
         if connected_bots:
             print(f"🎉 بات‌های متصل شده: {', '.join(map(str, sorted(connected_bots)))} - آماده کار هستند")
         else:
             print("❌ هیچ باتی متصل نشد")
-        
+
         # نگه داشتن سیستم زنده
         try:
             while self.running:
@@ -4463,7 +4471,7 @@ class UnifiedBotLauncher:
                     except:
                         pass
         except KeyboardInterrupt:
-            pass
+            logger.info("🔴 متوقف شدن با Ctrl+C")
         finally:
             await self.stop_all_bots()
 
@@ -4485,7 +4493,7 @@ class UnifiedBotLauncher:
                 loaded_emojis = self.load_forbidden_emojis_from_db()
                 self.forbidden_emojis.update(loaded_emojis)
             except Exception as e:
-                pass
+                logger.error(f"خطا در بارگذاری ایموجی‌ها برای بات {bot_id}: {e}")
 
             # مانیتورینگ بدون لاگ
             while self.running and bot_info['status'] == 'running':
@@ -4497,6 +4505,7 @@ class UnifiedBotLauncher:
                     await asyncio.sleep(5)
 
         except Exception as e:
+            logger.error(f"❌ خطا در شروع بات {bot_id}: {e}")
             if bot_id in self.bots:
                 self.bots[bot_id]['status'] = 'error'
 
@@ -4513,8 +4522,8 @@ class UnifiedBotLauncher:
                 if bot_info['status'] == 'running':
                     await bot_info['client'].stop()
                     bot_info['status'] = 'stopped'
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"❌ خطا در توقف بات {bot_id}: {e}")
 
     async def start_report_bot(self):
         """شروع ربات گزارش‌دهی"""
@@ -4525,13 +4534,14 @@ class UnifiedBotLauncher:
                 return
             if not await self.report_bot.start_bot():
                 self.report_bot = None
-        except:
+        except Exception as e:
+            logger.error(f"❌ خطا در شروع ربات گزارش‌دهی: {e}")
             self.report_bot = None
 
     async def stop_all_bots(self):
         """متوقف کردن همه بات‌ها"""
         self.running = False
-        
+
         if self.report_bot:
             await self.report_bot.stop_bot()
 
@@ -4598,88 +4608,88 @@ class UnifiedBotLauncher:
         try:
             spam_key = f"{bot_id}_{user_id}_{chat_id}"
             fosh_count = 0
-            
+
             logger.info(f"🔥 شروع فحش نامحدود بات {bot_id} به دشمن {user_id} در چت {chat_id}")
-            
+
             while True:
                 # بررسی فوری توقف اضطراری برای این چت در ابتدای هر loop
                 if chat_id in self.chat_emergency_stops and self.chat_emergency_stops[chat_id].is_set():
                     logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری چت {chat_id}")
                     break
-                
+
                 # بررسی اینکه آیا چت متوقف شده یا نه
                 if chat_id in self.global_paused:
                     logger.info(f"⏸️ فحش نامحدود بات {bot_id} متوقف شد - چت {chat_id} در حالت توقف")
                     break
-                
+
                 # بررسی اینکه آیا تسک کنسل شده یا نه
                 if spam_key not in self.continuous_spam_tasks:
                     logger.info(f"⏹️ فحش نامحدود بات {bot_id} متوقف شد - تسک حذف شده")
                     break
-                
+
                 try:
                     # انتخاب فحش تصادفی
                     selected = choice(fosh_list)
                     await self.send_coordinated_message(client, message, selected, bot_id)
                     fosh_count += 1
-                    
+
                     # لاگ هر 10 فحش
                     if fosh_count % 10 == 0:
                         logger.info(f"🔥 بات {bot_id} - ارسال {fosh_count} فحش به دشمن {user_id}")
-                    
+
                     # دریافت تاخیر قابل تنظیم برای این بات
                     spam_delay = self.get_spam_delay(bot_id)
-                    
+
                     # بررسی فوری توقف اضطراری برای این چت قبل از انتظار
                     if chat_id in self.chat_emergency_stops and self.chat_emergency_stops[chat_id].is_set():
-                        logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری چت {chat_id}")
+                        logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری چت {chat_id} (حین انتظار)")
                         break
-                    
+
                     # تقسیم تاخیر به قطعات کوچک‌تر برای چک کردن سریع‌تر توقف
                     sleep_intervals = max(20, int(spam_delay * 50))  # حداقل 20 قطعه، 50 بررسی در ثانیه
                     interval_time = spam_delay / sleep_intervals if sleep_intervals > 0 else 0.02
-                    
+
                     should_break = False
                     for _ in range(sleep_intervals):
                         await asyncio.sleep(interval_time)
-                        
+
                         # بررسی اولویت بالا: توقف اضطراری برای این چت
                         if chat_id in self.chat_emergency_stops and self.chat_emergency_stops[chat_id].is_set():
                             logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری چت {chat_id} (حین انتظار)")
                             should_break = True
                             break
-                        
+
                         # چک کردن توقف در هر قطعه
                         if chat_id in self.global_paused:
                             logger.info(f"⏸️ فحش نامحدود بات {bot_id} متوقف شد - چت {chat_id} در حالت توقف (حین انتظار)")
                             should_break = True
                             break
-                        
+
                         if spam_key not in self.continuous_spam_tasks:
                             logger.info(f"⏹️ فحش نامحدود بات {bot_id} متوقف شد - تسک حذف شده (حین انتظار)")
                             should_break = True
                             break
-                    
+
                     # اگر در loop داخلی break شد، از loop اصلی هم break کن
                     if should_break:
                         break
-                    
+
                 except FloodWait as e:
                     # اگر تلگرام محدودیت زمانی اعمال کرد
                     wait_time = float(e.value) if hasattr(e, 'value') else 30.0
                     logger.warning(f"⏳ فلود ویت {wait_time} ثانیه برای بات {bot_id}")
                     await asyncio.sleep(wait_time)
                     continue
-                    
+
                 except Exception as send_error:
                     logger.error(f"❌ خطا در ارسال فحش بات {bot_id}: {send_error}")
                     await asyncio.sleep(5)  # تاخیر بعد از خطا
                     continue
-            
+
             # پاک کردن تسک از لیست
             if spam_key in self.continuous_spam_tasks:
                 del self.continuous_spam_tasks[spam_key]
-            
+
             # لاگ نهایی
             self.log_action(bot_id, "continuous_spam", user_id, f"{fosh_count} فحش نامحدود در {message.chat.title}")
             logger.info(f"✅ بات {bot_id} - فحش نامحدود تمام شد. کل ارسالی: {fosh_count} فحش به دشمن {user_id}")
@@ -4689,7 +4699,7 @@ class UnifiedBotLauncher:
             if spam_key in self.continuous_spam_tasks:
                 del self.continuous_spam_tasks[spam_key]
             logger.info(f"🚫 فحش نامحدود بات {bot_id} به دشمن {user_id} کنسل شد")
-            
+
         except Exception as e:
             # پاک کردن تسک در صورت خطا
             if spam_key in self.continuous_spam_tasks:
@@ -4749,31 +4759,31 @@ class UnifiedBotLauncher:
     async def send_coordinated_message(self, client, message, selected_content, bot_id):
         """ارسال پیام با کنترل rate limiting مشترک"""
         chat_id = message.chat.id
-        
+
         # ایجاد lock برای چت در صورت عدم وجود
         if chat_id not in self.chat_locks:
             self.chat_locks[chat_id] = asyncio.Lock()
-        
+
         async with self.chat_locks[chat_id]:
             try:
                 # بررسی آخرین زمان ارسال پیام در این چت
                 current_time = time.time()
-                
+
                 if chat_id in self.last_message_time:
                     time_since_last = current_time - self.last_message_time[chat_id]
                     if time_since_last < self.min_global_delay:
                         # انتظار تا رسیدن به حداقل تاخیر
                         wait_time = self.min_global_delay - time_since_last
                         await asyncio.sleep(wait_time)
-                
+
                 # ارسال پیام
                 await self.send_fosh_reply(client, message, selected_content)
-                
+
                 # ثبت زمان ارسال
                 self.last_message_time[chat_id] = time.time()
-                
+
                 logger.debug(f"📤 بات {bot_id} پیام در چت {chat_id} ارسال کرد")
-                
+
             except Exception as e:
                 logger.error(f"❌ خطا در ارسال پیام هماهنگ بات {bot_id}: {e}")
                 raise
