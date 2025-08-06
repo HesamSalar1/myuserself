@@ -15,8 +15,24 @@ env:
   - "BOT_MODE=production"
   - "DEBUG=false"
   - "LOG_LEVEL=INFO"
-  - "TOTAL_BOTS=9"
+  - "TOTAL_BOTS=4"  # Only use first 4 bots for simple deployment
   - "RESTART_DELAY=10"
   - "WEB_PORT=5000"
   - "WEB_HOST=0.0.0.0"
   - "PYTHONUNBUFFERED=1"
+  # Bot 1 Configuration
+  - "BOT1_API_ID=23700094"
+  - "BOT1_API_HASH=7cd6b0ba9c5b1a5f21b8b76f1e2b8e40"
+  - "BOT1_ADMIN_ID=7850529246"
+  # Bot 2 Configuration  
+  - "BOT2_API_ID=29262538"
+  - "BOT2_API_HASH=0417ebf26dbd92d3455d51595f2c923c"
+  - "BOT2_ADMIN_ID=7419698159"
+  # Bot 3 Configuration
+  - "BOT3_API_ID=21555907"
+  - "BOT3_API_HASH=16f4e09d753bc4b182434d8e37f410cd"
+  - "BOT3_ADMIN_ID=7607882302"
+  # Bot 4 Configuration
+  - "BOT4_API_ID=15508294"
+  - "BOT4_API_HASH=778e5cd56ffcf22c2d62aa963ce85a0c"
+  - "BOT4_ADMIN_ID=7739974888"
