@@ -471,7 +471,7 @@ class UnifiedBotLauncher:
             if cursor.fetchone()[0] == 0:
                 default_messages = [
                     # پیام‌های شروع گفتگو
-                    ('starter', 'سلام دوستان، چطورید؟', 'روزمره', None),
+                    ('starter', 'سلام دوستان, چطورید؟', 'روزمره', None),
                     ('starter', 'امروز چه برنامه‌ای دارید؟', 'روزمره', None),
                     ('starter', 'کسی فیلم خوب دیده؟', 'روزمره', None),
                     ('starter', 'هوا امروز خیلی قشنگه', 'هواشناسی', None),
@@ -1563,7 +1563,7 @@ class UnifiedBotLauncher:
 
     def contains_forbidden_word(self, text, found_word_ref=None):
         """تشخیص کلمات ممنوعه در متن - with memory fallback"""
-        if not text or not self.security_settings.get('word_detection_enabled', True):
+        if not text or not self.forbidden_words or not self.security_settings.get('word_detection_enabled', True):
             return False
 
         # کش تشخیص
@@ -2991,38 +2991,30 @@ class UnifiedBotLauncher:
 
             # کامند مدیریت ایموجی‌های ممنوعه
             @app.on_message(filters.command("addemoji") & admin_filter)
-            async def add_forbidden_emoji_command(client, message):
+            async def add_emoji_command(client, message):
                 try:
-                    parts = message.text.split(None, 2)
-                    if len(parts) < 2:
-                        await message.reply_text("❌ **استفاده صحیح:** `/addemoji [ایموجی] [توضیحات]`\n\n**مثال:** `/addemoji ⚡ برق گیمینگ`")
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ لطفاً ایموجی را وارد کنید.\n💡 استفاده: `/addemoji ⚡ توضیحات اختیاری`")
                         return
 
-                    emoji = parts[1]
-                    description = parts[2] if len(parts) > 2 else "بدون توضیحات"
-
-                    # بررسی صحت ایموجی
-                    if len(emoji.strip()) == 0:
-                        await message.reply_text("❌ **ایموجی نمی‌تواند خالی باشد**")
-                        return
+                    emoji = message.command[1]
+                    description = " ".join(message.command[2:]) if len(message.command) > 2 else "بدون توضیحات"
+                    user_id = message.from_user.id
 
                     print(f"🔍 تلاش برای اضافه کردن ایموجی: '{emoji}' با توضیحات: '{description}'")
 
-                    if self.add_forbidden_emoji_to_db(emoji, description):
-                        # بارگذاری مجدد ایموجی‌ها
-                        self.forbidden_emojis = self.load_forbidden_emojis_from_db()
-
+                    if self.add_forbidden_emoji_advanced(emoji, description, 'custom', user_id):
                         await message.reply_text(
-                            f"✅ **ایموجی ممنوعه با موفقیت اضافه شد**\n\n"
+                            f"✅ **ایموجی ممنوعه اضافه شد**\n\n"
                             f"🔹 **ایموجی:** {emoji}\n"
                             f"🔹 **توضیحات:** {description}\n"
                             f"🔹 **کدهای Unicode:** {' '.join([f'U+{ord(c):04X}' for c in emoji])}\n"
                             f"🔹 **مجموع ایموجی‌ها:** {len(self.forbidden_emojis)} عدد"
                         )
 
-                        self.log_security_action("emoji_added", emoji, message.from_user.id, 
-                                               message.from_user.username, message.chat.id, 
-                                               message.chat.title, bot_id)
+                        # بارگذاری مجدد ایموجی‌ها
+                        self.forbidden_emojis = self.load_forbidden_emojis_from_db()
+                        logger.info(f"✅ ایموجی {emoji} به سیستم امنیتی اضافه شد توسط {user_id}")
                     else:
                         # بررسی دقیق‌تر برای نمایش علت
                         if emoji in self.forbidden_emojis:
@@ -3041,57 +3033,49 @@ class UnifiedBotLauncher:
                             )
 
                 except Exception as e:
+                    logger.error(f"❌ خطا در کامند addemoji: {e}")
                     await message.reply_text(
                         f"❌ **خطای سیستمی**\n\n"
                         f"🔹 **پیام خطا:** {str(e)}\n"
                         f"🔹 **راهکار:** دوباره تلاش کنید"
                     )
-                    print(f"❌ خطا در کامند addemoji: {e}")
 
             @app.on_message(filters.command("delemoji") & admin_filter)
-            async def del_forbidden_emoji_command(client, message):
+            async def del_emoji_command(client, message):
                 try:
-                    parts = message.text.split(None, 1)
-                    if len(parts) < 2:
+                    if len(message.command) < 2:
                         await message.reply_text("❌ **استفاده صحیح:** `/delemoji [ایموجی]`")
                         return
 
-                    emoji_to_remove = parts[1]
+                    emoji = message.command[1]
+                    user_id = message.from_user.id
 
-                    if emoji_to_remove not in self.forbidden_emojis:
-                        await message.reply_text(f"⚠️ این ایموجی در لیست ممنوعه یافت نشد: {emoji_to_remove}")
-                        return
-
-                    # حذف با سیستم پیشرفته
-                    result, msg = self.remove_forbidden_emoji_advanced(emoji_to_remove, message.from_user.id)
-
-                    if result:
-                        # بارگذاری مجدد ایموجی‌ها
-                        self.forbidden_emojis = self.load_forbidden_emojis_from_db()
-
+                    success, msg = self.remove_forbidden_emoji_advanced(emoji, user_id)
+                    if success:
                         await message.reply_text(
                             f"✅ **ایموجی ممنوعه حذف شد**\n\n"
-                            f"🔹 **ایموجی:** {emoji_to_remove}\n"
+                            f"🔹 **ایموجی:** {emoji}\n"
                             f"🔹 **مجموع ایموجی‌ها:** {len(self.forbidden_emojis)} عدد"
                         )
 
+                        # بارگذاری مجدد ایموجی‌ها
+                        self.forbidden_emojis = self.load_forbidden_emojis_from_db()
+                        logger.info(f"✅ ایموجی {emoji} از سیستم امنیتی حذف شد توسط {user_id}")
+
                         # گزارش
                         if self.report_bot:
-                            report_text = f"🗑️ ایموجی ممنوعه حذف شد: {emoji_to_remove}\n"
+                            report_text = f"🗑️ ایموجی ممنوعه حذف شد: {emoji}\n"
                             report_text += f"👤 توسط: {message.from_user.first_name} ({message.from_user.id})"
                             await self.send_report_safely(report_text)
-
-                        self.log_security_action("emoji_removed", emoji_to_remove, message.from_user.id, 
-                                               message.from_user.username, message.chat.id, 
-                                               message.chat.title, bot_id)
                     else:
-                        await message.reply_text(f"⚠️ {msg}")
+                        await message.reply_text(f"❌ {msg}")
 
                 except Exception as e:
-                    await message.reply_text(f"❌ خطا: {str(e)}")
+                    logger.error(f"❌ خطا در کامند delemoji: {e}")
+                    await message.reply_text(f"❌ خطای سیستمی: {str(e)}")
 
             @app.on_message(filters.command("listemoji") & admin_filter)
-            async def list_forbidden_emoji_command(client, message):
+            async def list_emoji_command(client, message):
                 """لیست پیشرفته ایموجی‌های ممنوعه"""
                 try:
                     emoji_list = self.list_forbidden_emojis_advanced()
@@ -3127,7 +3111,8 @@ class UnifiedBotLauncher:
                     await message.reply_text(text)
 
                 except Exception as e:
-                    await message.reply_text(f"❌ خطا: {str(e)}")
+                    logger.error(f"❌ خطا در کامند listemoji: {e}")
+                    await message.reply_text(f"❌ خطای سیستمی: {str(e)}")
 
             @app.on_message(filters.command("testemoji") & admin_filter)
             async def test_emoji_command(client, message):
@@ -3236,7 +3221,6 @@ class UnifiedBotLauncher:
 
             @app.on_message(filters.command("quicktest") & admin_filter)
             async def quick_test_command(client, message):
-                """تست سریع تشخیص ایموجی‌های معمول"""
                 try:
                     test_cases = [
                         "⚡ برق",
@@ -4809,7 +4793,7 @@ class UnifiedBotLauncher:
                 if method:
                     await method(message.chat.id, file_id, reply_to_message_id=message.id)
             elif content_text:
-                await client.send_message(message.chat.id, content_text, reply_to_message_id=message.id)
+                await client.send_message(message.chat.id, content_text, reply_to_message_id= message.id)
         except Exception as e:
             logger.error(f"خطا در ارسال فحش: {e}")
 
