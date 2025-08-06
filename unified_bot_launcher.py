@@ -50,10 +50,32 @@ class UnifiedBotLauncher:
         # تنظیمات تاخیر فحش برای هر بات (ثانیه)
         self.bot_spam_delays = {i: 1.0 for i in range(1, 10)}  # تاخیر پیش‌فرض: 1 ثانیه
         
-        # ایموجی‌های ممنوعه (مدیریت کامل توسط ادمین از طریق کامندها)
+        # سیستم پیشرفته ایموجی‌ها و کلمات ممنوعه (کاملا قابل تنظیم از تلگرام)
         self.forbidden_emojis = set()
+        self.forbidden_words = set()
+        self.security_settings = {
+            'emoji_detection_enabled': True,
+            'word_detection_enabled': True,
+            'case_sensitive_words': False,
+            'partial_word_matching': True,
+            'log_detections': True,
+            'notification_enabled': True,
+            'auto_pause_on_detection': True,
+            'admin_exemption': False  # ادمین‌ها مستثنی نیستند
+        }
         
-        # ایموجی‌های ممنوعه از دیتابیس در startup بارگذاری می‌شوند
+        # کش تشخیص برای بهبود کارایی
+        self.detection_cache = {}
+        self.cache_max_size = 1000
+        self.cache_expiry = 300  # 5 دقیقه
+        
+        # آمار امنیتی
+        self.security_stats = {
+            'emoji_detections': 0,
+            'word_detections': 0,
+            'total_pauses': 0,
+            'last_reset': time.time()
+        }
         
         # کامندهای ممنوعه فقط برای دشمنان
         self.enemy_forbidden_commands = ['/catch', '/grab', '/guess', '/arise', '/take', '/secure']
@@ -337,12 +359,59 @@ class UnifiedBotLauncher:
                 )
             ''')
 
-            # جدول جدید برای ایموجی‌های ممنوعه (مشترک بین همه بات‌ها)
+            # جدول پیشرفته برای ایموجی‌های ممنوعه (مشترک بین همه بات‌ها)
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS forbidden_emojis (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     emoji TEXT UNIQUE NOT NULL,
+                    description TEXT,
+                    added_by_user_id INTEGER,
+                    category TEXT DEFAULT 'default',
+                    is_active BOOLEAN DEFAULT 1,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # جدول جدید برای کلمات ممنوعه
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS forbidden_words (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    word TEXT UNIQUE NOT NULL,
+                    description TEXT,
+                    added_by_user_id INTEGER,
+                    category TEXT DEFAULT 'default',
+                    is_active BOOLEAN DEFAULT 1,
+                    case_sensitive BOOLEAN DEFAULT 0,
+                    partial_match BOOLEAN DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # جدول تنظیمات سیستم ایموجی و کلمات ممنوعه
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS security_settings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    setting_name TEXT UNIQUE NOT NULL,
+                    setting_value TEXT NOT NULL,
+                    description TEXT,
+                    updated_by_user_id INTEGER,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # جدول لاگ امنیتی
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS security_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    detection_type TEXT NOT NULL,
+                    detected_content TEXT NOT NULL,
+                    user_id INTEGER,
+                    username TEXT,
+                    chat_id INTEGER,
+                    chat_title TEXT,
+                    bot_id INTEGER,
+                    action_taken TEXT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
             
@@ -679,23 +748,301 @@ class UnifiedBotLauncher:
         conn.close()
         return result
 
-    def remove_forbidden_emoji_from_db(self, emoji):
-        """حذف ایموجی ممنوعه از دیتابیس"""
-        db_path = self.bot_configs[1]['db_path']
-        
-        # اطمینان از وجود دیتابیس و جدول
-        self.setup_database(1, db_path)
-        
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM forbidden_emojis WHERE emoji = ?", (emoji,))
-        result = cursor.rowcount > 0
-        conn.commit()
-        conn.close()
-        return result
+    # =================================================================
+    # سیستم مدیریت پیشرفته ایموجی‌های ممنوعه - Enhanced Forbidden Emoji System
+    # =================================================================
+    
+    def add_forbidden_emoji_advanced(self, emoji, description=None, category='custom', added_by_user_id=None):
+        """اضافه کردن ایموجی ممنوعه با ویژگی‌های پیشرفته"""
+        try:
+            db_path = self.bot_configs[1]['db_path']
+            self.setup_database(1, db_path)
+            
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # بررسی وجود قبلی
+            cursor.execute("SELECT id, is_active FROM forbidden_emojis WHERE emoji = ?", (emoji,))
+            existing = cursor.fetchone()
+            
+            if existing:
+                # اگر موجود است، فعال کردن آن
+                cursor.execute("""
+                    UPDATE forbidden_emojis 
+                    SET is_active = 1, description = ?, category = ?, 
+                        added_by_user_id = ?, created_at = CURRENT_TIMESTAMP
+                    WHERE emoji = ?
+                """, (description, category, added_by_user_id, emoji))
+                result = True
+                action = "reactivated"
+            else:
+                # اضافه کردن جدید
+                cursor.execute("""
+                    INSERT INTO forbidden_emojis (emoji, description, added_by_user_id, category, is_active)
+                    VALUES (?, ?, ?, ?, 1)
+                """, (emoji, description, added_by_user_id, category))
+                result = cursor.rowcount > 0
+                action = "added"
+            
+            if result:
+                # به‌روزرسانی کش
+                self.forbidden_emojis.add(emoji)
+                
+                # لاگ امنیتی
+                self.log_security_action(
+                    f"emoji_{action}",
+                    f"Emoji: {emoji}",
+                    added_by_user_id,
+                    action_taken=f"Forbidden emoji {action}"
+                )
+            
+            conn.commit()
+            conn.close()
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ خطا در اضافه کردن ایموجی ممنوعه: {e}")
+            return False
+
+    def remove_forbidden_emoji_advanced(self, emoji, removed_by_user_id=None):
+        """حذف ایموجی ممنوعه با لاگینگ پیشرفته"""
+        try:
+            db_path = self.bot_configs[1]['db_path']
+            self.setup_database(1, db_path)
+            
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # بررسی وجود
+            cursor.execute("SELECT id FROM forbidden_emojis WHERE emoji = ? AND is_active = 1", (emoji,))
+            if not cursor.fetchone():
+                conn.close()
+                return False, "ایموجی در لیست ممنوعه‌ها موجود نیست"
+            
+            # غیرفعال کردن (حذف نرم)
+            cursor.execute("""
+                UPDATE forbidden_emojis 
+                SET is_active = 0 
+                WHERE emoji = ?
+            """, (emoji,))
+            
+            result = cursor.rowcount > 0
+            
+            if result:
+                # حذف از کش
+                self.forbidden_emojis.discard(emoji)
+                
+                # لاگ امنیتی
+                self.log_security_action(
+                    "emoji_removed",
+                    f"Emoji: {emoji}",
+                    removed_by_user_id,
+                    action_taken="Forbidden emoji removed"
+                )
+            
+            conn.commit()
+            conn.close()
+            return result, "ایموجی با موفقیت حذف شد" if result else "خطا در حذف ایموجی"
+            
+        except Exception as e:
+            logger.error(f"❌ خطا در حذف ایموجی ممنوعه: {e}")
+            return False, f"خطا: {str(e)}"
+
+    def list_forbidden_emojis_advanced(self, category=None, active_only=True):
+        """لیست پیشرفته ایموجی‌های ممنوعه"""
+        try:
+            db_path = self.bot_configs[1]['db_path']
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            query = """
+                SELECT emoji, description, category, added_by_user_id, 
+                       is_active, created_at 
+                FROM forbidden_emojis
+            """
+            params = []
+            
+            conditions = []
+            if active_only:
+                conditions.append("is_active = 1")
+            if category:
+                conditions.append("category = ?")
+                params.append(category)
+            
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+            
+            query += " ORDER BY created_at DESC"
+            
+            cursor.execute(query, params)
+            result = cursor.fetchall()
+            conn.close()
+            
+            return [
+                {
+                    'emoji': row[0],
+                    'description': row[1],
+                    'category': row[2],
+                    'added_by': row[3],
+                    'is_active': bool(row[4]),
+                    'created_at': row[5]
+                }
+                for row in result
+            ]
+            
+        except Exception as e:
+            logger.error(f"❌ خطا در دریافت لیست ایموجی‌ها: {e}")
+            return []
+
+    # =================================================================
+    # سیستم مدیریت پیشرفته کلمات ممنوعه - Enhanced Forbidden Words System
+    # =================================================================
+    
+    def add_forbidden_word_advanced(self, word, description=None, category='custom', 
+                                   case_sensitive=False, partial_match=True, added_by_user_id=None):
+        """اضافه کردن کلمه ممنوعه با ویژگی‌های پیشرفته"""
+        try:
+            db_path = self.bot_configs[1]['db_path']
+            self.setup_database(1, db_path)
+            
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # بررسی وجود قبلی
+            cursor.execute("SELECT id, is_active FROM forbidden_words WHERE word = ?", (word,))
+            existing = cursor.fetchone()
+            
+            if existing:
+                # اگر موجود است، به‌روزرسانی
+                cursor.execute("""
+                    UPDATE forbidden_words 
+                    SET is_active = 1, description = ?, category = ?, 
+                        case_sensitive = ?, partial_match = ?, added_by_user_id = ?,
+                        created_at = CURRENT_TIMESTAMP
+                    WHERE word = ?
+                """, (description, category, case_sensitive, partial_match, added_by_user_id, word))
+                action = "updated"
+            else:
+                # اضافه کردن جدید
+                cursor.execute("""
+                    INSERT INTO forbidden_words 
+                    (word, description, added_by_user_id, category, is_active, case_sensitive, partial_match)
+                    VALUES (?, ?, ?, ?, 1, ?, ?)
+                """, (word, description, added_by_user_id, category, case_sensitive, partial_match))
+                action = "added"
+            
+            result = cursor.rowcount > 0
+            
+            if result:
+                # به‌روزرسانی کش
+                self.forbidden_words.add(word.lower() if not case_sensitive else word)
+                
+                # لاگ امنیتی
+                self.log_security_action(
+                    f"word_{action}",
+                    f"Word: {word}",
+                    added_by_user_id,
+                    action_taken=f"Forbidden word {action}"
+                )
+            
+            conn.commit()
+            conn.close()
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ خطا در اضافه کردن کلمه ممنوعه: {e}")
+            return False
+
+    def remove_forbidden_word_advanced(self, word, removed_by_user_id=None):
+        """حذف کلمه ممنوعه با لاگینگ پیشرفته"""
+        try:
+            db_path = self.bot_configs[1]['db_path']
+            self.setup_database(1, db_path)
+            
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # بررسی وجود
+            cursor.execute("SELECT id FROM forbidden_words WHERE word = ? AND is_active = 1", (word,))
+            if not cursor.fetchone():
+                conn.close()
+                return False, "کلمه در لیست ممنوعه‌ها موجود نیست"
+            
+            # غیرفعال کردن
+            cursor.execute("UPDATE forbidden_words SET is_active = 0 WHERE word = ?", (word,))
+            result = cursor.rowcount > 0
+            
+            if result:
+                # حذف از کش
+                self.forbidden_words.discard(word.lower())
+                self.forbidden_words.discard(word)
+                
+                # لاگ امنیتی
+                self.log_security_action(
+                    "word_removed",
+                    f"Word: {word}",
+                    removed_by_user_id,
+                    action_taken="Forbidden word removed"
+                )
+            
+            conn.commit()
+            conn.close()
+            return result, "کلمه با موفقیت حذف شد" if result else "خطا در حذف کلمه"
+            
+        except Exception as e:
+            logger.error(f"❌ خطا در حذف کلمه ممنوعه: {e}")
+            return False, f"خطا: {str(e)}"
+
+    def list_forbidden_words_advanced(self, category=None, active_only=True):
+        """لیست پیشرفته کلمات ممنوعه"""
+        try:
+            db_path = self.bot_configs[1]['db_path']
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            query = """
+                SELECT word, description, category, added_by_user_id, 
+                       is_active, case_sensitive, partial_match, created_at 
+                FROM forbidden_words
+            """
+            params = []
+            
+            conditions = []
+            if active_only:
+                conditions.append("is_active = 1")
+            if category:
+                conditions.append("category = ?")
+                params.append(category)
+            
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+            
+            query += " ORDER BY created_at DESC"
+            
+            cursor.execute(query, params)
+            result = cursor.fetchall()
+            conn.close()
+            
+            return [
+                {
+                    'word': row[0],
+                    'description': row[1],
+                    'category': row[2],
+                    'added_by': row[3],
+                    'is_active': bool(row[4]),
+                    'case_sensitive': bool(row[5]),
+                    'partial_match': bool(row[6]),
+                    'created_at': row[7]
+                }
+                for row in result
+            ]
+            
+        except Exception as e:
+            logger.error(f"❌ خطا در دریافت لیست کلمات: {e}")
+            return []
 
     def load_forbidden_emojis_from_db(self):
-        """بارگذاری ایموجی‌های ممنوعه از دیتابیس"""
+        """بارگذاری ایموجی‌های ممنوعه از دیتابیس - نسخه بهبود یافته"""
         try:
             # تلاش برای مسیرهای مختلف دیتابیس
             possible_paths = [
@@ -715,23 +1062,57 @@ class UnifiedBotLauncher:
                         # بررسی وجود جدول
                         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='forbidden_emojis'")
                         if cursor.fetchone():
-                            cursor.execute("SELECT emoji FROM forbidden_emojis")
+                            # فقط ایموجی‌های فعال
+                            cursor.execute("SELECT emoji FROM forbidden_emojis WHERE is_active = 1")
                             result = cursor.fetchall()
                             emojis.update({row[0] for row in result})
                         
                         conn.close()
+                        break  # اولین دیتابیس موفق کافی است
                     except Exception as e:
                         continue
             
-            # اگر هیچ ایموجی‌ای پیدا نشد، ایموجی‌های پیش‌فرض اضافه کن
-            if not emojis:
-                default_emojis = ["⚡", "⚡️", "🔮", "💎", "🎯", "🏆", "❤️", "💰", "🎁"]
-                for emoji in default_emojis:
-                    self.add_forbidden_emoji_to_db(emoji)
-                    emojis.add(emoji)
-            
+            # هیچ ایموجی پیش‌فرضی اضافه نمی‌شود - کاملا قابل تنظیم از تلگرام
+            logger.info(f"✅ {len(emojis)} ایموجی ممنوعه بارگذاری شد")
             return emojis
+            
         except Exception as e:
+            logger.error(f"❌ خطا در بارگذاری ایموجی‌ها: {e}")
+            return set()
+
+    def load_forbidden_words_from_db(self):
+        """بارگذاری کلمات ممنوعه از دیتابیس"""
+        try:
+            db_path = self.bot_configs[1]['db_path']
+            if not os.path.exists(db_path):
+                return set()
+                
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # بررسی وجود جدول
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='forbidden_words'")
+            if not cursor.fetchone():
+                conn.close()
+                return set()
+            
+            # دریافت کلمات فعال
+            cursor.execute("SELECT word, case_sensitive FROM forbidden_words WHERE is_active = 1")
+            result = cursor.fetchall()
+            conn.close()
+            
+            words = set()
+            for word, case_sensitive in result:
+                if case_sensitive:
+                    words.add(word)
+                else:
+                    words.add(word.lower())
+            
+            logger.info(f"✅ {len(words)} کلمه ممنوعه بارگذاری شد")
+            return words
+            
+        except Exception as e:
+            logger.error(f"❌ خطا در بارگذاری کلمات: {e}")
             return set()
     
     def get_spam_delay(self, bot_id):
@@ -1164,23 +1545,170 @@ class UnifiedBotLauncher:
         
         return final_cleaned
 
-    def contains_stop_emoji(self, text, found_emoji_ref=None):
-        """بررسی سریع و دقیق وجود ایموجی‌های توقف در متن - نسخه بهبود یافته"""
-        if not text or not self.forbidden_emojis:
+    # =================================================================
+    # سیستم تشخیص پیشرفته - Enhanced Detection System
+    # =================================================================
+    
+    def log_security_action(self, detection_type, content, user_id=None, username=None, 
+                          chat_id=None, chat_title=None, bot_id=None, action_taken=None):
+        """لاگ امنیتی برای تمام فعالیت‌های تشخیص"""
+        try:
+            if not self.security_settings.get('log_detections', True):
+                return
+                
+            db_path = self.bot_configs[1]['db_path']
+            self.setup_database(1, db_path)
+            
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO security_log 
+                (detection_type, detected_content, user_id, username, chat_id, chat_title, bot_id, action_taken)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (detection_type, content, user_id, username, chat_id, chat_title, bot_id, action_taken))
+            
+            conn.commit()
+            conn.close()
+            
+        except Exception as e:
+            logger.error(f"❌ خطا در لاگ امنیتی: {e}")
+
+    def contains_forbidden_word(self, text, found_word_ref=None):
+        """تشخیص کلمات ممنوعه در متن - with memory fallback"""
+        if not text or not self.security_settings.get('word_detection_enabled', True):
             return False
+        
+        # کش تشخیص
+        cache_key = f"word_{hash(text)}"
+        current_time = time.time()
+        
+        if hasattr(self, 'detection_cache') and cache_key in self.detection_cache:
+            cache_data = self.detection_cache[cache_key]
+            if current_time - cache_data['time'] < getattr(self, 'cache_expiry', 60):
+                if found_word_ref is not None and cache_data['found']:
+                    found_word_ref.append(cache_data['found'])
+                return cache_data['result']
+        
+        # متغیرهای تنظیمات
+        case_sensitive = self.security_settings.get('case_sensitive_words', False)
+        partial_match = self.security_settings.get('partial_word_matching', True)
+        
+        # آماده‌سازی متن برای جستجو
+        search_text = text if case_sensitive else text.lower()
+        
+        words_to_check = []
+        
+        try:
+            # دریافت کلمات از دیتابیس اگر موجود باشد
+            if hasattr(self, 'bot_configs') and self.bot_configs and 1 in self.bot_configs:
+                db_path = self.bot_configs[1]['db_path']
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    SELECT word, case_sensitive, partial_match 
+                    FROM forbidden_words 
+                    WHERE is_active = 1
+                """)
+                
+                words_data = cursor.fetchall()
+                conn.close()
+                
+                words_to_check.extend(words_data)
+        except Exception as e:
+            logger.debug(f"Database access failed, using memory fallback: {e}")
+        
+        # Fallback: استفاده از کلمات در حافظه اگر دیتابیس در دسترس نباشد
+        if not words_to_check and hasattr(self, 'forbidden_words') and self.forbidden_words:
+            for word in self.forbidden_words:
+                words_to_check.append((word, case_sensitive, partial_match))
+        
+        # بررسی کلمات
+        for word_data in words_to_check:
+            word, word_case_sensitive, word_partial_match = word_data
+            
+            # تنظیمات مخصوص کلمه
+            check_text = search_text
+            check_word = word
+            
+            if not word_case_sensitive:
+                check_word = word.lower()
+                check_text = text.lower()
+            
+            # بررسی تطبیق
+            found = False
+            if word_partial_match:
+                # تطبیق جزئی
+                found = check_word in check_text
+            else:
+                # تطبیق کامل کلمه
+                import re
+                pattern = r'\b' + re.escape(check_word) + r'\b'
+                found = bool(re.search(pattern, check_text, re.IGNORECASE if not word_case_sensitive else 0))
+            
+            if found:
+                # کش کردن نتیجه
+                if hasattr(self, 'detection_cache'):
+                    self.manage_detection_cache()
+                    self.detection_cache[cache_key] = {
+                        'result': True,
+                        'found': word,
+                        'time': current_time
+                    }
+                
+                if found_word_ref is not None:
+                    found_word_ref.append(word)
+                
+                # آپدیت آمار
+                if hasattr(self, 'security_stats'):
+                    self.security_stats['word_detections'] += 1
+                
+                return True
+        
+        # کش کردن نتیجه منفی
+        if hasattr(self, 'detection_cache'):
+            self.manage_detection_cache()
+            self.detection_cache[cache_key] = {
+                'result': False,
+                'found': None,
+                'time': current_time
+            }
+        
+        return False
+
+    def contains_stop_emoji(self, text, found_emoji_ref=None):
+        """تشخیص ایموجی‌های ممنوعه - نسخه فوق‌پیشرفته"""
+        if not text or not self.forbidden_emojis or not self.security_settings.get('emoji_detection_enabled', True):
+            return False
+
+        # کش تشخیص
+        cache_key = f"emoji_{hash(text)}"
+        current_time = time.time()
+        
+        if cache_key in self.detection_cache:
+            cache_data = self.detection_cache[cache_key]
+            if current_time - cache_data['time'] < self.cache_expiry:
+                if found_emoji_ref is not None and cache_data['found']:
+                    found_emoji_ref.append(cache_data['found'])
+                return cache_data['result']
 
         import unicodedata
         
-        # تبدیل متن به حالات مختلف برای بررسی سریع‌تر
+        # تبدیل متن به حالات مختلف برای بررسی جامع
         text_variants = [
             text,
             text.replace('\uFE0F', ''),  # بدون variation selector 16
             text.replace('\uFE0E', ''),  # بدون variation selector 15
+            text.replace('\u200D', ''),  # بدون zero width joiner
             unicodedata.normalize('NFC', text),
-            unicodedata.normalize('NFD', text)
+            unicodedata.normalize('NFD', text),
+            # حالات ترکیبی
+            unicodedata.normalize('NFC', text).replace('\uFE0F', ''),
+            unicodedata.normalize('NFD', text).replace('\uFE0F', '')
         ]
         
-        # بررسی مستقیم ایموجی‌ها در تمام حالات متن
+        # بررسی همه ایموجی‌های ممنوعه
         for emoji in self.forbidden_emojis:
             if not emoji or len(emoji.strip()) == 0:
                 continue
@@ -1190,29 +1718,116 @@ class UnifiedBotLauncher:
                 emoji,
                 emoji.replace('\uFE0F', ''),
                 emoji.replace('\uFE0E', ''),
+                emoji.replace('\u200D', ''),
                 unicodedata.normalize('NFC', emoji),
-                unicodedata.normalize('NFD', emoji)
+                unicodedata.normalize('NFD', emoji),
+                # حالات ترکیبی
+                unicodedata.normalize('NFC', emoji).replace('\uFE0F', ''),
+                unicodedata.normalize('NFD', emoji).replace('\uFE0F', ''),
+                # نرمال‌سازی پیشرفته
+                self.normalize_emoji(emoji)
             ]
             
             # بررسی تمام ترکیبات
             for text_variant in text_variants:
                 for emoji_variant in emoji_variants:
-                    if emoji_variant in text_variant:
+                    if emoji_variant and emoji_variant in text_variant:
+                        # کش کردن نتیجه
+                        self.manage_detection_cache()
+                        self.detection_cache[cache_key] = {
+                            'result': True,
+                            'found': emoji,
+                            'time': current_time
+                        }
+                        
                         if found_emoji_ref is not None:
                             found_emoji_ref.append(emoji)
                         
+                        # آپدیت آمار
+                        self.security_stats['emoji_detections'] += 1
+                        
                         return True
-            
+        
+        # کش کردن نتیجه منفی
+        self.manage_detection_cache()
+        self.detection_cache[cache_key] = {
+            'result': False,
+            'found': None,
+            'time': current_time
+        }
+        
         return False
 
+    def manage_detection_cache(self):
+        """مدیریت اندازه کش تشخیص"""
+        if len(self.detection_cache) >= self.cache_max_size:
+            # حذف قدیمی‌ترین ورودی‌ها
+            current_time = time.time()
+            expired_keys = [
+                key for key, data in self.detection_cache.items()
+                if current_time - data['time'] > self.cache_expiry
+            ]
+            
+            for key in expired_keys:
+                del self.detection_cache[key]
+            
+            # اگر هنوز پر است، حذف نصف
+            if len(self.detection_cache) >= self.cache_max_size:
+                keys_to_remove = list(self.detection_cache.keys())[:self.cache_max_size // 2]
+                for key in keys_to_remove:
+                    del self.detection_cache[key]
+
+    def comprehensive_security_check(self, text, user_id=None, username=None, 
+                                   chat_id=None, chat_title=None, bot_id=None):
+        """بررسی جامع امنیتی (ایموجی + کلمات)"""
+        detected_issues = []
+        
+        # بررسی ایموجی‌های ممنوعه
+        found_emojis = []
+        if self.contains_stop_emoji(text, found_emojis):
+            for emoji in found_emojis:
+                detected_issues.append({
+                    'type': 'forbidden_emoji',
+                    'content': emoji,
+                    'description': f"ایموجی ممنوعه تشخیص داده شد: {emoji}"
+                })
+                
+                # لاگ امنیتی
+                self.log_security_action(
+                    "emoji_detected",
+                    emoji,
+                    user_id, username, chat_id, chat_title, bot_id,
+                    "Security pause triggered"
+                )
+        
+        # بررسی کلمات ممنوعه
+        found_words = []
+        if self.contains_forbidden_word(text, found_words):
+            for word in found_words:
+                detected_issues.append({
+                    'type': 'forbidden_word',
+                    'content': word,
+                    'description': f"کلمه ممنوعه تشخیص داده شد: {word}"
+                })
+                
+                # لاگ امنیتی
+                self.log_security_action(
+                    "word_detected",
+                    word,
+                    user_id, username, chat_id, chat_title, bot_id,
+                    "Security pause triggered"
+                )
+        
+        return detected_issues
+
     async def should_pause_spam(self, message, bot_id):
-        """بررسی اینکه آیا باید اسپم را متوقف کرد - سریع و فوری"""
+        """بررسی جامع امنیتی برای توقف اسپم - ایموجی و کلمات ممنوعه"""
         
         chat_id = message.chat.id
         message_id = message.id
         current_time = time.time()
         
-        # بررسی cache سریع برای جلوگیری از تشخیص چندگانه - فقط در صورت وجود message_id
+        # بررسی cache سریع برای جلوگیری از تشخیص چندگانه
         if hasattr(message, 'id') and message.id:
             cache_key = f"{message_id}_{chat_id}"
             if cache_key in self.emoji_detection_cache:
@@ -1220,22 +1835,37 @@ class UnifiedBotLauncher:
                 if current_time - cache_time < self.detection_cooldown:
                     return False
         
-        found_emoji_ref = []
-        emoji_detected = False
-        detected_emoji = None
+        detected_issues = []
+        user_id = None
+        username = None
+        chat_title = None
         
-        # بررسی ایموجی‌های توقف در متن اصلی پیام
-        if message.text and self.contains_stop_emoji(message.text, found_emoji_ref):
-            emoji_detected = True
-            detected_emoji = found_emoji_ref[0] if found_emoji_ref else "نامشخص"
+        # جمع‌آوری اطلاعات کاربر و چت
+        if message.from_user:
+            user_id = message.from_user.id
+            username = message.from_user.first_name or message.from_user.username
+        
+        if message.chat:
+            chat_title = getattr(message.chat, 'title', f'Chat {chat_id}')
+        
+        # بررسی جامع متن اصلی پیام
+        if message.text:
+            detected_issues.extend(
+                self.comprehensive_security_check(
+                    message.text, user_id, username, chat_id, chat_title, bot_id
+                )
+            )
 
-        # بررسی ایموجی‌های توقف در کپشن
-        elif message.caption and self.contains_stop_emoji(message.caption, found_emoji_ref):
-            emoji_detected = True
-            detected_emoji = found_emoji_ref[0] if found_emoji_ref else "نامشخص"
+        # بررسی جامع کپشن (اگر موجود باشد)
+        if message.caption:
+            detected_issues.extend(
+                self.comprehensive_security_check(
+                    message.caption, user_id, username, chat_id, chat_title, bot_id
+                )
+            )
 
-        # اگر ایموجی تشخیص داده شد
-        if emoji_detected:
+        # اگر هر گونه مشکل امنیتی تشخیص داده شد
+        if detected_issues:
             # ثبت در cache
             cache_key = f"{message_id}_{chat_id}"
             self.emoji_detection_cache[cache_key] = current_time
@@ -1247,8 +1877,15 @@ class UnifiedBotLauncher:
                 for old_key, _ in old_items:
                     del self.emoji_detection_cache[old_key]
             
-            # فراخوانی توقف اضطراری
-            await self.trigger_emergency_stop_for_chat(chat_id, detected_emoji, message)
+            # آماده‌سازی اطلاعات توقف
+            detected_content = []
+            for issue in detected_issues:
+                detected_content.append(f"{issue['type']}: {issue['content']}")
+            
+            # فراخوانی توقف اضطراری جامع
+            await self.trigger_comprehensive_emergency_stop(
+                chat_id, detected_issues, message, bot_id
+            )
             return True
 
         # بررسی کامندهای ممنوعه فقط برای دشمنان
@@ -1269,6 +1906,118 @@ class UnifiedBotLauncher:
                             return True
 
         return False
+
+    async def trigger_comprehensive_emergency_stop(self, chat_id, detected_issues, message, bot_id):
+        """توقف فوری جامع برای تمام انواع تشخیص‌های امنیتی"""
+        self.last_emoji_detection_time[chat_id] = time.time()
+        
+        # ایجاد event برای چت در صورت عدم وجود
+        if chat_id not in self.chat_emergency_stops:
+            self.chat_emergency_stops[chat_id] = asyncio.Event()
+        
+        self.chat_emergency_stops[chat_id].set()
+        
+        # تجمیع اطلاعات تشخیص
+        emoji_issues = [issue for issue in detected_issues if issue['type'] == 'forbidden_emoji']
+        word_issues = [issue for issue in detected_issues if issue['type'] == 'forbidden_word']
+        
+        detected_summary = []
+        if emoji_issues:
+            emojis = [issue['content'] for issue in emoji_issues]
+            detected_summary.append(f"ایموجی‌های ممنوعه: {', '.join(emojis)}")
+        if word_issues:
+            words = [issue['content'] for issue in word_issues]
+            detected_summary.append(f"کلمات ممنوعه: {', '.join(words)}")
+        
+        detection_summary = " | ".join(detected_summary)
+        
+        logger.warning(f"🛡️ توقف فوری جامع برای چت {chat_id} - {detection_summary}")
+        
+        # لغو فقط تسک‌های فحش مربوط به این چت
+        cancelled_count = 0
+        for spam_key, task in list(self.continuous_spam_tasks.items()):
+            key_parts = spam_key.split('_')
+            if len(key_parts) >= 3:
+                task_chat_id = int(key_parts[2])
+                if task_chat_id == chat_id:
+                    try:
+                        task.cancel()
+                        cancelled_count += 1
+                        logger.info(f"🛡️ تسک فحش {spam_key} در چت {chat_id} توقف شد")
+                        del self.continuous_spam_tasks[spam_key]
+                    except:
+                        pass
+        
+        if cancelled_count > 0:
+            logger.warning(f"🛡️ {cancelled_count} تسک فحش در چت {chat_id} متوقف شد")
+        
+        # ارسال گزارش جامع
+        await self.send_comprehensive_security_report(
+            chat_id, cancelled_count, detected_issues, message, bot_id
+        )
+        
+        # پاک کردن خودکار حالت توقف
+        asyncio.create_task(self.auto_clear_emergency_stop_for_chat(chat_id))
+
+    async def send_comprehensive_security_report(self, chat_id, stopped_count, detected_issues, message, bot_id):
+        """ارسال گزارش جامع امنیتی"""
+        if not self.report_bot:
+            return
+
+        try:
+            # آماده‌سازی اطلاعات
+            user_info = "کاربر نامشخص"
+            if message.from_user:
+                user_info = f"{message.from_user.first_name or 'بدون نام'} (@{message.from_user.username or 'بدون یوزرنیم'}) - ID: {message.from_user.id}"
+
+            chat_info = f"چت: {chat_id}"
+            try:
+                if message.chat.title:
+                    chat_info = f"گروه: {message.chat.title} ({chat_id})"
+                elif message.chat.first_name:
+                    chat_info = f"خصوصی: {message.chat.first_name} ({chat_id})"
+            except:
+                pass
+
+            # تجمیع مشکلات تشخیص داده شده
+            emoji_list = []
+            word_list = []
+            for issue in detected_issues:
+                if issue['type'] == 'forbidden_emoji':
+                    emoji_list.append(issue['content'])
+                elif issue['type'] == 'forbidden_word':
+                    word_list.append(issue['content'])
+
+            # ساخت متن گزارش
+            report_text = "🚨 **تشخیص امنیتی جامع - توقف فوری**\n\n"
+            
+            if emoji_list:
+                report_text += f"🚫 **ایموجی‌های ممنوعه:** {', '.join(emoji_list)}\n"
+            if word_list:
+                report_text += f"🚫 **کلمات ممنوعه:** {', '.join(word_list)}\n"
+            
+            report_text += f"\n👤 **کاربر:** {user_info}\n"
+            report_text += f"💬 **{chat_info}**\n"
+            report_text += f"🤖 **بات تشخیص‌دهنده:** {bot_id}\n"
+            
+            if stopped_count > 0:
+                report_text += f"⏹️ **تسک‌های متوقف شده:** {stopped_count} عدد\n"
+            
+            report_text += f"⏰ **زمان:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            
+            # اضافه کردن متن پیام اگر موجود باشد
+            if message.text:
+                preview = message.text[:100] + "..." if len(message.text) > 100 else message.text
+                report_text += f"📝 **متن پیام:** `{preview}`"
+            elif message.caption:
+                preview = message.caption[:100] + "..." if len(message.caption) > 100 else message.caption
+                report_text += f"📝 **کپشن:** `{preview}`"
+
+            await self.send_report_safely(report_text)
+            logger.info(f"📤 گزارش جامع امنیتی برای چت {chat_id} ارسال شد")
+
+        except Exception as e:
+            logger.error(f"❌ خطا در ارسال گزارش جامع: {e}")
 
     async def trigger_emergency_stop_for_chat(self, chat_id, detected_item, message):
         """فعال‌سازی توقف فوری فقط برای چت مشخص با گزارش یکپارچه"""
@@ -2266,20 +3015,34 @@ class UnifiedBotLauncher:
                         await message.reply_text(f"⚠️ این ایموجی قبلاً در لیست ممنوعه است: {new_emoji}")
                         return
                     
-                    # اضافه کردن به دیتابیس
-                    if self.add_forbidden_emoji_to_db(new_emoji):
-                        # اضافه کردن به حافظه (همه بات‌ها مشترک هستند)
-                        self.forbidden_emojis.add(new_emoji)
+                    # اضافه کردن با سیستم پیشرفته
+                    result = self.add_forbidden_emoji_advanced(
+                        new_emoji, 
+                        "اضافه شده توسط ادمین", 
+                        'custom', 
+                        message.from_user.id
+                    )
+                    
+                    if result:
+                        await message.reply_text(
+                            f"✅ **ایموجی ممنوعه اضافه شد - همه بات‌ها:**\n\n"
+                            f"🚫 ایموجی: `{new_emoji}`\n"
+                            f"📊 تعداد کل: {len(self.forbidden_emojis)} ایموجی\n"
+                            f"👤 اضافه‌کننده: {message.from_user.first_name}\n"
+                            f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                            f"⚡ تشخیص در تمام ۹ بات فعال شد!"
+                        )
                         
-                        # بارگذاری مجدد از دیتابیس برای اطمینان از همگام‌سازی
-                        fresh_emojis = self.load_forbidden_emojis_from_db()
-                        self.forbidden_emojis = fresh_emojis
+                        # گزارش پیشرفته
+                        if self.report_bot:
+                            report_text = f"🚨 ایموجی ممنوعه جدید: {new_emoji}\n"
+                            report_text += f"👤 توسط: {message.from_user.first_name} ({message.from_user.id})"
+                            await self.send_report_safely(report_text)
                         
-                        await message.reply_text(f"✅ ایموجی جدید به لیست ممنوعه اضافه شد: {new_emoji}\n📊 تعداد کل: {len(self.forbidden_emojis)} ایموجی\n💾 در دیتابیس ذخیره شد\n🔄 همه بات‌ها همگام‌سازی شدند")
                         self.log_action(bot_id, "add_forbidden_emoji", message.from_user.id, new_emoji)
-                        logger.info(f"✅ ایموجی {new_emoji} به همه بات‌ها اضافه شد")
+                        logger.info(f"✅ ایموجی {new_emoji} با سیستم پیشرفته اضافه شد")
                     else:
-                        await message.reply_text(f"❌ خطا در ذخیره ایموجی در دیتابیس")
+                        await message.reply_text(f"❌ خطا در اضافه کردن ایموجی یا قبلاً موجود است")
 
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
@@ -2297,44 +3060,67 @@ class UnifiedBotLauncher:
                         await message.reply_text(f"⚠️ این ایموجی در لیست ممنوعه یافت نشد: {emoji_to_remove}")
                         return
                     
-                    # حذف از دیتابیس
-                    if self.remove_forbidden_emoji_from_db(emoji_to_remove):
-                        # حذف از حافظه
-                        if emoji_to_remove in self.forbidden_emojis:
-                            self.forbidden_emojis.remove(emoji_to_remove)
+                    # حذف با سیستم پیشرفته
+                    result, msg = self.remove_forbidden_emoji_advanced(emoji_to_remove, message.from_user.id)
+                    
+                    if result:
+                        await message.reply_text(
+                            f"✅ **ایموجی ممنوعه حذف شد - همه بات‌ها:**\n\n"
+                            f"🗑️ ایموجی: `{emoji_to_remove}`\n"
+                            f"📊 تعداد باقی‌مانده: {len(self.forbidden_emojis)} ایموجی\n"
+                            f"👤 حذف‌کننده: {message.from_user.first_name}\n"
+                            f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                            f"⚡ تشخیص از تمام ۹ بات حذف شد!"
+                        )
                         
-                        # بارگذاری مجدد از دیتابیس برای اطمینان از همگام‌سازی
-                        fresh_emojis = self.load_forbidden_emojis_from_db()
-                        self.forbidden_emojis = fresh_emojis
+                        # گزارش
+                        if self.report_bot:
+                            report_text = f"🗑️ ایموجی ممنوعه حذف شد: {emoji_to_remove}\n"
+                            report_text += f"👤 توسط: {message.from_user.first_name} ({message.from_user.id})"
+                            await self.send_report_safely(report_text)
                         
-                        await message.reply_text(f"✅ ایموجی از لیست ممنوعه حذف شد: {emoji_to_remove}\n📊 تعداد باقی‌مانده: {len(self.forbidden_emojis)} ایموجی\n💾 از دیتابیس حذف شد\n🔄 همه بات‌ها همگام‌سازی شدند")
                         self.log_action(bot_id, "del_forbidden_emoji", message.from_user.id, emoji_to_remove)
-                        logger.info(f"✅ ایموجی {emoji_to_remove} از همه بات‌ها حذف شد")
+                        logger.info(f"✅ ایموجی {emoji_to_remove} با سیستم پیشرفته حذف شد")
                     else:
-                        await message.reply_text(f"❌ خطا در حذف ایموجی از دیتابیس")
+                        await message.reply_text(f"⚠️ {msg}")
 
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
 
             @app.on_message(filters.command("listemoji") & admin_filter)
             async def list_forbidden_emoji_command(client, message):
+                """لیست پیشرفته ایموجی‌های ممنوعه"""
                 try:
-                    if not self.forbidden_emojis:
-                        await message.reply_text("📝 لیست ایموجی‌های ممنوعه خالی است.")
+                    emoji_list = self.list_forbidden_emojis_advanced()
+                    
+                    if not emoji_list:
+                        await message.reply_text(
+                            "📝 **لیست ایموجی‌های ممنوعه خالی است**\n\n"
+                            "💡 با `/addemoji [ایموجی]` ایموجی اضافه کنید.\n"
+                            "📚 کامندهای مفید:\n"
+                            "• `/addword [کلمه]` - اضافه کردن کلمه ممنوعه\n"
+                            "• `/listword` - لیست کلمات ممنوعه\n"
+                            "• `/securitystats` - آمار امنیتی"
+                        )
                         return
 
-                    emoji_list = list(self.forbidden_emojis)
-                    text = f"🚫 **لیست ایموجی‌های ممنوعه (همگانی):**\n\n"
+                    text = "🚫 **لیست ایموجی‌های ممنوعه (همه بات‌ها):**\n\n"
                     
-                    for i, emoji in enumerate(emoji_list, 1):
-                        # نمایش کد یونیکد هم برای دیباگ
-                        unicode_codes = [f"U+{ord(char):04X}" for char in emoji]
-                        text += f"`{i}.` {emoji} `{' '.join(unicode_codes)}`\n"
-                        if i >= 20:  # محدود به 20 ایموجی در هر پیام
-                            text += f"\n... و {len(emoji_list) - 20} ایموجی دیگر"
-                            break
+                    for i, emoji_data in enumerate(emoji_list[:15], 1):
+                        text += f"`{i}.` {emoji_data['emoji']}"
+                        if emoji_data['description'] and emoji_data['description'] != 'اضافه شده توسط ادمین':
+                            text += f" - {emoji_data['description'][:25]}"
+                        text += f" ({emoji_data['category']})\n"
 
-                    text += f"\n📊 **تعداد کل:** {len(emoji_list)} ایموجی"
+                    if len(emoji_list) > 15:
+                        text += f"\n... و {len(emoji_list) - 15} ایموجی دیگر"
+
+                    text += f"\n\n📊 **آمار:**\n"
+                    text += f"• تعداد کل: {len(emoji_list)} ایموجی\n"
+                    text += f"• وضعیت تشخیص: {'✅ فعال' if self.security_settings['emoji_detection_enabled'] else '❌ غیرفعال'}\n"
+                    text += f"• آخرین بروزرسانی: {datetime.now().strftime('%H:%M:%S')}\n\n"
+                    text += f"💡 **راهنما:** `/testemoji [ایموجی]` برای تست تشخیص"
+                    
                     await message.reply_text(text)
 
                 except Exception as e:
@@ -2486,6 +3272,322 @@ class UnifiedBotLauncher:
                     result_text += f"🚀 سرعت: {1000/avg_time:.0f}/ثانیه"
                     
                     await message.reply_text(result_text)
+                    
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            # =================================================================
+            # کامندهای پیشرفته مدیریت کلمات ممنوعه - Enhanced Forbidden Words Commands
+            # =================================================================
+            
+            @app.on_message(filters.command("addword") & admin_filter)
+            async def add_word_advanced_command(client, message):
+                """اضافه کردن کلمه ممنوعه با ویژگی‌های پیشرفته"""
+                try:
+                    if len(message.command) < 2:
+                        await message.reply_text(
+                            "⚠️ استفاده: `/addword [کلمه] [توضیحات]`\n"
+                            "گزینه‌های پیشرفته: `/addwordadv`\n\n"
+                            "مثال‌ها:\n"
+                            "• `/addword test کلمه تست`\n"
+                            "• `/addword character برای گیم‌ها`\n"
+                            "• `/addword spawned کلمه بازی`"
+                        )
+                        return
+
+                    parts = message.text.split(maxsplit=2)
+                    word = parts[1] if len(parts) > 1 else ""
+                    description = parts[2] if len(parts) > 2 else "اضافه شده توسط ادمین"
+                    
+                    result = self.add_forbidden_word_advanced(
+                        word, 
+                        description, 
+                        'custom',
+                        case_sensitive=False,  # پیش‌فرض: حساس به کوچک/بزرگ نیست
+                        partial_match=True,    # پیش‌فرض: تطبیق جزئی
+                        added_by_user_id=message.from_user.id
+                    )
+                    
+                    if result:
+                        await message.reply_text(
+                            f"✅ **کلمه ممنوعه اضافه شد - همه بات‌ها:**\n\n"
+                            f"🚫 کلمه: `{word}`\n"
+                            f"📝 توضیحات: {description}\n"
+                            f"🔍 تطبیق: جزئی (در هر جای متن)\n"
+                            f"🔤 حساسیت: عدم تمایز کوچک/بزرگ\n"
+                            f"👤 اضافه‌کننده: {message.from_user.first_name}\n"
+                            f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                            f"⚡ تشخیص در تمام ۹ بات فعال شد!"
+                        )
+                        
+                        # گزارش
+                        if self.report_bot:
+                            report_text = f"🚨 کلمه ممنوعه جدید: {word}\n"
+                            report_text += f"📝 توضیحات: {description}\n"
+                            report_text += f"👤 توسط: {message.from_user.first_name} ({message.from_user.id})"
+                            await self.send_report_safely(report_text)
+                    else:
+                        await message.reply_text(f"⚠️ کلمه قبلاً موجود است یا خطایی رخ داد: `{word}`")
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("addwordadv") & admin_filter)
+            async def add_word_advanced_options_command(client, message):
+                """اضافه کردن کلمه ممنوعه با گزینه‌های کامل"""
+                try:
+                    if len(message.command) < 4:
+                        await message.reply_text(
+                            "⚠️ استفاده: `/addwordadv [کلمه] [exact|partial] [sensitive|insensitive] [توضیحات]`\n\n"
+                            "مثال‌ها:\n"
+                            "• `/addwordadv CHARACTER exact sensitive کلمه کامل`\n"
+                            "• `/addwordadv test partial insensitive کلمه جزئی`\n\n"
+                            "**گزینه‌ها:**\n"
+                            "• `exact`: فقط کلمه کامل\n"
+                            "• `partial`: در هر جای متن\n"
+                            "• `sensitive`: حساس به کوچک/بزرگ\n"
+                            "• `insensitive`: عدم حساسیت به کوچک/بزرگ"
+                        )
+                        return
+
+                    parts = message.text.split(maxsplit=4)
+                    word = parts[1]
+                    match_type = parts[2].lower()
+                    case_type = parts[3].lower()
+                    description = parts[4] if len(parts) > 4 else f"کلمه {match_type} {case_type}"
+                    
+                    partial_match = match_type == "partial"
+                    case_sensitive = case_type == "sensitive"
+                    
+                    result = self.add_forbidden_word_advanced(
+                        word, 
+                        description, 
+                        'advanced',
+                        case_sensitive=case_sensitive,
+                        partial_match=partial_match,
+                        added_by_user_id=message.from_user.id
+                    )
+                    
+                    if result:
+                        match_desc = "جزئی (در هر جای متن)" if partial_match else "دقیق (کلمه کامل)"
+                        case_desc = "حساس به کوچک/بزرگ" if case_sensitive else "عدم تمایز کوچک/بزرگ"
+                        
+                        await message.reply_text(
+                            f"✅ **کلمه ممنوعه پیشرفته اضافه شد:**\n\n"
+                            f"🚫 کلمه: `{word}`\n"
+                            f"📝 توضیحات: {description}\n"
+                            f"🔍 نوع تطبیق: {match_desc}\n"
+                            f"🔤 حساسیت: {case_desc}\n"
+                            f"👤 اضافه‌کننده: {message.from_user.first_name}\n"
+                            f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        )
+                    else:
+                        await message.reply_text(f"⚠️ خطا در اضافه کردن کلمه: `{word}`")
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("delword") & admin_filter)
+            async def del_word_advanced_command(client, message):
+                """حذف کلمه ممنوعه با تأیید"""
+                try:
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ استفاده: `/delword [کلمه]`\nمثال: `/delword character`")
+                        return
+
+                    word = " ".join(message.command[1:])
+                    result, msg = self.remove_forbidden_word_advanced(word, message.from_user.id)
+                    
+                    if result:
+                        await message.reply_text(
+                            f"✅ **کلمه ممنوعه حذف شد - همه بات‌ها:**\n\n"
+                            f"🗑️ کلمه: `{word}`\n"
+                            f"👤 حذف‌کننده: {message.from_user.first_name}\n"
+                            f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                            f"⚡ تشخیص از تمام ۹ بات حذف شد!"
+                        )
+                        
+                        # گزارش
+                        if self.report_bot:
+                            report_text = f"🗑️ کلمه ممنوعه حذف شد: {word}\n"
+                            report_text += f"👤 توسط: {message.from_user.first_name} ({message.from_user.id})"
+                            await self.send_report_safely(report_text)
+                    else:
+                        await message.reply_text(f"⚠️ {msg}")
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("listword") & admin_filter)
+            async def list_word_advanced_command(client, message):
+                """لیست پیشرفته کلمات ممنوعه"""
+                try:
+                    word_list = self.list_forbidden_words_advanced()
+                    
+                    if not word_list:
+                        await message.reply_text(
+                            "📝 **لیست کلمات ممنوعه خالی است**\n\n"
+                            "💡 با `/addword [کلمه]` کلمه اضافه کنید.\n"
+                            "⚙️ پیشرفته: `/addwordadv [کلمه] [exact|partial] [sensitive|insensitive]`\n"
+                            "📚 کامندهای مفید:\n"
+                            "• `/addemoji [ایموجی]` - اضافه کردن ایموجی ممنوعه\n"
+                            "• `/securitystats` - آمار امنیتی"
+                        )
+                        return
+
+                    text = "🚫 **لیست کلمات ممنوعه (همه بات‌ها):**\n\n"
+                    
+                    for i, word_data in enumerate(word_list[:12], 1):
+                        match_type = "دقیق" if not word_data['partial_match'] else "جزئی"
+                        case_type = "حساس" if word_data['case_sensitive'] else "عادی"
+                        
+                        text += f"`{i}.` **{word_data['word']}** ({match_type}, {case_type})"
+                        if word_data['description'] and word_data['description'] != 'اضافه شده توسط ادمین':
+                            text += f"\n    └ {word_data['description'][:35]}"
+                        text += f"\n    └ دسته: {word_data['category']}\n\n"
+
+                    if len(word_list) > 12:
+                        text += f"... و {len(word_list) - 12} کلمه دیگر\n\n"
+
+                    text += f"📊 **آمار:**\n"
+                    text += f"• تعداد کل: {len(word_list)} کلمه\n"
+                    text += f"• وضعیت تشخیص: {'✅ فعال' if self.security_settings['word_detection_enabled'] else '❌ غیرفعال'}\n"
+                    text += f"• آخرین بروزرسانی: {datetime.now().strftime('%H:%M:%S')}\n\n"
+                    text += f"💡 **راهنما:** `/testword [متن]` برای تست تشخیص"
+                    
+                    await message.reply_text(text)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("testword") & admin_filter)
+            async def test_word_command(client, message):
+                """تست تشخیص کلمات ممنوعه"""
+                try:
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ استفاده: `/testword [متن]`\nمثال: `/testword A CHARACTER HAS SPAWNED`")
+                        return
+
+                    test_text = " ".join(message.command[1:])
+                    
+                    # تست تشخیص با زمان‌سنجی
+                    import time
+                    start_time = time.time()
+                    found_words = []
+                    is_detected = self.contains_forbidden_word(test_text, found_words)
+                    end_time = time.time()
+                    detection_time = (end_time - start_time) * 1000  # میلی‌ثانیه
+                    
+                    # نمایش جزئیات کامل
+                    debug_text = f"🔍 **تست تشخیص کلمات ممنوعه:**\n\n"
+                    debug_text += f"📝 متن تست: `{test_text}`\n"
+                    debug_text += f"🎯 تشخیص داده شد: {'✅ بله' if is_detected else '❌ خیر'}\n"
+                    debug_text += f"⏱️ زمان تشخیص: {detection_time:.2f}ms\n"
+                    
+                    if found_words:
+                        debug_text += f"⚡ کلمه یافت شده: `{found_words[0]}`\n"
+                    
+                    debug_text += f"📊 تعداد کلمات ممنوعه: {len(self.forbidden_words)}\n"
+                    debug_text += f"🔄 وضعیت cache: {len(self.detection_cache)} آیتم\n\n"
+                    
+                    # نمایش تمام کلمات ممنوعه فعلی
+                    if self.forbidden_words:
+                        debug_text += "📋 **کلمات ممنوعه فعلی:**\n"
+                        for i, word in enumerate(list(self.forbidden_words)[:8], 1):
+                            debug_text += f"{i}. `{word}`\n"
+                        if len(self.forbidden_words) > 8:
+                            debug_text += f"... و {len(self.forbidden_words) - 8} مورد دیگر\n"
+                    
+                    await message.reply_text(debug_text)
+                    
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("clearword") & admin_filter)
+            async def clear_word_command(client, message):
+                """حذف همه کلمات ممنوعه با تأیید"""
+                try:
+                    # دریافت تعداد کلمات قبل از حذف
+                    count = len(self.forbidden_words)
+                    
+                    if count == 0:
+                        await message.reply_text("📝 لیست کلمات ممنوعه خالی است.")
+                        return
+                    
+                    # حذف از دیتابیس
+                    db_path = self.bot_configs[1]['db_path']
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    cursor.execute("DELETE FROM forbidden_words")
+                    conn.commit()
+                    conn.close()
+                    
+                    # حذف از حافظه
+                    self.forbidden_words.clear()
+                    
+                    await message.reply_text(
+                        f"✅ **همه کلمات ممنوعه حذف شدند:**\n\n"
+                        f"🗑️ تعداد حذف شده: {count} کلمه\n"
+                        f"👤 حذف‌کننده: {message.from_user.first_name}\n"
+                        f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                        f"⚡ تشخیص از تمام ۹ بات حذف شد!"
+                    )
+                    
+                    # گزارش
+                    if self.report_bot:
+                        report_text = f"🗑️ همه کلمات ممنوعه حذف شدند ({count} کلمه)\n"
+                        report_text += f"👤 توسط: {message.from_user.first_name} ({message.from_user.id})"
+                        await self.send_report_safely(report_text)
+                    
+                    self.log_action(bot_id, "clear_words", message.from_user.id, f"حذف {count} کلمه")
+                    
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("securitystats") & admin_filter)
+            async def security_stats_command(client, message):
+                """نمایش آمار کامل امنیتی"""
+                try:
+                    emoji_count = len(self.forbidden_emojis)
+                    word_count = len(self.forbidden_words)
+                    
+                    text = f"🛡️ **آمار کامل امنیتی (همه بات‌ها):**\n\n"
+                    
+                    # آمار کلی
+                    text += f"📊 **آمار کلی:**\n"
+                    text += f"• ایموجی‌های ممنوعه: {emoji_count} عدد\n"
+                    text += f"• کلمات ممنوعه: {word_count} عدد\n"
+                    text += f"• مجموع: {emoji_count + word_count} مورد\n\n"
+                    
+                    # وضعیت تشخیص
+                    text += f"⚙️ **وضعیت تشخیص:**\n"
+                    text += f"• ایموجی‌ها: {'✅ فعال' if self.security_settings['emoji_detection_enabled'] else '❌ غیرفعال'}\n"
+                    text += f"• کلمات: {'✅ فعال' if self.security_settings['word_detection_enabled'] else '❌ غیرفعال'}\n"
+                    text += f"• لاگ امنیتی: {'✅ فعال' if self.security_settings['log_detections'] else '❌ غیرفعال'}\n\n"
+                    
+                    # آمار تشخیص
+                    text += f"📈 **آمار تشخیص (این جلسه):**\n"
+                    text += f"• تشخیص ایموجی: {self.security_stats['emoji_detections']} بار\n"
+                    text += f"• تشخیص کلمه: {self.security_stats['word_detections']} بار\n"
+                    text += f"• مجموع: {self.security_stats['emoji_detections'] + self.security_stats['word_detections']} بار\n\n"
+                    
+                    # وضعیت کش
+                    text += f"💾 **وضعیت کش:**\n"
+                    text += f"• آیتم‌های کش: {len(self.detection_cache)} عدد\n"
+                    text += f"• حد اکثر: {self.cache_max_size} عدد\n"
+                    text += f"• مدت انقضا: {self.cache_expiry} ثانیه\n\n"
+                    
+                    # آخرین بروزرسانی
+                    text += f"🕐 **آخرین بروزرسانی:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                    
+                    # کامندهای مفید
+                    text += f"💡 **کامندهای مفید:**\n"
+                    text += f"• `/listemoji` - لیست ایموجی‌ها\n"
+                    text += f"• `/listword` - لیست کلمات\n"
+                    text += f"• `/testemoji [ایموجی]` - تست ایموجی\n"
+                    text += f"• `/testword [متن]` - تست کلمه"
+                    
+                    await message.reply_text(text)
                     
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
