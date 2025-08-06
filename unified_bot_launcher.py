@@ -3575,10 +3575,21 @@ class UnifiedBotLauncher:
             async def set_delay_command(client, message):
                 """تنظیم تاخیر پیشرفته"""
                 try:
-                    if len(message.command) < 3:
+                    # بهبود پارس کردن کامند برای رفع مشکل فاصله
+                    command_parts = message.command[1:] if len(message.command) > 1 else []
+                    
+                    # اگر فقط یک قسمت داریم، سعی کن جدا کنیم
+                    if len(command_parts) == 1 and command_parts[0]:
+                        # جستجوی الگوهای متصل مثل enemy_spam2.5
+                        import re
+                        match = re.match(r'([a-zA-Z_]+)([0-9.]+)$', command_parts[0])
+                        if match:
+                            command_parts = [match.group(1), match.group(2)]
+                    
+                    if len(command_parts) < 2:
                         delay_types = list(self.advanced_delay_settings.keys())
                         await message.reply_text(
-                            f"⚠️ **استفاده:** `/setdelay [نوع] [مقدار]`\n\n"
+                            f"⚠️ **استفاده درست:** `/setdelay [نوع] [مقدار]`\n\n"
                             f"**انواع تاخیر:**\n"
                             f"• `enemy_spam` - تاخیر اسپم دشمنان ({self.advanced_delay_settings['enemy_spam_delay']}s)\n"
                             f"• `friend_reply` - پاسخ به دوستان ({self.advanced_delay_settings['friend_reply_delay']}s)\n"
@@ -3586,15 +3597,23 @@ class UnifiedBotLauncher:
                             f"• `conversation` - گفتگوی خودکار ({self.advanced_delay_settings['conversation_delay']}s)\n"
                             f"• `emoji_react` - واکنش ایموجی ({self.advanced_delay_settings['emoji_reaction_delay']}s)\n"
                             f"• `burst_protect` - محافظت سیل ({self.advanced_delay_settings['burst_protection_delay']}s)\n\n"
-                            f"**مثال:** `/setdelay enemy_spam 2.5`"
+                            f"**✅ مثال درست:** `/setdelay enemy_spam 2.5`\n"
+                            f"**❌ اشتباه:** `/setdelayenemy_spam 2.5` یا `/setdelay enemy_spam2.5`\n"
+                            f"**نکته:** حتماً بین همه قسمت‌ها فاصله بگذارید"
                         )
                         return
 
-                    delay_type = message.command[1]
+                    delay_type = command_parts[0].strip()
                     try:
-                        delay_value = float(message.command[2])
-                    except ValueError:
-                        await message.reply_text("❌ مقدار تاخیر باید عدد باشد")
+                        delay_value = float(command_parts[1].strip())
+                    except (ValueError, IndexError):
+                        await message.reply_text(
+                            f"❌ **خطا در مقدار تاخیر**\n\n"
+                            f"مقدار باید عدد باشد (مثال: 2.5 یا 1.0)\n"
+                            f"**مثال درست:** `/setdelay {delay_type} 2.5`\n"
+                            f"**فرمت شما:** `/setdelay {' '.join(command_parts)}`\n\n"
+                            f"لطفاً فاصله بین نوع تاخیر و مقدار رعایت کنید"
+                        )
                         return
 
                     # مپ کردن اسامی کوتاه
@@ -3785,147 +3804,207 @@ class UnifiedBotLauncher:
             async def help_general_command(client, message):
                 """راهنمای کلی سیستم"""
                 try:
-                    help_text = """
-📚 **راهنمای کامل سیستم تلگرام پیشرفته**
+                    # خواندن از فایل راهنمای کلی
+                    try:
+                        with open('guides/GENERAL_GUIDE.md', 'r', encoding='utf-8') as f:
+                            guide_content = f.read()
+                        
+                        # استخراج بخش‌های کلیدی از markdown
+                        lines = guide_content.split('\n')
+                        help_sections = []
+                        current_section = []
+                        in_code_block = False
+                        
+                        for line in lines:
+                            if line.strip().startswith('```'):
+                                in_code_block = not in_code_block
+                                if in_code_block:
+                                    current_section.append('```')
+                                else:
+                                    current_section.append('```')
+                                    if current_section:
+                                        help_sections.append('\n'.join(current_section))
+                                        current_section = []
+                            elif in_code_block:
+                                current_section.append(line)
+                            elif line.startswith('## '):
+                                if current_section:
+                                    help_sections.append('\n'.join(current_section))
+                                current_section = [f"**{line[3:]}**"]
+                            elif line.startswith('### '):
+                                current_section.append(f"• **{line[4:]}**")
+                            elif line.strip() and not line.startswith('#'):
+                                current_section.append(line)
+                        
+                        if current_section:
+                            help_sections.append('\n'.join(current_section))
+                        
+                        # ساخت متن راهنما با محدودیت طول تلگرام
+                        help_text = "📚 **راهنمای کامل سیستم**\n\n"
+                        help_text += "**دسترسی سریع به راهنماها:**\n"
+                        help_text += "`/helpemoji` - 🚫 مدیریت ایموجی‌ها\n"
+                        help_text += "`/helpword` - 📝 مدیریت کلمات\n"
+                        help_text += "`/helpdelay` - ⏱️ سیستم تاخیر\n"
+                        help_text += "`/helpuser` - 👥 مدیریت کاربران\n"
+                        help_text += "`/helpstats` - 📊 آمار و گزارش\n\n"
+                        help_text += "**کامندهای اساسی:**\n"
+                        help_text += "`/status` - وضعیت سیستم\n"
+                        help_text += "`/restart` - ری‌استارت\n"
+                        help_text += "`/settings` - تنظیمات کلی\n\n"
+                        help_text += "💡 **شروع:** با `/status` وضعیت سیستم را بررسی کنید"
+                        
+                    except FileNotFoundError:
+                        # Fallback اگر فایل راهنما موجود نباشد
+                        help_text = """📚 **راهنمای سیستم**
 
-🎯 **بخش‌های اصلی:**
+**دسترسی سریع:**
+`/helpemoji` - 🚫 ایموجی‌ها
+`/helpword` - 📝 کلمات
+`/helpdelay` - ⏱️ تاخیر  
+`/helpuser` - 👥 کاربران
+`/helpstats` - 📊 آمار
 
-🚫 **مدیریت ایموجی** - `/helpemoji`
-• اضافه/حذف ایموجی ممنوعه
-• تست و دیباگ تشخیص
-• لیست و مدیریت با سطح خطر
-
-📝 **مدیریت کلمات** - `/helpword`  
-• اضافه/حذف کلمات ممنوعه
-• تنظیمات حساسیت و تطبیق
-• دسته‌بندی هوشمند
-
-⏱️ **سیستم تاخیر** - `/helpdelay`
-• ۶ نوع تاخیر پیشرفته
-• ضریب چت و تاخیر انطباقی
-• تنظیمات هوشمند
-
-👥 **مدیریت کاربران** - `/helpuser`
-• اضافه/حذف دوست و دشمن
-• تنظیمات رفتار
-• مدیریت لیست‌ها
-
-📊 **آمار و گزارش** - `/helpstats`
-• آمار امنیتی
-• گزارش عملکرد
-• مانیتورینگ
-
-🔧 **کامندهای کلیدی:**
-• `/status` - وضعیت سیستم
-• `/restart` - ری‌استارت
-• `/settings` - تنظیمات
-
-💡 برای شروع: `/status` را امتحان کنید
-                    """
+**اساسی:** `/status` `/restart` `/settings`"""
+                    
                     await message.reply_text(help_text)
                 except Exception as e:
-                    await message.reply_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا در نمایش راهنما: {str(e)}")
+
+            def load_help_guide(self, guide_file, section_title, section_emoji):
+                """بارگذاری و فرمت کردن راهنمای مختصر از فایل کامل"""
+                try:
+                    with open(f'guides/{guide_file}', 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    # استخراج بخش‌های کلیدی
+                    lines = content.split('\n')
+                    sections = {}
+                    current_section = None
+                    current_content = []
+                    
+                    for line in lines:
+                        if line.startswith('## '):
+                            if current_section and current_content:
+                                sections[current_section] = '\n'.join(current_content)
+                            current_section = line[3:].strip()
+                            current_content = []
+                        elif line.startswith('```bash') or line.startswith('```'):
+                            continue
+                        elif line.strip() and not line.startswith('#'):
+                            if line.startswith('### '):
+                                current_content.append(f"**{line[4:].strip()}**")
+                            elif line.startswith('- ') or line.startswith('• '):
+                                current_content.append(f"• {line[2:].strip()}")
+                            elif line.strip().startswith('/'):
+                                # کامندها
+                                cmd_parts = line.strip().split(' ', 2)
+                                cmd = cmd_parts[0]
+                                desc = ' '.join(cmd_parts[1:]) if len(cmd_parts) > 1 else ""
+                                current_content.append(f"`{cmd}` - {desc}")
+                            elif not line.startswith('---'):
+                                current_content.append(line.strip())
+                    
+                    if current_section and current_content:
+                        sections[current_section] = '\n'.join(current_content)
+                    
+                    # ساخت متن خلاصه
+                    help_text = f"{section_emoji} **{section_title}**\n\n"
+                    
+                    # اضافه کردن مهم‌ترین بخش‌ها
+                    priority_sections = ['کامندهای اضافه کردن', 'کامندهای حذف', 'کامندهای مشاهده', 'تست و دیباگ']
+                    
+                    for section_name in priority_sections:
+                        for key, value in sections.items():
+                            if any(word in key for word in section_name.split()):
+                                clean_lines = [line for line in value.split('\n') if line.strip() and len(line.strip()) > 3]
+                                if clean_lines:
+                                    help_text += f"**{key}:**\n"
+                                    # محدود کردن به 5 مورد اول
+                                    for line in clean_lines[:5]:
+                                        if line.strip():
+                                            help_text += f"{line}\n"
+                                    help_text += "\n"
+                                break
+                    
+                    help_text += f"💡 **راهنمای کامل:** فایل `guides/{guide_file}` را مطالعه کنید\n"
+                    help_text += "🔙 **برگشت:** `/help`"
+                    
+                    return help_text
+                
+                except FileNotFoundError:
+                    return f"{section_emoji} **{section_title}**\n\n❌ فایل راهنما موجود نیست\n🔙 برگشت: `/help`"
+                except Exception as e:
+                    return f"{section_emoji} **{section_title}**\n\n❌ خطا در بارگذاری: {str(e)}\n🔙 برگشت: `/help`"
 
             @app.on_message(filters.command("helpemoji") & admin_filter)
             async def help_emoji_command(client, message):
                 """راهنمای کامل ایموجی‌های ممنوعه"""
                 try:
-                    help_text = """
-🚫 **راهنمای کامل ایموجی‌های ممنوعه**
-
-📋 **کامندهای اصلی:**
-
-🆕 **اضافه کردن:**
-• `/addemoji ⚡` - اضافه ساده
-• `/addemoji ⚡ توضیحات 2` - با توضیحات و سطح
-
-🗑️ **حذف کردن:**
-• `/delemoji ⚡` - حذف ایموجی
-
-📝 **مدیریت:**
-• `/listemoji` - لیست همه ایموجی‌ها
-• `/clearemoji` - پاک کردن همه (با تأیید)
-• `/syncemojis` - همگام‌سازی
-
-🔍 **تست و دیباگ:**
-• `/testemoji ⚡` - تست تشخیص
-• `/debugemoji متن تست ⚡` - دیباگ کامل
-• `/quicktest` - تست سریع چندین مورد
-
-🎯 **سطوح خطر:**
-• سطح ۱ (🟢) - کم خطر
-• سطح ۲ (🟡) - متوسط  
-• سطح ۳ (🔴) - پرخطر
-
-💡 **نکات:**
-• تشخیص با variation selector
-• نرمال‌سازی Unicode
-• سرعت تشخیص < ۱ms
-• سینک خودکار در همه بات‌ها
-
-🔙 برگشت: `/help`
-                    """
+                    help_text = self.load_help_guide('EMOJI_GUIDE.md', 'راهنمای ایموجی‌های ممنوعه', '🚫')
                     await message.reply_text(help_text)
                 except Exception as e:
-                    await message.reply_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا در نمایش راهنمای ایموجی: {str(e)}")
 
             @app.on_message(filters.command("helpword") & admin_filter)
             async def help_word_command(client, message):
                 """راهنمای کامل کلمات ممنوعه"""
                 try:
-                    help_text = """
-📝 **راهنمای کامل کلمات ممنوعه**
-
-📋 **کامندهای اصلی:**
-
-🆕 **اضافه کردن:**
-• `/addword کلمه` - اضافه ساده
-• `/addword کلمه توضیحات` - با توضیحات
-• `/addwordadv` - اضافه پیشرفته
-
-🗑️ **حذف کردن:**
-• `/delword کلمه` - حذف کلمه
-• `/clearwords` - پاک کردن همه
-
-📝 **مدیریت:**
-• `/listword` - لیست کلمات
-• `/listword دسته` - لیست بر اساس دسته
-• `/searchword متن` - جستجو در کلمات
-
-🔧 **تنظیمات پیشرفته:**
-• حساسیت به کوچک/بزرگ
-• تطبیق جزئی/کامل
-• دسته‌بندی خودکار
-• اولویت‌بندی
-
-📊 **دسته‌های کلمات:**
-• `spam` - کلمات اسپم
-• `offensive` - کلمات توهین‌آمیز
-• `game` - کلمات بازی
-• `custom` - کلمات سفارشی
-
-🔍 **تست:**
-• `/testword متن` - تست تشخیص کلمه
-
-💡 **نکات:**
-• پشتیبانی چند زبانه
-• تشخیص هوشمند
-• مدیریت یکپارچه در همه بات‌ها
-
-🔙 برگشت: `/help`
-                    """
+                    help_text = self.load_help_guide('WORD_GUIDE.md', 'راهنمای کلمات ممنوعه', '📝')
                     await message.reply_text(help_text)
                 except Exception as e:
-                    await message.reply_text(f"❌ خطا: {str(e)}")
+                    await message.reply_text(f"❌ خطا در نمایش راهنمای کلمات: {str(e)}")
 
             @app.on_message(filters.command("helpdelay") & admin_filter)
             async def help_delay_command(client, message):
                 """راهنمای کامل سیستم تاخیر"""
                 try:
-                    help_text = """
-⏱️ **راهنمای کامل سیستم تاخیر پیشرفته**
+                    # راهنمای ویژه تاخیر با تاکید بر رفع مشکل فاصله
+                    help_text = """⏱️ **راهنمای سیستم تاخیر پیشرفته**
 
-📋 **کامندهای اصلی:**
+🎛️ **انواع تاخیر (۶ نوع):**
+`/setdelay enemy_spam 2.5` - اسپم دشمنان
+`/setdelay friend_reply 0.3` - پاسخ به دوستان
+`/setdelay global_msg 0.5` - پیام‌های کلی
+`/setdelay conversation 2.0` - گفتگوی خودکار
+`/setdelay emoji_react 0.1` - واکنش ایموجی
+`/setdelay burst_protect 3.0` - محافظت سیل
+
+⚠️ **نحوه درست استفاده:**
+✅ `/setdelay enemy_spam 2.5` (فاصله بین همه)
+❌ `/setdelayenemy_spam 2.5` (بدون فاصله)
+❌ `/setdelay enemy_spam2.5` (بدون فاصله از عدد)
+
+🏠 **ضریب چت:**
+`/chatdelay -1001234567890 0.5` - نصف تاخیر
+`/chatdelay -1001234567890 2.0` - دو برابر
+
+📊 **مدیریت:**
+`/delayinfo` - نمایش تنظیمات
+`/resetdelay` - بازنشانی همه
+
+💡 **راهنمای کامل:** `guides/DELAY_GUIDE.md`
+🔙 **برگشت:** `/help`"""
+                    await message.reply_text(help_text)
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا در نمایش راهنمای تاخیر: {str(e)}")
+
+            @app.on_message(filters.command("helpuser") & admin_filter)
+            async def help_user_command(client, message):
+                """راهنمای کامل مدیریت کاربران"""
+                try:
+                    help_text = self.load_help_guide('USER_GUIDE.md', 'راهنمای مدیریت کاربران', '👥')
+                    await message.reply_text(help_text)
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا در نمایش راهنمای کاربران: {str(e)}")
+
+            @app.on_message(filters.command("helpstats") & admin_filter)  
+            async def help_stats_command(client, message):
+                """راهنمای کامل آمار و گزارش‌گیری"""
+                try:
+                    help_text = self.load_help_guide('STATS_GUIDE.md', 'راهنمای آمار و گزارش‌گیری', '📊')
+                    await message.reply_text(help_text)
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا در نمایش راهنمای آمار: {str(e)}")
 
 ⚙️ **تنظیم تاخیر:**
 • `/setdelay enemy_spam 2.5` - تاخیر اسپم دشمن
