@@ -137,84 +137,84 @@ class UnifiedBotLauncher:
         # تنظیمات بات‌ها - با استفاده از متغیرهای محیطی برای Stack Host
         self.bot_configs = {
             1: {
-                'api_id': int(os.getenv('BOT1_API_ID', '23700094')),
-                'api_hash': os.getenv('BOT1_API_HASH', "7cd6b0ba9c5b1a5f21b8b76f1e2b8e40"),
+                'api_id': 15508294,  # از bots/bot1/main.py
+                'api_hash': "778e5cd56ffcf22c2d62aa963ce85a0c",
                 'session_name': "bots/bot1/my_bot1",
                 'db_path': "bots/bot1/bot1_data.db",
                 'log_path': "bots/bot1/bot1.log",
-                'admin_id': int(os.getenv('BOT1_ADMIN_ID', '7850529246')),
+                'admin_id': 7850529246,
                 'auto_reply_enabled': True
             },
             2: {
-                'api_id': int(os.getenv('BOT2_API_ID', '29262538')),
-                'api_hash': os.getenv('BOT2_API_HASH', "0417ebf26dbd92d3455d51595f2c923c"),
+                'api_id': 29262538,  # از bots/bot2/main.py
+                'api_hash': "0417ebf26dbd92d3455d51595f2c923c",
                 'session_name': "bots/bot2/my_bot2",
                 'db_path': "bots/bot2/bot2_data.db",
                 'log_path': "bots/bot2/bot2.log",
-                'admin_id': int(os.getenv('BOT2_ADMIN_ID', '7419698159')),
+                'admin_id': 7419698159,
                 'auto_reply_enabled': True
             },
             3: {
-                'api_id': int(os.getenv('BOT3_API_ID', '21555907')),
-                'api_hash': os.getenv('BOT3_API_HASH', "16f4e09d753bc4b182434d8e37f410cd"),
+                'api_id': 21555907,  # از bots/bot3/main.py
+                'api_hash': "16f4e09d753bc4b182434d8e37f410cd",
                 'session_name': "bots/bot3/my_bot3",
                 'db_path': "bots/bot3/bot3_data.db",
                 'log_path': "bots/bot3/bot3.log",
-                'admin_id': int(os.getenv('BOT3_ADMIN_ID', '7607882302')),
+                'admin_id': 7607882302,
                 'auto_reply_enabled': True
             },
             4: {
-                'api_id': int(os.getenv('BOT4_API_ID', '15508294')),
-                'api_hash': os.getenv('BOT4_API_HASH', "778e5cd56ffcf22c2d62aa963ce85a0c"),
+                'api_id': 15508294,  # از bots/bot4/main.py
+                'api_hash': "778e5cd56ffcf22c2d62aa963ce85a0c",
                 'session_name': "bots/bot4/my_bot4",
                 'db_path': "bots/bot4/bot4_data.db",
                 'log_path': "bots/bot4/bot4.log",
-                'admin_id': int(os.getenv('BOT4_ADMIN_ID', '7739974888')),
+                'admin_id': 7739974888,
                 'auto_reply_enabled': True
             },
             5: {
-                'api_id': int(os.getenv('BOT5_API_ID', '25101001')),  # API جدید پیش‌فرض برای بات 5
-                'api_hash': os.getenv('BOT5_API_HASH', "unique_hash_for_bot5_placeholder"),
+                'api_id': 25248148,  # از bots/bot5/main.py
+                'api_hash': "ec32e167ed322bd870a4e05a7c7cf80b",
                 'session_name': "bots/bot5/my_bot5",
                 'db_path': "bots/bot5/bot5_data.db",
                 'log_path': "bots/bot5/bot5.log",
-                'admin_id': int(os.getenv('BOT5_ADMIN_ID', '7346058093')),
+                'admin_id': 7346058093,
                 'auto_reply_enabled': True
             },
             6: {
-                'api_id': int(os.getenv('BOT6_API_ID', '25101002')),  # API جدید پیش‌فرض برای بات 6
-                'api_hash': os.getenv('BOT6_API_HASH', "unique_hash_for_bot6_placeholder"),
+                'api_id': 24815549,  # از bots/bot6/main.py
+                'api_hash': "13d1e8f4d5e90fdd11f7cb9152d78268",
                 'session_name': "bots/bot6/my_bot6",
                 'db_path': "bots/bot6/bot6_data.db",
                 'log_path': "bots/bot6/bot6.log",
-                'admin_id': int(os.getenv('BOT6_ADMIN_ID', '7927398744')),
+                'admin_id': 7927398744,
                 'auto_reply_enabled': True
             },
             7: {
-                'api_id': int(os.getenv('BOT7_API_ID', '25101003')),  # API جدید پیش‌فرض برای بات 7
-                'api_hash': os.getenv('BOT7_API_HASH', "unique_hash_for_bot7_placeholder"),
+                'api_id': 23387507,  # از bots/bot7/main.py
+                'api_hash': "d9a605c10c6f56c5d6b559967ff673d2",
                 'session_name': "bots/bot7/my_bot7",
                 'db_path': "bots/bot7/bot7_data.db",
                 'log_path': "bots/bot7/bot7.log",
-                'admin_id': int(os.getenv('BOT7_ADMIN_ID', '8092847456')),
+                'admin_id': 8092847456,
                 'auto_reply_enabled': True
             },
             8: {
-                'api_id': int(os.getenv('BOT8_API_ID', '25101004')),  # API جدید پیش‌فرض برای بات 8
-                'api_hash': os.getenv('BOT8_API_HASH', "unique_hash_for_bot8_placeholder"),
+                'api_id': 23900003,  # از bots/bot8/main.py
+                'api_hash': "5f6fb8f1c6d80d264d5eb08af3b038b6",
                 'session_name': "bots/bot8/my_bot8",
                 'db_path': "bots/bot8/bot8_data.db",
                 'log_path': "bots/bot8/bot8.log",
-                'admin_id': int(os.getenv('BOT8_ADMIN_ID', '7220521953')),
+                'admin_id': 7220521953,
                 'auto_reply_enabled': True
             },
             9: {
-                'api_id': int(os.getenv('BOT9_API_ID', '25101005')),  # API جدید پیش‌فرض برای بات 9
-                'api_hash': os.getenv('BOT9_API_HASH', "unique_hash_for_bot9_placeholder"),
+                'api_id': 28221949,  # از bots/bot9/main.py
+                'api_hash': "f43819fe07dbf13447b14db41aedf93a",
                 'session_name': "bots/bot9/my_bot9",
                 'db_path': "bots/bot9/bot9_data.db",
                 'log_path': "bots/bot9/bot9.log",
-                'admin_id': int(os.getenv('BOT9_ADMIN_ID', '7143723023')),  # ادمین اصلی بات 9
+                'admin_id': 7143723023,
                 'auto_reply_enabled': True
             }
         }
