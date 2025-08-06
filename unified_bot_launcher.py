@@ -85,9 +85,27 @@ class UnifiedBotLauncher:
         self.last_message_time = {}  # {chat_id: timestamp}
         self.min_global_delay = 0.5  # حداقل تاخیر بین پیام‌های همه بات‌ها در یک چت
         self.bot_message_queues = {}  # صف پیام برای هر بات
+        
+        # سیستم تاخیر پیشرفته
+        self.advanced_delay_settings = {
+            'enemy_spam_delay': 1.0,  # تاخیر اسپم دشمنان
+            'friend_reply_delay': 0.3,  # تاخیر پاسخ به دوستان
+            'global_message_delay': 0.5,  # تاخیر کلی پیام‌ها
+            'conversation_delay': 2.0,  # تاخیر گفتگوی خودکار
+            'emoji_reaction_delay': 0.1,  # تاخیر واکنش به ایموجی ممنوعه
+            'burst_protection_delay': 3.0,  # تاخیر محافظت از سیل پیام
+            'per_chat_delay_multiplier': 1.0,  # ضریب تاخیر هر چت
+            'adaptive_delay_enabled': True,  # تاخیر انطباقی
+            'smart_delay_reduction': True,  # کاهش هوشمند تاخیر
+        }
+        self.chat_specific_delays = {}  # تاخیرات مختص هر چت
 
         # سیستم محدودیت همزمان برای جلوگیری از spam flooding
         self.concurrent_message_limit = 1  # فقط یک بات در هر لحظه در یک چت
+        
+        # کش سینک ایموجی‌ها
+        self.emoji_sync_cache = {}
+        self.last_emoji_sync = 0
         self.active_senders = {}  # {chat_id: set of bot_ids}
         self.chat_locks = {}  # {chat_id: asyncio.Lock}
 
@@ -1198,6 +1216,105 @@ class UnifiedBotLauncher:
         except Exception as e:
             logger.error(f"❌ خطا در بارگذاری ایموجی‌ها: {e}")
             return set()
+
+    async def sync_forbidden_emojis_across_all_bots(self):
+        """سینک فوری ایموجی‌های ممنوعه در همه بات‌ها"""
+        try:
+            current_time = time.time()
+            
+            # جلوگیری از سینک مکرر در مدت کوتاه
+            if current_time - self.last_emoji_sync < 0.5:
+                return
+                
+            self.last_emoji_sync = current_time
+            
+            # بارگذاری ایموجی‌های جدید
+            new_emojis = self.load_forbidden_emojis_from_db()
+            
+            # اگر تغییری نکرده، نیازی به سینک نیست
+            if new_emojis == self.forbidden_emojis:
+                return
+                
+            # آپدیت فوری کش
+            self.forbidden_emojis = new_emojis
+            self.emoji_sync_cache = {
+                'emojis': new_emojis,
+                'sync_time': current_time,
+                'count': len(new_emojis)
+            }
+            
+            logger.info(f"⚡ سینک فوری ایموجی‌ها: {len(new_emojis)} ایموجی در همه بات‌ها")
+            
+        except Exception as e:
+            logger.error(f"❌ خطا در سینک ایموجی‌ها: {e}")
+
+    def get_adaptive_delay(self, delay_type, chat_id, user_type="unknown"):
+        """محاسبه تاخیر انطباقی بر اساس نوع و شرایط"""
+        try:
+            base_delay = self.advanced_delay_settings.get(delay_type, 1.0)
+            
+            # تاخیر مختص چت
+            chat_multiplier = self.chat_specific_delays.get(chat_id, {}).get('multiplier', 1.0)
+            
+            # کاهش تاخیر برای واکنش‌های اضطراری (ایموجی ممنوعه)
+            if delay_type == 'emoji_reaction_delay':
+                base_delay = 0.05  # واکنش فوری
+                
+            # تاخیر بر اساس نوع کاربر
+            if user_type == "enemy" and delay_type == 'enemy_spam_delay':
+                # دشمنان: تاخیر بر اساس تنظیمات
+                base_delay = self.advanced_delay_settings.get('enemy_spam_delay', 1.0)
+            elif user_type == "friend" and delay_type == 'friend_reply_delay':
+                # دوستان: پاسخ سریع‌تر
+                base_delay = self.advanced_delay_settings.get('friend_reply_delay', 0.3)
+                
+            # اعمال ضریب چت
+            final_delay = base_delay * chat_multiplier
+            
+            # حداقل و حداکثر
+            final_delay = max(0.01, min(final_delay, 30.0))
+            
+            return final_delay
+            
+        except Exception as e:
+            logger.error(f"خطا در محاسبه تاخیر انطباقی: {e}")
+            return 1.0
+
+    async def smart_delay_with_adaptation(self, delay_type, chat_id, user_type="unknown"):
+        """تاخیر هوشمند با انطباق"""
+        try:
+            # محاسبه تاخیر انطباقی
+            delay = self.get_adaptive_delay(delay_type, chat_id, user_type)
+            
+            # اگر تاخیر انطباقی فعال است
+            if self.advanced_delay_settings.get('adaptive_delay_enabled', True):
+                # کاهش تاخیر اگر چت خلوت است
+                current_time = time.time()
+                last_activity = self.last_message_time.get(chat_id, 0)
+                
+                if current_time - last_activity > 30:  # چت خلوت
+                    delay *= 0.7  # کاهش 30%
+                elif current_time - last_activity > 60:  # چت خیلی خلوت
+                    delay *= 0.5  # کاهش 50%
+            
+            # کاهش هوشمند تاخیر برای واکنش‌های مهم
+            if self.advanced_delay_settings.get('smart_delay_reduction', True):
+                if delay_type == 'emoji_reaction_delay':
+                    delay = min(delay, 0.1)  # حداکثر 0.1 ثانیه برای ایموجی ممنوعه
+                    
+            # اعمال تاخیر
+            if delay > 0:
+                await asyncio.sleep(delay)
+                
+            # آپدیت زمان آخرین پیام
+            self.last_message_time[chat_id] = time.time()
+            
+            return delay
+            
+        except Exception as e:
+            logger.error(f"خطا در تاخیر هوشمند: {e}")
+            await asyncio.sleep(0.5)  # تاخیر پیش‌فرض
+            return 0.5
 
     def load_forbidden_words_from_db(self):
         """بارگذاری کلمات ممنوعه از دیتابیس"""
@@ -3187,15 +3304,13 @@ class UnifiedBotLauncher:
                             f"🔄 **ویژگی‌های فعال:** توقف خودکار، اعلان فوری"
                         )
 
-                        # بارگذاری مجدد ایموجی‌ها
-                        self.forbidden_emojis = self.load_forbidden_emojis_from_db()
+                        # بارگذاری فوری ایموجی‌ها در همه بات‌ها
+                        await self.sync_forbidden_emojis_across_all_bots()
                         
-                        # گزارش به ربات مانیتورینگ
+                        # گزارش به ربات مانیتورینگ (بدون تاخیر)
                         if self.report_bot:
-                            report_text = f"🆕 ایموجی ممنوعه جدید: {emoji}\n"
-                            report_text += f"👤 توسط: {username} ({user_id})\n"
-                            report_text += f"📊 سطح خطر: {severity_text}"
-                            await self.send_report_safely(report_text)
+                            report_text = f"🆕 ایموجی ممنوعه: {emoji} | سطح: {severity_text} | توسط: {username}"
+                            asyncio.create_task(self.send_report_safely(report_text))
 
                         self.log_action(bot_id, "add_emoji_advanced", user_id, f"اضافه کردن {emoji} با سطح {severity_level}")
                         logger.info(f"✅ ایموجی {emoji} با سطح {severity_level} اضافه شد توسط {user_id}")
@@ -3448,6 +3563,216 @@ class UnifiedBotLauncher:
                     result_text += f"🚀 سرعت: {1000/avg_time:.0f}/ثانیه"
 
                     await message.reply_text(result_text)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            # =================================================================
+            # کامندهای پیشرفته مدیریت تاخیر - Advanced Delay Management Commands
+            # =================================================================
+
+            @app.on_message(filters.command("setdelay") & admin_filter)
+            async def set_delay_command(client, message):
+                """تنظیم تاخیر پیشرفته"""
+                try:
+                    if len(message.command) < 3:
+                        delay_types = list(self.advanced_delay_settings.keys())
+                        await message.reply_text(
+                            f"⚠️ **استفاده:** `/setdelay [نوع] [مقدار]`\n\n"
+                            f"**انواع تاخیر:**\n"
+                            f"• `enemy_spam` - تاخیر اسپم دشمنان ({self.advanced_delay_settings['enemy_spam_delay']}s)\n"
+                            f"• `friend_reply` - پاسخ به دوستان ({self.advanced_delay_settings['friend_reply_delay']}s)\n"
+                            f"• `global_msg` - پیام‌های کلی ({self.advanced_delay_settings['global_message_delay']}s)\n"
+                            f"• `conversation` - گفتگوی خودکار ({self.advanced_delay_settings['conversation_delay']}s)\n"
+                            f"• `emoji_react` - واکنش ایموجی ({self.advanced_delay_settings['emoji_reaction_delay']}s)\n"
+                            f"• `burst_protect` - محافظت سیل ({self.advanced_delay_settings['burst_protection_delay']}s)\n\n"
+                            f"**مثال:** `/setdelay enemy_spam 2.5`"
+                        )
+                        return
+
+                    delay_type = message.command[1]
+                    try:
+                        delay_value = float(message.command[2])
+                    except ValueError:
+                        await message.reply_text("❌ مقدار تاخیر باید عدد باشد")
+                        return
+
+                    # مپ کردن اسامی کوتاه
+                    delay_map = {
+                        'enemy_spam': 'enemy_spam_delay',
+                        'friend_reply': 'friend_reply_delay', 
+                        'global_msg': 'global_message_delay',
+                        'conversation': 'conversation_delay',
+                        'emoji_react': 'emoji_reaction_delay',
+                        'burst_protect': 'burst_protection_delay'
+                    }
+
+                    if delay_type not in delay_map:
+                        await message.reply_text("❌ نوع تاخیر نامعتبر است")
+                        return
+
+                    actual_key = delay_map[delay_type]
+                    old_value = self.advanced_delay_settings[actual_key]
+                    self.advanced_delay_settings[actual_key] = max(0.01, min(delay_value, 30.0))
+
+                    await message.reply_text(
+                        f"✅ **تاخیر تنظیم شد**\n\n"
+                        f"🎯 **نوع:** {delay_type}\n"
+                        f"⏱️ **مقدار قبلی:** {old_value}s\n"
+                        f"⏱️ **مقدار جدید:** {self.advanced_delay_settings[actual_key]}s\n"
+                        f"🤖 **اعمال در:** همه ۹ بات\n"
+                        f"🕐 **زمان:** {time.strftime('%H:%M:%S')}"
+                    )
+
+                    self.log_action(bot_id, "set_delay", message.from_user.id, 
+                                  f"{delay_type}: {old_value} -> {self.advanced_delay_settings[actual_key]}")
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("chatdelay") & admin_filter)
+            async def chat_delay_command(client, message):
+                """تنظیم تاخیر مختص چت"""
+                try:
+                    if len(message.command) < 3:
+                        await message.reply_text(
+                            f"⚠️ **استفاده:** `/chatdelay [chat_id] [ضریب]`\n\n"
+                            f"**ضریب تاخیر:**\n"
+                            f"• `0.5` - سریع (نصف تاخیر)\n"
+                            f"• `1.0` - عادی (بدون تغییر)\n"
+                            f"• `2.0` - آهسته (دو برابر تاخیر)\n"
+                            f"• `0.1` - فوری (حداقل تاخیر)\n\n"
+                            f"**مثال:** `/chatdelay -1001234567890 0.5`"
+                        )
+                        return
+
+                    try:
+                        chat_id = int(message.command[1])
+                        multiplier = float(message.command[2])
+                    except ValueError:
+                        await message.reply_text("❌ chat_id باید عدد صحیح و ضریب باید عدد اعشاری باشد")
+                        return
+
+                    multiplier = max(0.1, min(multiplier, 10.0))  # محدود کردن
+
+                    if chat_id not in self.chat_specific_delays:
+                        self.chat_specific_delays[chat_id] = {}
+                    
+                    old_multiplier = self.chat_specific_delays[chat_id].get('multiplier', 1.0)
+                    self.chat_specific_delays[chat_id]['multiplier'] = multiplier
+                    self.chat_specific_delays[chat_id]['updated_at'] = time.time()
+
+                    try:
+                        chat_info = await client.get_chat(chat_id)
+                        chat_name = chat_info.title or f"چت {chat_id}"
+                    except:
+                        chat_name = f"چت {chat_id}"
+
+                    await message.reply_text(
+                        f"✅ **تاخیر چت تنظیم شد**\n\n"
+                        f"💬 **چت:** {chat_name}\n"
+                        f"🆔 **شناسه:** `{chat_id}`\n"
+                        f"⏱️ **ضریب قبلی:** {old_multiplier}x\n"
+                        f"⏱️ **ضریب جدید:** {multiplier}x\n"
+                        f"📊 **معنی:** تاخیرها {multiplier} برابر اعمال می‌شوند\n"
+                        f"🕐 **زمان:** {time.strftime('%H:%M:%S')}"
+                    )
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("delayinfo") & admin_filter)
+            async def delay_info_command(client, message):
+                """نمایش اطلاعات کامل تاخیرها"""
+                try:
+                    info_text = f"⚡ **تنظیمات تاخیر پیشرفته**\n\n"
+                    
+                    # تاخیرهای کلی
+                    info_text += f"🌐 **تاخیرهای کلی:**\n"
+                    for key, value in self.advanced_delay_settings.items():
+                        if isinstance(value, (int, float)):
+                            persian_name = {
+                                'enemy_spam_delay': 'اسپم دشمنان',
+                                'friend_reply_delay': 'پاسخ دوستان', 
+                                'global_message_delay': 'پیام کلی',
+                                'conversation_delay': 'گفتگوی خودکار',
+                                'emoji_reaction_delay': 'واکنش ایموجی',
+                                'burst_protection_delay': 'محافظت سیل',
+                                'per_chat_delay_multiplier': 'ضریب چت'
+                            }.get(key, key)
+                            info_text += f"• {persian_name}: `{value}s`\n"
+                    
+                    # تاخیرهای مختص چت
+                    if self.chat_specific_delays:
+                        info_text += f"\n💬 **تاخیرهای مختص چت:**\n"
+                        for chat_id, settings in list(self.chat_specific_delays.items())[:5]:
+                            try:
+                                chat_info = await client.get_chat(chat_id)
+                                chat_name = chat_info.title or f"چت {chat_id}"
+                                chat_name = chat_name[:20] + "..." if len(chat_name) > 20 else chat_name
+                            except:
+                                chat_name = f"چت {chat_id}"
+                            
+                            multiplier = settings.get('multiplier', 1.0)
+                            info_text += f"• {chat_name}: `{multiplier}x`\n"
+                        
+                        if len(self.chat_specific_delays) > 5:
+                            info_text += f"... و {len(self.chat_specific_delays) - 5} چت دیگر\n"
+                    
+                    # وضعیت سیستم
+                    info_text += f"\n🔧 **وضعیت سیستم:**\n"
+                    info_text += f"• تاخیر انطباقی: {'✅' if self.advanced_delay_settings.get('adaptive_delay_enabled') else '❌'}\n"
+                    info_text += f"• کاهش هوشمند: {'✅' if self.advanced_delay_settings.get('smart_delay_reduction') else '❌'}\n"
+                    info_text += f"• حداقل تاخیر کلی: `{self.min_global_delay}s`\n"
+                    
+                    # آمار
+                    active_chats = len([t for t in self.last_message_time.values() if time.time() - t < 300])
+                    info_text += f"\n📊 **آمار:**\n"
+                    info_text += f"• چت‌های فعال: {active_chats}\n"
+                    info_text += f"• چت‌های با تاخیر خاص: {len(self.chat_specific_delays)}\n"
+                    info_text += f"• آخرین بروزرسانی: {time.strftime('%H:%M:%S')}\n\n"
+                    info_text += f"💡 **کامندها:** `/setdelay`, `/chatdelay`, `/resetdelay`"
+
+                    await message.reply_text(info_text)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("resetdelay") & admin_filter)
+            async def reset_delay_command(client, message):
+                """بازنشانی تاخیرها به حالت پیش‌فرض"""
+                try:
+                    # ذخیره تنظیمات قبلی
+                    old_settings = self.advanced_delay_settings.copy()
+                    old_chat_delays = self.chat_specific_delays.copy()
+                    
+                    # بازنشانی به پیش‌فرض
+                    self.advanced_delay_settings = {
+                        'enemy_spam_delay': 1.0,
+                        'friend_reply_delay': 0.3,
+                        'global_message_delay': 0.5,
+                        'conversation_delay': 2.0,
+                        'emoji_reaction_delay': 0.1,
+                        'burst_protection_delay': 3.0,
+                        'per_chat_delay_multiplier': 1.0,
+                        'adaptive_delay_enabled': True,
+                        'smart_delay_reduction': True,
+                    }
+                    self.chat_specific_delays = {}
+                    self.min_global_delay = 0.5
+
+                    await message.reply_text(
+                        f"🔄 **تاخیرها بازنشانی شدند**\n\n"
+                        f"✅ تاخیرهای کلی: حالت پیش‌فرض\n"
+                        f"✅ تاخیرهای چت: پاک شدند ({len(old_chat_delays)} چت)\n"
+                        f"✅ تنظیمات پیشرفته: فعال\n"
+                        f"🤖 **اعمال در:** همه ۹ بات\n"
+                        f"🕐 **زمان:** {time.strftime('%H:%M:%S')}\n\n"
+                        f"💡 با `/delayinfo` وضعیت جدید را ببینید"
+                    )
+
+                    self.log_action(bot_id, "reset_delays", message.from_user.id, 
+                                  f"Reset all delays to default")
 
                 except Exception as e:
                     await message.reply_text(f"❌ خطا: {str(e)}")
