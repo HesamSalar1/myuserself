@@ -4012,10 +4012,6 @@ class UnifiedBotLauncher:
             
             return app
         
-        except Exception as e:
-            print(f"❌ خطا در ساخت بات {bot_id}: {str(e)}")
-            return None
-        
     def run_unified_bots(self):
         """اجرای همه بات‌ها به صورت همزمان"""
         try:
@@ -4072,3 +4068,4 @@ if __name__ == "__main__":
     
     launcher = UnifiedBotLauncher()
     launcher.run_unified_bots()
+
