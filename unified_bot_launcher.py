@@ -4028,17 +4028,26 @@ class UnifiedBotLauncher:
                 # ایجاد همه بات‌ها
                 for bot_id in range(1, 10):
                     try:
-                        # تنظیم پیکربندی برای هر بات
+                        # تنظیم پیکربندی برای هر بات با استفاده از فایل‌های موجود
                         config = {
-                            'db_path': f'bot{bot_id}_data.db',
-                            'session_name': f'my_bot{bot_id}',
+                            'db_path': f'bots/bot{bot_id}/bot{bot_id}_data.db',
+                            'session_name': f'bots/bot{bot_id}/my_bot{bot_id}',
                             'api_id': f'API_ID_BOT{bot_id}',
                             'api_hash': f'API_HASH_BOT{bot_id}'
                         }
-                        app = await self.create_bot(bot_id, config)
-                        if app:
-                            apps.append(app)
-                            print(f"✅ بات {bot_id} آماده شد")
+                        
+                        # بررسی وجود فایل session
+                        import os
+                        session_file = f'bots/bot{bot_id}/my_bot{bot_id}.session'
+                        if os.path.exists(session_file):
+                            print(f"📁 فایل session بات {bot_id} پیدا شد: {session_file}")
+                            app = await self.create_bot(bot_id, config)
+                            if app:
+                                apps.append(app)
+                                print(f"✅ بات {bot_id} با session موجود آماده شد")
+                        else:
+                            print(f"⚠️ فایل session بات {bot_id} پیدا نشد: {session_file}")
+                            
                     except Exception as e:
                         print(f"❌ خطا در بات {bot_id}: {str(e)}")
                 
