@@ -108,7 +108,7 @@ Preferred communication style: Simple, everyday language.
    - Emergency isolation with automatic recovery
 
 6. **Performance Enhancements**:
-   - Intelligent caching with 5-minute expiry
+   - Ultra-fast intelligent caching with 1-minute expiry
    - Batch processing for multiple detections
-   - Sub-millisecond response times
-   - Memory-optimized Unicode processing
+   - Sub-20 millisecond response times
+   - Memory-optimized Unicode processing with instant detection

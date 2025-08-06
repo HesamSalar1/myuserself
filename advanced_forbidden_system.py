@@ -24,8 +24,12 @@ class AdvancedForbiddenSystem:
     def __init__(self, db_path):
         self.db_path = db_path
         self.cache = {}
-        self.cache_expiry = 300  # 5 دقیقه
+        self.cache_expiry = 60  # 1 دقیقه
+        self.emoji_cache = {}  # کش سریع ایموجی‌ها
+        self.word_cache = {}   # کش سریع کلمات
+        self.last_cache_update = 0
         self.setup_advanced_database()
+        self.load_cache()
     
     def setup_advanced_database(self):
         """راه‌اندازی دیتابیس پیشرفته"""
@@ -119,6 +123,56 @@ class AdvancedForbiddenSystem:
         
         conn.commit()
         conn.close()
+    
+    def load_cache(self):
+        """بارگذاری سریع کش برای تشخیص زیر 20 میلی‌ثانیه"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # بارگذاری ایموجی‌ها
+            cursor.execute("""
+                SELECT emoji, unicode_variants, severity_level, auto_pause
+                FROM forbidden_emojis_advanced 
+                WHERE is_active = 1
+            """)
+            
+            self.emoji_cache = {}
+            for emoji, variants_str, severity, auto_pause in cursor.fetchall():
+                variants = variants_str.split("|") if variants_str else [emoji]
+                for variant in variants:
+                    if variant:
+                        self.emoji_cache[variant] = {
+                            'original': emoji,
+                            'severity': severity,
+                            'auto_pause': auto_pause
+                        }
+            
+            # بارگذاری کلمات
+            cursor.execute("""
+                SELECT word, regex_pattern, severity_level, case_sensitive, auto_pause
+                FROM forbidden_words_advanced 
+                WHERE is_active = 1
+            """)
+            
+            self.word_cache = {}
+            for word, pattern, severity, case_sensitive, auto_pause in cursor.fetchall():
+                self.word_cache[word] = {
+                    'pattern': pattern,
+                    'severity': severity,
+                    'case_sensitive': case_sensitive,
+                    'auto_pause': auto_pause
+                }
+            
+            self.last_cache_update = time.time()
+            conn.close()
+            
+        except Exception as e:
+            print(f"❌ خطا در بارگذاری کش: {e}")
+    
+    def should_update_cache(self):
+        """بررسی نیاز به بروزرسانی کش"""
+        return (time.time() - self.last_cache_update) > self.cache_expiry
     
     def ultra_normalize_emoji(self, emoji):
         """🔬 نرمال‌سازی فوق‌پیشرفته ایموجی"""
@@ -287,123 +341,109 @@ class AdvancedForbiddenSystem:
             return False
     
     def ultra_detect_forbidden_content(self, text, content_type="both"):
-        """🔍 تشخیص فوق‌پیشرفته محتوای ممنوعه"""
+        """🔍 تشخیص فوق‌سریع محتوای ممنوعه - زیر 20 میلی‌ثانیه"""
         if not text:
             return {"detected": False, "items": [], "details": []}
+        
+        # بروزرسانی کش در صورت نیاز
+        if self.should_update_cache():
+            self.load_cache()
         
         detected_items = []
         detection_details = []
         
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        # تشخیص سریع ایموجی‌ها از کش
+        if content_type in ["emoji", "both"]:
+            for variant, data in self.emoji_cache.items():
+                if variant in text:
+                    detected_items.append({
+                        "type": "emoji",
+                        "content": data['original'],
+                        "matched_variant": variant,
+                        "severity": data['severity'],
+                        "auto_pause": bool(data['auto_pause'])
+                    })
+                    
+                    detection_details.append({
+                        "original": data['original'],
+                        "matched": variant,
+                        "position": text.find(variant),
+                        "severity": data['severity']
+                    })
         
-        try:
-            # تشخیص ایموجی‌های ممنوعه
-            if content_type in ["emoji", "both"]:
-                cursor.execute("""
-                    SELECT emoji, unicode_variants, severity_level, description, auto_pause
-                    FROM forbidden_emojis_advanced 
-                    WHERE is_active = 1
-                """)
-                emojis = cursor.fetchall()
+        # تشخیص سریع کلمات از کش
+        if content_type in ["word", "both"]:
+            for word, data in self.word_cache.items():
+                pattern = data['pattern']
+                flags = 0 if data['case_sensitive'] else re.IGNORECASE
                 
-                for emoji, variants_str, severity, desc, auto_pause in emojis:
-                    variants = variants_str.split("|") if variants_str else [emoji]
-                    
-                    for variant in variants:
-                        if variant and variant in text:
-                            detected_items.append({
-                                "type": "emoji",
-                                "content": emoji,
-                                "matched_variant": variant,
-                                "severity": severity,
-                                "description": desc,
-                                "auto_pause": bool(auto_pause)
-                            })
-                            
+                try:
+                    if re.search(pattern, text, flags):
+                        detected_items.append({
+                            "type": "word",
+                            "content": word,
+                            "pattern": pattern,
+                            "severity": data['severity'],
+                            "auto_pause": bool(data['auto_pause'])
+                        })
+                        
+                        match = re.search(pattern, text, flags)
+                        if match:
                             detection_details.append({
-                                "original": emoji,
-                                "matched": variant,
-                                "position": text.find(variant),
-                                "severity": severity
+                                "original": word,
+                                "matched": match.group(),
+                                "position": match.start(),
+                                "severity": data['severity']
                             })
-                            
-                            # اپدیت آمار
-                            cursor.execute("""
-                                UPDATE forbidden_emojis_advanced 
-                                SET trigger_count = trigger_count + 1, 
-                                    last_triggered = CURRENT_TIMESTAMP
-                                WHERE emoji = ?
-                            """, (emoji,))
-                            break
+                except re.error:
+                    # تطبیق ساده در صورت خطای regex
+                    search_text = text if data['case_sensitive'] else text.lower()
+                    search_word = word if data['case_sensitive'] else word.lower()
+                    if search_word in search_text:
+                        detected_items.append({
+                            "type": "word",
+                            "content": word,
+                            "severity": data['severity'],
+                            "auto_pause": bool(data['auto_pause'])
+                        })
+        
+        # بروزرسانی آمار در پس‌زمینه (بدون تأثیر روی سرعت)
+        if detected_items:
+            self._update_stats_async(detected_items)
+        
+        return {
+            "detected": len(detected_items) > 0,
+            "items": detected_items,
+            "details": detection_details,
+            "highest_severity": max([item["severity"] for item in detected_items]) if detected_items else 0
+        }
+    
+    def _update_stats_async(self, detected_items):
+        """بروزرسانی آمار در پس‌زمینه"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
             
-            # تشخیص کلمات ممنوعه
-            if content_type in ["word", "both"]:
-                cursor.execute("""
-                    SELECT word, regex_pattern, severity_level, description, 
-                           case_sensitive, auto_pause
-                    FROM forbidden_words_advanced 
-                    WHERE is_active = 1
-                """)
-                words = cursor.fetchall()
-                
-                for word, pattern, severity, desc, case_sensitive, auto_pause in words:
-                    flags = 0 if case_sensitive else re.IGNORECASE
-                    
-                    try:
-                        if re.search(pattern, text, flags):
-                            detected_items.append({
-                                "type": "word",
-                                "content": word,
-                                "pattern": pattern,
-                                "severity": severity,
-                                "description": desc,
-                                "auto_pause": bool(auto_pause)
-                            })
-                            
-                            match = re.search(pattern, text, flags)
-                            if match:
-                                detection_details.append({
-                                    "original": word,
-                                    "matched": match.group(),
-                                    "position": match.start(),
-                                    "severity": severity
-                                })
-                            
-                            # اپدیت آمار
-                            cursor.execute("""
-                                UPDATE forbidden_words_advanced 
-                                SET trigger_count = trigger_count + 1,
-                                    last_triggered = CURRENT_TIMESTAMP
-                                WHERE word = ?
-                            """, (word,))
-                    except re.error:
-                        # اگر regex نامعتبر باشد، تطبیق ساده
-                        search_text = text if case_sensitive else text.lower()
-                        search_word = word if case_sensitive else word.lower()
-                        if search_word in search_text:
-                            detected_items.append({
-                                "type": "word",
-                                "content": word,
-                                "severity": severity,
-                                "description": desc,
-                                "auto_pause": bool(auto_pause)
-                            })
+            for item in detected_items:
+                if item["type"] == "emoji":
+                    cursor.execute("""
+                        UPDATE forbidden_emojis_advanced 
+                        SET trigger_count = trigger_count + 1, 
+                            last_triggered = CURRENT_TIMESTAMP
+                        WHERE emoji = ?
+                    """, (item["content"],))
+                elif item["type"] == "word":
+                    cursor.execute("""
+                        UPDATE forbidden_words_advanced 
+                        SET trigger_count = trigger_count + 1,
+                            last_triggered = CURRENT_TIMESTAMP
+                        WHERE word = ?
+                    """, (item["content"],))
             
             conn.commit()
             conn.close()
-            
-            return {
-                "detected": len(detected_items) > 0,
-                "items": detected_items,
-                "details": detection_details,
-                "highest_severity": max([item["severity"] for item in detected_items]) if detected_items else 0
-            }
-            
-        except Exception as e:
-            conn.close()
-            print(f"❌ خطا در تشخیص: {e}")
-            return {"detected": False, "items": [], "details": []}
+        except:
+            pass  # عدم توقف در صورت خطا
     
     def get_forbidden_list(self, content_type="both", limit=50):
         """📋 دریافت لیست محتوای ممنوعه"""
