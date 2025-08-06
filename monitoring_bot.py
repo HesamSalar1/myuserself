@@ -13,9 +13,7 @@ from datetime import datetime
 from typing import Set
 
 # تنظیم encoding برای output
-# تنظیم encoding برای خروجی
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8')
+sys.stdout.reconfigure(encoding='utf-8')
 
 # تنظیم لاگینگ
 logging.basicConfig(
@@ -298,12 +296,12 @@ class MonitoringBot:
     async def start_bot(self):
         """شروع ربات مانیتورینگ"""
         try:
-            # برای bot token، از API credentials معتبر استفاده می‌کنیم
+            # برای bot token، نیازی به API_ID و API_HASH نیست
             self.client = Client(
                 "monitoring_bot",
                 bot_token=self.bot_token,
-                api_id=15508294,  # API ID معتبر تست شده
-                api_hash="778e5cd56ffcf22c2d62aa963ce85a0c"  # API Hash معتبر تست شده
+                api_id=1,  # مقدار dummy برای bot
+                api_hash="dummy"  # مقدار dummy برای bot
             )
             
             await self.setup_handlers()
