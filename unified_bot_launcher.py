@@ -137,84 +137,84 @@ class UnifiedBotLauncher:
         # تنظیمات بات‌ها - با استفاده از متغیرهای محیطی برای Stack Host
         self.bot_configs = {
             1: {
-                'api_id': 15508294,  # از bots/bot1/main.py
-                'api_hash': "778e5cd56ffcf22c2d62aa963ce85a0c",
+                'api_id': int(os.getenv('BOT1_API_ID', '23700094')),
+                'api_hash': os.getenv('BOT1_API_HASH', "7cd6b0ba9c5b1a5f21b8b76f1e2b8e40"),
                 'session_name': "bots/bot1/my_bot1",
                 'db_path': "bots/bot1/bot1_data.db",
                 'log_path': "bots/bot1/bot1.log",
-                'admin_id': 7850529246,
+                'admin_id': int(os.getenv('BOT1_ADMIN_ID', '7850529246')),
                 'auto_reply_enabled': True
             },
             2: {
-                'api_id': 29262538,  # از bots/bot2/main.py
-                'api_hash': "0417ebf26dbd92d3455d51595f2c923c",
+                'api_id': int(os.getenv('BOT2_API_ID', '29262538')),
+                'api_hash': os.getenv('BOT2_API_HASH', "0417ebf26dbd92d3455d51595f2c923c"),
                 'session_name': "bots/bot2/my_bot2",
                 'db_path': "bots/bot2/bot2_data.db",
                 'log_path': "bots/bot2/bot2.log",
-                'admin_id': 7419698159,
+                'admin_id': int(os.getenv('BOT2_ADMIN_ID', '7419698159')),
                 'auto_reply_enabled': True
             },
             3: {
-                'api_id': 21555907,  # از bots/bot3/main.py
-                'api_hash': "16f4e09d753bc4b182434d8e37f410cd",
+                'api_id': int(os.getenv('BOT3_API_ID', '21555907')),
+                'api_hash': os.getenv('BOT3_API_HASH', "16f4e09d753bc4b182434d8e37f410cd"),
                 'session_name': "bots/bot3/my_bot3",
                 'db_path': "bots/bot3/bot3_data.db",
                 'log_path': "bots/bot3/bot3.log",
-                'admin_id': 7607882302,
+                'admin_id': int(os.getenv('BOT3_ADMIN_ID', '7607882302')),
                 'auto_reply_enabled': True
             },
             4: {
-                'api_id': 15508294,  # از bots/bot4/main.py
-                'api_hash': "778e5cd56ffcf22c2d62aa963ce85a0c",
+                'api_id': int(os.getenv('BOT4_API_ID', '15508294')),
+                'api_hash': os.getenv('BOT4_API_HASH', "778e5cd56ffcf22c2d62aa963ce85a0c"),
                 'session_name': "bots/bot4/my_bot4",
                 'db_path': "bots/bot4/bot4_data.db",
                 'log_path': "bots/bot4/bot4.log",
-                'admin_id': 7739974888,
+                'admin_id': int(os.getenv('BOT4_ADMIN_ID', '7739974888')),
                 'auto_reply_enabled': True
             },
             5: {
-                'api_id': 25248148,  # از bots/bot5/main.py
-                'api_hash': "ec32e167ed322bd870a4e05a7c7cf80b",
+                'api_id': int(os.getenv('BOT5_API_ID', '25101001')),  # API جدید پیش‌فرض برای بات 5
+                'api_hash': os.getenv('BOT5_API_HASH', "unique_hash_for_bot5_placeholder"),
                 'session_name': "bots/bot5/my_bot5",
                 'db_path': "bots/bot5/bot5_data.db",
                 'log_path': "bots/bot5/bot5.log",
-                'admin_id': 7346058093,
+                'admin_id': int(os.getenv('BOT5_ADMIN_ID', '7346058093')),
                 'auto_reply_enabled': True
             },
             6: {
-                'api_id': 24815549,  # از bots/bot6/main.py
-                'api_hash': "13d1e8f4d5e90fdd11f7cb9152d78268",
+                'api_id': int(os.getenv('BOT6_API_ID', '25101002')),  # API جدید پیش‌فرض برای بات 6
+                'api_hash': os.getenv('BOT6_API_HASH', "unique_hash_for_bot6_placeholder"),
                 'session_name': "bots/bot6/my_bot6",
                 'db_path': "bots/bot6/bot6_data.db",
                 'log_path': "bots/bot6/bot6.log",
-                'admin_id': 7927398744,
+                'admin_id': int(os.getenv('BOT6_ADMIN_ID', '7927398744')),
                 'auto_reply_enabled': True
             },
             7: {
-                'api_id': 23387507,  # از bots/bot7/main.py
-                'api_hash': "d9a605c10c6f56c5d6b559967ff673d2",
+                'api_id': int(os.getenv('BOT7_API_ID', '25101003')),  # API جدید پیش‌فرض برای بات 7
+                'api_hash': os.getenv('BOT7_API_HASH', "unique_hash_for_bot7_placeholder"),
                 'session_name': "bots/bot7/my_bot7",
                 'db_path': "bots/bot7/bot7_data.db",
                 'log_path': "bots/bot7/bot7.log",
-                'admin_id': 8092847456,
+                'admin_id': int(os.getenv('BOT7_ADMIN_ID', '8092847456')),
                 'auto_reply_enabled': True
             },
             8: {
-                'api_id': 23900003,  # از bots/bot8/main.py
-                'api_hash': "5f6fb8f1c6d80d264d5eb08af3b038b6",
+                'api_id': int(os.getenv('BOT8_API_ID', '25101004')),  # API جدید پیش‌فرض برای بات 8
+                'api_hash': os.getenv('BOT8_API_HASH', "unique_hash_for_bot8_placeholder"),
                 'session_name': "bots/bot8/my_bot8",
                 'db_path': "bots/bot8/bot8_data.db",
                 'log_path': "bots/bot8/bot8.log",
-                'admin_id': 7220521953,
+                'admin_id': int(os.getenv('BOT8_ADMIN_ID', '7220521953')),
                 'auto_reply_enabled': True
             },
             9: {
-                'api_id': 28221949,  # از bots/bot9/main.py
-                'api_hash': "f43819fe07dbf13447b14db41aedf93a",
+                'api_id': int(os.getenv('BOT9_API_ID', '25101005')),  # API جدید پیش‌فرض برای بات 9
+                'api_hash': os.getenv('BOT9_API_HASH', "unique_hash_for_bot9_placeholder"),
                 'session_name': "bots/bot9/my_bot9",
                 'db_path': "bots/bot9/bot9_data.db",
                 'log_path': "bots/bot9/bot9.log",
-                'admin_id': 7143723023,
+                'admin_id': int(os.getenv('BOT9_ADMIN_ID', '7143723023')),  # ادمین اصلی بات 9
                 'auto_reply_enabled': True
             }
         }
@@ -3575,21 +3575,10 @@ class UnifiedBotLauncher:
             async def set_delay_command(client, message):
                 """تنظیم تاخیر پیشرفته"""
                 try:
-                    # بهبود پارس کردن کامند برای رفع مشکل فاصله
-                    command_parts = message.command[1:] if len(message.command) > 1 else []
-                    
-                    # اگر فقط یک قسمت داریم، سعی کن جدا کنیم
-                    if len(command_parts) == 1 and command_parts[0]:
-                        # جستجوی الگوهای متصل مثل enemy_spam2.5
-                        import re
-                        match = re.match(r'([a-zA-Z_]+)([0-9.]+)$', command_parts[0])
-                        if match:
-                            command_parts = [match.group(1), match.group(2)]
-                    
-                    if len(command_parts) < 2:
+                    if len(message.command) < 3:
                         delay_types = list(self.advanced_delay_settings.keys())
                         await message.reply_text(
-                            f"⚠️ **استفاده درست:** `/setdelay [نوع] [مقدار]`\n\n"
+                            f"⚠️ **استفاده:** `/setdelay [نوع] [مقدار]`\n\n"
                             f"**انواع تاخیر:**\n"
                             f"• `enemy_spam` - تاخیر اسپم دشمنان ({self.advanced_delay_settings['enemy_spam_delay']}s)\n"
                             f"• `friend_reply` - پاسخ به دوستان ({self.advanced_delay_settings['friend_reply_delay']}s)\n"
@@ -3597,23 +3586,15 @@ class UnifiedBotLauncher:
                             f"• `conversation` - گفتگوی خودکار ({self.advanced_delay_settings['conversation_delay']}s)\n"
                             f"• `emoji_react` - واکنش ایموجی ({self.advanced_delay_settings['emoji_reaction_delay']}s)\n"
                             f"• `burst_protect` - محافظت سیل ({self.advanced_delay_settings['burst_protection_delay']}s)\n\n"
-                            f"**✅ مثال درست:** `/setdelay enemy_spam 2.5`\n"
-                            f"**❌ اشتباه:** `/setdelayenemy_spam 2.5` یا `/setdelay enemy_spam2.5`\n"
-                            f"**نکته:** حتماً بین همه قسمت‌ها فاصله بگذارید"
+                            f"**مثال:** `/setdelay enemy_spam 2.5`"
                         )
                         return
 
-                    delay_type = command_parts[0].strip()
+                    delay_type = message.command[1]
                     try:
-                        delay_value = float(command_parts[1].strip())
-                    except (ValueError, IndexError):
-                        await message.reply_text(
-                            f"❌ **خطا در مقدار تاخیر**\n\n"
-                            f"مقدار باید عدد باشد (مثال: 2.5 یا 1.0)\n"
-                            f"**مثال درست:** `/setdelay {delay_type} 2.5`\n"
-                            f"**فرمت شما:** `/setdelay {' '.join(command_parts)}`\n\n"
-                            f"لطفاً فاصله بین نوع تاخیر و مقدار رعایت کنید"
-                        )
+                        delay_value = float(message.command[2])
+                    except ValueError:
+                        await message.reply_text("❌ مقدار تاخیر باید عدد باشد")
                         return
 
                     # مپ کردن اسامی کوتاه
@@ -3804,280 +3785,1886 @@ class UnifiedBotLauncher:
             async def help_general_command(client, message):
                 """راهنمای کلی سیستم"""
                 try:
-                    # خواندن از فایل راهنمای کلی
-                    try:
-                        with open('guides/GENERAL_GUIDE.md', 'r', encoding='utf-8') as f:
-                            guide_content = f.read()
-                        
-                        # استخراج بخش‌های کلیدی از markdown
-                        lines = guide_content.split('\n')
-                        help_sections = []
-                        current_section = []
-                        in_code_block = False
-                        
-                        for line in lines:
-                            if line.strip().startswith('```'):
-                                in_code_block = not in_code_block
-                                if in_code_block:
-                                    current_section.append('```')
-                                else:
-                                    current_section.append('```')
-                                    if current_section:
-                                        help_sections.append('\n'.join(current_section))
-                                        current_section = []
-                            elif in_code_block:
-                                current_section.append(line)
-                            elif line.startswith('## '):
-                                if current_section:
-                                    help_sections.append('\n'.join(current_section))
-                                current_section = [f"**{line[3:]}**"]
-                            elif line.startswith('### '):
-                                current_section.append(f"• **{line[4:]}**")
-                            elif line.strip() and not line.startswith('#'):
-                                current_section.append(line)
-                        
-                        if current_section:
-                            help_sections.append('\n'.join(current_section))
-                        
-                        # ساخت متن راهنما با محدودیت طول تلگرام
-                        help_text = "📚 **راهنمای کامل سیستم**\n\n"
-                        help_text += "**دسترسی سریع به راهنماها:**\n"
-                        help_text += "`/helpemoji` - 🚫 مدیریت ایموجی‌ها\n"
-                        help_text += "`/helpword` - 📝 مدیریت کلمات\n"
-                        help_text += "`/helpdelay` - ⏱️ سیستم تاخیر\n"
-                        help_text += "`/helpuser` - 👥 مدیریت کاربران\n"
-                        help_text += "`/helpstats` - 📊 آمار و گزارش\n\n"
-                        help_text += "**کامندهای اساسی:**\n"
-                        help_text += "`/status` - وضعیت سیستم\n"
-                        help_text += "`/restart` - ری‌استارت\n"
-                        help_text += "`/settings` - تنظیمات کلی\n\n"
-                        help_text += "💡 **شروع:** با `/status` وضعیت سیستم را بررسی کنید"
-                        
-                    except FileNotFoundError:
-                        # Fallback اگر فایل راهنما موجود نباشد
-                        help_text = """📚 **راهنمای سیستم**
+                    help_text = """
+📚 **راهنمای کامل سیستم تلگرام پیشرفته**
 
-**دسترسی سریع:**
-`/helpemoji` - 🚫 ایموجی‌ها
-`/helpword` - 📝 کلمات
-`/helpdelay` - ⏱️ تاخیر  
-`/helpuser` - 👥 کاربران
-`/helpstats` - 📊 آمار
+🎯 **بخش‌های اصلی:**
 
-**اساسی:** `/status` `/restart` `/settings`"""
-                    
+🚫 **مدیریت ایموجی** - `/helpemoji`
+• اضافه/حذف ایموجی ممنوعه
+• تست و دیباگ تشخیص
+• لیست و مدیریت با سطح خطر
+
+📝 **مدیریت کلمات** - `/helpword`  
+• اضافه/حذف کلمات ممنوعه
+• تنظیمات حساسیت و تطبیق
+• دسته‌بندی هوشمند
+
+⏱️ **سیستم تاخیر** - `/helpdelay`
+• ۶ نوع تاخیر پیشرفته
+• ضریب چت و تاخیر انطباقی
+• تنظیمات هوشمند
+
+👥 **مدیریت کاربران** - `/helpuser`
+• اضافه/حذف دوست و دشمن
+• تنظیمات رفتار
+• مدیریت لیست‌ها
+
+📊 **آمار و گزارش** - `/helpstats`
+• آمار امنیتی
+• گزارش عملکرد
+• مانیتورینگ
+
+🔧 **کامندهای کلیدی:**
+• `/status` - وضعیت سیستم
+• `/restart` - ری‌استارت
+• `/settings` - تنظیمات
+
+💡 برای شروع: `/status` را امتحان کنید
+                    """
                     await message.reply_text(help_text)
                 except Exception as e:
-                    await message.reply_text(f"❌ خطا در نمایش راهنما: {str(e)}")
-
-            def load_help_guide(self, guide_file, section_title, section_emoji):
-                """بارگذاری و فرمت کردن راهنمای مختصر از فایل کامل"""
-                try:
-                    with open(f'guides/{guide_file}', 'r', encoding='utf-8') as f:
-                        content = f.read()
-                    
-                    # استخراج بخش‌های کلیدی
-                    lines = content.split('\n')
-                    sections = {}
-                    current_section = None
-                    current_content = []
-                    
-                    for line in lines:
-                        if line.startswith('## '):
-                            if current_section and current_content:
-                                sections[current_section] = '\n'.join(current_content)
-                            current_section = line[3:].strip()
-                            current_content = []
-                        elif line.startswith('```bash') or line.startswith('```'):
-                            continue
-                        elif line.strip() and not line.startswith('#'):
-                            if line.startswith('### '):
-                                current_content.append(f"**{line[4:].strip()}**")
-                            elif line.startswith('- ') or line.startswith('• '):
-                                current_content.append(f"• {line[2:].strip()}")
-                            elif line.strip().startswith('/'):
-                                # کامندها
-                                cmd_parts = line.strip().split(' ', 2)
-                                cmd = cmd_parts[0]
-                                desc = ' '.join(cmd_parts[1:]) if len(cmd_parts) > 1 else ""
-                                current_content.append(f"`{cmd}` - {desc}")
-                            elif not line.startswith('---'):
-                                current_content.append(line.strip())
-                    
-                    if current_section and current_content:
-                        sections[current_section] = '\n'.join(current_content)
-                    
-                    # ساخت متن خلاصه
-                    help_text = f"{section_emoji} **{section_title}**\n\n"
-                    
-                    # اضافه کردن مهم‌ترین بخش‌ها
-                    priority_sections = ['کامندهای اضافه کردن', 'کامندهای حذف', 'کامندهای مشاهده', 'تست و دیباگ']
-                    
-                    for section_name in priority_sections:
-                        for key, value in sections.items():
-                            if any(word in key for word in section_name.split()):
-                                clean_lines = [line for line in value.split('\n') if line.strip() and len(line.strip()) > 3]
-                                if clean_lines:
-                                    help_text += f"**{key}:**\n"
-                                    # محدود کردن به 5 مورد اول
-                                    for line in clean_lines[:5]:
-                                        if line.strip():
-                                            help_text += f"{line}\n"
-                                    help_text += "\n"
-                                break
-                    
-                    help_text += f"💡 **راهنمای کامل:** فایل `guides/{guide_file}` را مطالعه کنید\n"
-                    help_text += "🔙 **برگشت:** `/help`"
-                    
-                    return help_text
-                
-                except FileNotFoundError:
-                    return f"{section_emoji} **{section_title}**\n\n❌ فایل راهنما موجود نیست\n🔙 برگشت: `/help`"
-                except Exception as e:
-                    return f"{section_emoji} **{section_title}**\n\n❌ خطا در بارگذاری: {str(e)}\n🔙 برگشت: `/help`"
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
             @app.on_message(filters.command("helpemoji") & admin_filter)
             async def help_emoji_command(client, message):
                 """راهنمای کامل ایموجی‌های ممنوعه"""
                 try:
-                    help_text = self.load_help_guide('EMOJI_GUIDE.md', 'راهنمای ایموجی‌های ممنوعه', '🚫')
+                    help_text = """
+🚫 **راهنمای کامل ایموجی‌های ممنوعه**
+
+📋 **کامندهای اصلی:**
+
+🆕 **اضافه کردن:**
+• `/addemoji ⚡` - اضافه ساده
+• `/addemoji ⚡ توضیحات 2` - با توضیحات و سطح
+
+🗑️ **حذف کردن:**
+• `/delemoji ⚡` - حذف ایموجی
+
+📝 **مدیریت:**
+• `/listemoji` - لیست همه ایموجی‌ها
+• `/clearemoji` - پاک کردن همه (با تأیید)
+• `/syncemojis` - همگام‌سازی
+
+🔍 **تست و دیباگ:**
+• `/testemoji ⚡` - تست تشخیص
+• `/debugemoji متن تست ⚡` - دیباگ کامل
+• `/quicktest` - تست سریع چندین مورد
+
+🎯 **سطوح خطر:**
+• سطح ۱ (🟢) - کم خطر
+• سطح ۲ (🟡) - متوسط  
+• سطح ۳ (🔴) - پرخطر
+
+💡 **نکات:**
+• تشخیص با variation selector
+• نرمال‌سازی Unicode
+• سرعت تشخیص < ۱ms
+• سینک خودکار در همه بات‌ها
+
+🔙 برگشت: `/help`
+                    """
                     await message.reply_text(help_text)
                 except Exception as e:
-                    await message.reply_text(f"❌ خطا در نمایش راهنمای ایموجی: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
             @app.on_message(filters.command("helpword") & admin_filter)
             async def help_word_command(client, message):
                 """راهنمای کامل کلمات ممنوعه"""
                 try:
-                    help_text = self.load_help_guide('WORD_GUIDE.md', 'راهنمای کلمات ممنوعه', '📝')
+                    help_text = """
+📝 **راهنمای کامل کلمات ممنوعه**
+
+📋 **کامندهای اصلی:**
+
+🆕 **اضافه کردن:**
+• `/addword کلمه` - اضافه ساده
+• `/addword کلمه توضیحات` - با توضیحات
+• `/addwordadv` - اضافه پیشرفته
+
+🗑️ **حذف کردن:**
+• `/delword کلمه` - حذف کلمه
+• `/clearwords` - پاک کردن همه
+
+📝 **مدیریت:**
+• `/listword` - لیست کلمات
+• `/listword دسته` - لیست بر اساس دسته
+• `/searchword متن` - جستجو در کلمات
+
+🔧 **تنظیمات پیشرفته:**
+• حساسیت به کوچک/بزرگ
+• تطبیق جزئی/کامل
+• دسته‌بندی خودکار
+• اولویت‌بندی
+
+📊 **دسته‌های کلمات:**
+• `spam` - کلمات اسپم
+• `offensive` - کلمات توهین‌آمیز
+• `game` - کلمات بازی
+• `custom` - کلمات سفارشی
+
+🔍 **تست:**
+• `/testword متن` - تست تشخیص کلمه
+
+💡 **نکات:**
+• پشتیبانی چند زبانه
+• تشخیص هوشمند
+• مدیریت یکپارچه در همه بات‌ها
+
+🔙 برگشت: `/help`
+                    """
                     await message.reply_text(help_text)
                 except Exception as e:
-                    await message.reply_text(f"❌ خطا در نمایش راهنمای کلمات: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
             @app.on_message(filters.command("helpdelay") & admin_filter)
             async def help_delay_command(client, message):
                 """راهنمای کامل سیستم تاخیر"""
                 try:
-                    # راهنمای ویژه تاخیر با تاکید بر رفع مشکل فاصله
-                    help_text = """⏱️ **راهنمای سیستم تاخیر پیشرفته**
+                    help_text = """
+⏱️ **راهنمای کامل سیستم تاخیر پیشرفته**
+
+📋 **کامندهای اصلی:**
+
+⚙️ **تنظیم تاخیر:**
+• `/setdelay enemy_spam 2.5` - تاخیر اسپم دشمن
+• `/setdelay friend_reply 0.3` - تاخیر پاسخ دوست
+• `/setdelay emoji_react 0.05` - تاخیر واکنش ایموجی
+
+🎯 **تاخیر چت:**
+• `/chatdelay -1001234567890 0.5` - ضریب چت خاص
+• `/chatdelay -1001234567890 2.0` - آهسته کردن چت
+
+📊 **اطلاعات:**
+• `/delayinfo` - نمایش همه تنظیمات
+• `/delaytest` - تست سرعت سیستم
+
+🔄 **بازنشانی:**
+• `/resetdelay` - برگشت به پیش‌فرض
 
 🎛️ **انواع تاخیر (۶ نوع):**
-`/setdelay enemy_spam 2.5` - اسپم دشمنان
-`/setdelay friend_reply 0.3` - پاسخ به دوستان
-`/setdelay global_msg 0.5` - پیام‌های کلی
-`/setdelay conversation 2.0` - گفتگوی خودکار
-`/setdelay emoji_react 0.1` - واکنش ایموجی
-`/setdelay burst_protect 3.0` - محافظت سیل
+• `enemy_spam` - اسپم دشمنان (1.0s)
+• `friend_reply` - پاسخ دوستان (0.3s)
+• `global_msg` - پیام کلی (0.5s)
+• `conversation` - گفتگو (2.0s)
+• `emoji_react` - واکنش ایموجی (0.1s)
+• `burst_protect` - محافظت سیل (3.0s)
 
-⚠️ **نحوه درست استفاده:**
-✅ `/setdelay enemy_spam 2.5` (فاصله بین همه)
-❌ `/setdelayenemy_spam 2.5` (بدون فاصله)
-❌ `/setdelay enemy_spam2.5` (بدون فاصله از عدد)
+🎯 **ضریب‌های چت:**
+• `0.1` - فوری (۱۰% تاخیر)
+• `0.5` - سریع (۵۰% تاخیر)
+• `1.0` - عادی (۱۰۰% تاخیر)
+• `2.0` - آهسته (۲۰۰% تاخیر)
 
-🏠 **ضریب چت:**
-`/chatdelay -1001234567890 0.5` - نصف تاخیر
-`/chatdelay -1001234567890 2.0` - دو برابر
+🧠 **ویژگی‌های هوشمند:**
+• تاخیر انطباقی (چت خلوت/پرفعالیت)
+• کاهش تاخیر برای موارد اضطراری
+• محدودیت‌های ایمن (0.01s - 30s)
 
-📊 **مدیریت:**
-`/delayinfo` - نمایش تنظیمات
-`/resetdelay` - بازنشانی همه
-
-💡 **راهنمای کامل:** `guides/DELAY_GUIDE.md`
-🔙 **برگشت:** `/help`"""
+🔙 برگشت: `/help`
+                    """
                     await message.reply_text(help_text)
                 except Exception as e:
-                    await message.reply_text(f"❌ خطا در نمایش راهنمای تاخیر: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
             @app.on_message(filters.command("helpuser") & admin_filter)
             async def help_user_command(client, message):
-                """راهنمای کامل مدیریت کاربران"""
+                """راهنمای مدیریت کاربران"""
                 try:
-                    help_text = self.load_help_guide('USER_GUIDE.md', 'راهنمای مدیریت کاربران', '👥')
+                    help_text = """
+👥 **راهنمای مدیریت کاربران**
+
+📋 **کامندهای اصلی:**
+
+👨‍💼 **مدیریت ادمین:**
+• `/addadmin @username` - اضافه ادمین
+• `/deladmin @username` - حذف ادمین
+• `/listadmin` - لیست ادمین‌ها
+
+👨‍👩‍👧‍👦 **مدیریت دوستان:**
+• `/addfriend @username` - اضافه دوست
+• `/delfriend @username` - حذف دوست
+• `/listfriends` - لیست دوستان
+
+😈 **مدیریت دشمنان:**
+• `/addenemy @username` - اضافه دشمن
+• `/delenemy @username` - حذف دشمن
+• `/listenemies` - لیست دشمنان
+
+🔍 **بررسی کاربر:**
+• `/checkuser @username` - وضعیت کاربر
+• `/userinfo 123456789` - اطلاعات با ID
+
+⚙️ **تنظیمات رفتار:**
+• رفتار با دوستان: پاسخ سریع، احترام
+• رفتار با دشمنان: اسپم، کامندهای ویژه
+• رفتار با غریبه‌ها: حالت عادی
+
+🎯 **کامندهای ویژه دشمنان:**
+• `/catch` - فقط برای دشمنان
+• `/grab` - فقط برای دشمنان
+• `/guess` - فقط برای دشمنان
+• `/arise` - فقط برای دشمنان
+• `/take` - فقط برای دشمنان
+• `/secure` - فقط برای دشمنان
+
+💡 **نکات:**
+• تشخیص خودکار نوع کاربر
+• اعمال تاخیر مناسب
+• محدودیت دسترسی
+• لاگ تمام تغییرات
+
+🔙 برگشت: `/help`
+                    """
                     await message.reply_text(help_text)
                 except Exception as e:
-                    await message.reply_text(f"❌ خطا در نمایش راهنمای کاربران: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
-            @app.on_message(filters.command("helpstats") & admin_filter)  
+            @app.on_message(filters.command("helpstats") & admin_filter)
             async def help_stats_command(client, message):
-                """راهنمای کامل آمار و گزارش‌گیری"""
+                """راهنمای آمار و گزارش‌گیری"""
                 try:
-                    help_text = self.load_help_guide('STATS_GUIDE.md', 'راهنمای آمار و گزارش‌گیری', '📊')
+                    help_text = """
+📊 **راهنمای آمار و گزارش‌گیری**
+
+📋 **کامندهای اصلی:**
+
+📈 **آمار کلی:**
+• `/status` - وضعیت کلی سیستم
+• `/botstats` - آمار همه بات‌ها
+• `/chatstats` - آمار چت فعلی
+
+🛡️ **آمار امنیتی:**
+• `/securitystats` - آمار تشخیص‌ها
+• `/detectstats` - آمار ایموجی/کلمات
+• `/threatlevel` - سطح تهدید
+
+⚡ **آمار عملکرد:**
+• `/speedtest` - تست سرعت تشخیص
+• `/performance` - آمار عملکرد
+• `/responsetime` - زمان پاسخ‌گویی
+
+📊 **گزارش‌های تفصیلی:**
+• `/dailyreport` - گزارش روزانه
+• `/weeklyreport` - گزارش هفتگی
+• `/monthlyreport` - گزارش ماهانه
+
+📋 **لاگ‌ها:**
+• `/recentlogs` - لاگ‌های اخیر
+• `/errorlogs` - لاگ خطاها
+• `/actionlogs` - لاگ اعمال
+
+🔧 **مانیتورینگ:**
+• `/systemhealth` - سلامت سیستم
+• `/memoryusage` - مصرف حافظه
+• `/uptime` - مدت زمان فعالیت
+
+📡 **ربات گزارش:**
+• گزارش خودکار تغییرات
+• اعلان‌های امنیتی
+• هشدار خطاها
+
+💾 **صادرات داده:**
+• `/exportstats` - صادرات آمار
+• `/backup` - پشتیبان‌گیری
+• `/export logs` - صادرات لاگ‌ها
+
+💡 **ویژگی‌ها:**
+• آمار زنده (Real-time)
+• نمودارهای تصویری
+• تحلیل روند
+• پیش‌بینی بار
+
+🔙 برگشت: `/help`
+                    """
                     await message.reply_text(help_text)
                 except Exception as e:
-                    await message.reply_text(f"❌ خطا در نمایش راهنمای آمار: {str(e)}")
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("testhelp") & admin_filter)
+            async def test_help_command(client, message):
+                """تست سریع کامندهای راهنما"""
+                try:
+                    test_text = """
+🧪 **تست کامندهای راهنما**
+
+📚 **کامندهای اصلی:**
+• `/help` - راهنمای کلی ✅
+• `/helpemoji` - راهنمای ایموجی ✅
+• `/helpword` - راهنمای کلمات ✅
+• `/helpdelay` - راهنمای تاخیر ✅
+• `/helpuser` - راهنمای کاربران ✅
+• `/helpstats` - راهنمای آمار ✅
+
+🎯 **کامندهای آزمایشی:**
+• `/status` - وضعیت سیستم
+• `/delayinfo` - اطلاعات تاخیر
+• `/listemoji` - لیست ایموجی‌ها
+• `/securitystats` - آمار امنیتی
+
+✅ **همه کامندها فعال و آماده هستند!**
+
+💡 **شروع کنید با:** `/help`
+                    """
+                    await message.reply_text(test_text)
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
 
             # =================================================================
-            # پایان کامندهای راهنما - End of Help Commands System
+            # کامندهای پیشرفته مدیریت کلمات ممنوعه - Enhanced Forbidden Words Commands
             # =================================================================
-            
-            return app
-        
-        except Exception as e:
-            print(f"❌ خطا در ساخت بات {bot_id}: {str(e)}")
-            return None
-        
-    def run_unified_bots(self):
-        """اجرای همه بات‌ها به صورت همزمان"""
-        try:
-            import asyncio
-            
-            async def start_all_bots():
-                apps = []
-                print("🚀 شروع راه‌اندازی سیستم یکپارچه...")
-                
-                # ایجاد همه بات‌ها
-                for bot_id in range(1, 10):
+
+            @app.on_message(filters.command("addword") & admin_filter)
+            async def add_word_advanced_command(client, message):
+                """اضافه کردن کلمه ممنوعه با ویژگی‌های پیشرفته"""
+                try:
+                    if len(message.command) < 2:
+                        await message.reply_text(
+                            "⚠️ استفاده: `/addword [کلمه] [توضیحات]`\n"
+                            "گزینه‌های پیشرفته: `/addwordadv`\n\n"
+                            "مثال‌ها:\n"
+                            "• `/addword test کلمه تست`\n"
+                            "• `/addword character برای گیم‌ها`\n"
+                            "• `/addword spawned کلمه بازی`"
+                        )
+                        return
+
+                    parts = message.text.split(maxsplit=2)
+                    word = parts[1] if len(parts) > 1 else ""
+                    description = parts[2] if len(parts) > 2 else "اضافه شده توسط ادمین"
+
+                    result = self.add_forbidden_word_advanced(
+                        word, 
+                        description, 
+                        'custom',
+                        case_sensitive=False,  # پیش‌فرض: حساس به کوچک/بزرگ نیست
+                        partial_match=True,    # پیش‌فرض: تطبیق جزئی
+                        added_by_user_id=message.from_user.id
+                    )
+
+                    if result:
+                        await message.reply_text(
+                            f"✅ **کلمه ممنوعه اضافه شد - همه بات‌ها:**\n\n"
+                            f"🚫 کلمه: `{word}`\n"
+                            f"📝 توضیحات: {description}\n"
+                            f"🔍 تطبیق: جزئی (در هر جای متن)\n"
+                            f"🔤 حساسیت: عدم تمایز کوچک/بزرگ\n"
+                            f"👤 اضافه‌کننده: {message.from_user.first_name}\n"
+                            f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                            f"⚡ تشخیص در تمام ۹ بات فعال شد!"
+                        )
+
+                        # گزارش
+                        if self.report_bot:
+                            report_text = f"🚨 کلمه ممنوعه جدید: {word}\n"
+                            report_text += f"📝 توضیحات: {description}\n"
+                            report_text += f"👤 توسط: {message.from_user.first_name} ({message.from_user.id})"
+                            await self.send_report_safely(report_text)
+                    else:
+                        await message.reply_text(f"⚠️ کلمه قبلاً موجود است یا خطایی رخ داد: `{word}`")
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("addwordadv") & admin_filter)
+            async def add_word_advanced_options_command(client, message):
+                """اضافه کردن کلمه ممنوعه با گزینه‌های کامل"""
+                try:
+                    if len(message.command) < 4:
+                        await message.reply_text(
+                            "⚠️ استفاده: `/addwordadv [کلمه] [exact|partial] [sensitive|insensitive] [توضیحات]`\n\n"
+                            "مثال‌ها:\n"
+                            "• `/addwordadv CHARACTER exact sensitive کلمه کامل`\n"
+                            "• `/addwordadv test partial insensitive کلمه جزئی`\n\n"
+                            "**گزینه‌ها:**\n"
+                            "• `exact`: فقط کلمه کامل\n"
+                            "• `partial`: در هر جای متن\n"
+                            "• `sensitive`: حساس به کوچک/بزرگ\n"
+                            "• `insensitive`: عدم حساسیت به کوچک/بزرگ"
+                        )
+                        return
+
+                    parts = message.text.split(maxsplit=4)
+                    word = parts[1]
+                    match_type = parts[2].lower()
+                    case_type = parts[3].lower()
+                    description = parts[4] if len(parts) > 4 else f"کلمه {match_type} {case_type}"
+
+                    partial_match = match_type == "partial"
+                    case_sensitive = case_type == "sensitive"
+
+                    result = self.add_forbidden_word_advanced(
+                        word, 
+                        description, 
+                        'advanced',
+                        case_sensitive=case_sensitive,
+                        partial_match=partial_match,
+                        added_by_user_id=message.from_user.id
+                    )
+
+                    if result:
+                        match_desc = "جزئی (در هر جای متن)" if partial_match else "دقیق (کلمه کامل)"
+                        case_desc = "حساس به کوچک/بزرگ" if case_sensitive else "عدم تمایز کوچک/بزرگ"
+
+                        await message.reply_text(
+                            f"✅ **کلمه ممنوعه پیشرفته اضافه شد:**\n\n"
+                            f"🚫 کلمه: `{word}`\n"
+                            f"📝 توضیحات: {description}\n"
+                            f"🔍 نوع تطبیق: {match_desc}\n"
+                            f"🔤 حساسیت: {case_desc}\n"
+                            f"👤 اضافه‌کننده: {message.from_user.first_name}\n"
+                            f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        )
+                    else:
+                        await message.reply_text(f"⚠️ خطا در اضافه کردن کلمه: `{word}`")
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("delword") & admin_filter)
+            async def del_word_advanced_command(client, message):
+                """حذف کلمه ممنوعه با تأیید"""
+                try:
+                    parts = message.text.split(None, 1)
+                    if len(parts) < 2:
+                        await message.reply_text("❌ **استفاده صحیح:** `/delword [کلمه]`\nمثال: `/delword character`")
+                        return
+
+                    word = parts[1]
+                    result, msg = self.remove_forbidden_word_advanced(word, message.from_user.id)
+
+                    if result:
+                        await message.reply_text(
+                            f"✅ **کلمه ممنوعه حذف شد - همه بات‌ها:**\n\n"
+                            f"🗑️ کلمه: `{word}`\n"
+                            f"👤 حذف‌کننده: {message.from_user.first_name}\n"
+                            f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                            f"⚡ تشخیص از تمام ۹ بات حذف شد!"
+                        )
+
+                        # گزارش
+                        if self.report_bot:
+                            report_text = f"🗑️ کلمه ممنوعه حذف شد: {word}\n"
+                            report_text += f"👤 توسط: {message.from_user.first_name} ({message.from_user.id})"
+                            await self.send_report_safely(report_text)
+                    else:
+                        await message.reply_text(f"⚠️ {msg}")
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("listword") & admin_filter)
+            async def list_word_advanced_command(client, message):
+                """لیست پیشرفته کلمات ممنوعه"""
+                try:
+                    word_list = self.list_forbidden_words_advanced()
+
+                    if not word_list:
+                        await message.reply_text(
+                            "📝 **لیست کلمات ممنوعه خالی است**\n\n"
+                            "💡 با `/addword [کلمه]` کلمه اضافه کنید.\n"
+                            "⚙️ پیشرفته: `/addwordadv [کلمه] [exact|partial] [sensitive|insensitive]`\n"
+                            "📚 کامندهای مفید:\n"
+                            "• `/addemoji [ایموجی]` - اضافه کردن ایموجی ممنوعه\n"
+                            "• `/securitystats` - آمار امنیتی"
+                        )
+                        return
+
+                    text = "🚫 **لیست کلمات ممنوعه (همه بات‌ها):**\n\n"
+
+                    for i, word_data in enumerate(word_list[:12], 1):
+                        match_type = "دقیق" if not word_data['partial_match'] else "جزئی"
+                        case_type = "حساس" if word_data['case_sensitive'] else "عادی"
+
+                        text += f"`{i}.` **{word_data['word']}** ({match_type}, {case_type})"
+                        if word_data['description'] and word_data['description'] != 'اضافه شده توسط ادمین':
+                            text += f"\n    └ {word_data['description'][:35]}"
+                        text += f"\n    └ دسته: {word_data['category']}\n\n"
+
+                    if len(word_list) > 12:
+                        text += f"... و {len(word_list) - 12} کلمه دیگر\n\n"
+
+                    text += f"📊 **آمار:**\n"
+                    text += f"• تعداد کل: {len(word_list)} کلمه\n"
+                    text += f"• وضعیت تشخیص: {'✅ فعال' if self.security_settings['word_detection_enabled'] else '❌ غیرفعال'}\n"
+                    text += f"• آخرین بروزرسانی: {datetime.now().strftime('%H:%M:%S')}\n\n"
+                    text += f"💡 **راهنما:** `/testword [متن]` برای تست تشخیص"
+
+                    await message.reply_text(text)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("testword") & admin_filter)
+            async def test_word_command(client, message):
+                """تست تشخیص کلمات ممنوعه"""
+                try:
+                    parts = message.text.split(None, 1)
+                    if len(parts) < 2:
+                        await message.reply_text("❌ **استفاده صحیح:** `/testword [متن]`\nمثال: `/testword A CHARACTER HAS SPAWNED`")
+                        return
+
+                    test_text = parts[1]
+
+                    # تست تشخیص با زمان‌سنجی
+                    import time
+                    start_time = time.time()
+                    found_words = []
+                    is_detected = self.contains_forbidden_word(test_text, found_words)
+                    end_time = time.time()
+                    detection_time = (end_time - start_time) * 1000  # میلی‌ثانیه
+
+                    # نمایش جزئیات کامل
+                    debug_text = f"🔍 **تست تشخیص کلمات ممنوعه:**\n\n"
+                    debug_text += f"📝 متن تست: `{test_text}`\n"
+                    debug_text += f"🎯 تشخیص داده شد: {'✅ بله' if is_detected else '❌ خیر'}\n"
+                    debug_text += f"⏱️ زمان تشخیص: {detection_time:.2f}ms\n"
+
+                    if found_words:
+                        debug_text += f"⚡ کلمه یافت شده: `{found_words[0]}`\n"
+
+                    debug_text += f"📊 تعداد کلمات ممنوعه: {len(self.forbidden_words)}\n"
+                    debug_text += f"🔄 وضعیت cache: {len(self.detection_cache)} آیتم\n\n"
+
+                    # نمایش تمام کلمات ممنوعه فعلی
+                    if self.forbidden_words:
+                        debug_text += "📋 **کلمات ممنوعه فعلی:**\n"
+                        for i, word in enumerate(list(self.forbidden_words)[:8], 1):
+                            debug_text += f"{i}. `{word}`\n"
+                        if len(self.forbidden_words) > 8:
+                            debug_text += f"... و {len(self.forbidden_words) - 8} مورد دیگر\n"
+
+                    await message.reply_text(debug_text)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("clearword") & admin_filter)
+            async def clear_word_command(client, message):
+                """حذف همه کلمات ممنوعه با تأیید"""
+                try:
+                    # دریافت تعداد کلمات قبل از حذف
+                    count = len(self.forbidden_words)
+
+                    if count == 0:
+                        await message.reply_text("📝 لیست کلمات ممنوعه خالی است.")
+                        return
+
+                    # حذف از دیتابیس
+                    db_path = self.bot_configs[1]['db_path']
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    cursor.execute("DELETE FROM forbidden_words")
+                    conn.commit()
+                    conn.close()
+
+                    # حذف از حافظه
+                    self.forbidden_words.clear()
+
+                    await message.reply_text(
+                        f"✅ **همه کلمات ممنوعه حذف شدند:**\n\n"
+                        f"🗑️ تعداد حذف شده: {count} کلمه\n"
+                        f"👤 حذف‌کننده: {message.from_user.first_name}\n"
+                        f"🕐 زمان: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                        f"⚡ تشخیص از تمام ۹ بات حذف شد!"
+                    )
+
+                    # گزارش
+                    if self.report_bot:
+                        report_text = f"🗑️ همه کلمات ممنوعه حذف شدند ({count} کلمه)\n"
+                        report_text += f"👤 توسط: {message.from_user.first_name} ({message.from_user.id})"
+                        await self.send_report_safely(report_text)
+
+                    self.log_action(bot_id, "clear_words", message.from_user.id, f"حذف {count} کلمه")
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("securitystats") & admin_filter)
+            async def security_stats_command(client, message):
+                """نمایش آمار کامل امنیتی"""
+                try:
+                    emoji_count = len(self.forbidden_emojis)
+                    word_count = len(self.forbidden_words)
+
+                    text = f"🛡️ **آمار کامل امنیتی (همه بات‌ها):**\n\n"
+
+                    # آمار کلی
+                    text += f"📊 **آمار کلی:**\n"
+                    text += f"• ایموجی‌های ممنوعه: {emoji_count} عدد\n"
+                    text += f"• کلمات ممنوعه: {word_count} عدد\n"
+                    text += f"• مجموع: {emoji_count + word_count} مورد\n\n"
+
+                    # وضعیت تشخیص
+                    text += f"⚙️ **وضعیت تشخیص:**\n"
+                    text += f"• ایموجی‌ها: {'✅ فعال' if self.security_settings['emoji_detection_enabled'] else '❌ غیرفعال'}\n"
+                    text += f"• کلمات: {'✅ فعال' if self.security_settings['word_detection_enabled'] else '❌ غیرفعال'}\n"
+                    text += f"• لاگ امنیتی: {'✅ فعال' if self.security_settings['log_detections'] else '❌ غیرفعال'}\n\n"
+
+                    # آمار تشخیص
+                    text += f"📈 **آمار تشخیص (این جلسه):**\n"
+                    text += f"• تشخیص ایموجی: {self.security_stats['emoji_detections']} بار\n"
+                    text += f"• تشخیص کلمه: {self.security_stats['word_detections']} بار\n"
+                    text += f"• مجموع: {self.security_stats['emoji_detections'] + self.security_stats['word_detections']} بار\n\n"
+
+                    # وضعیت کش
+                    text += f"💾 **وضعیت کش:**\n"
+                    text += f"• آیتم‌های کش: {len(self.detection_cache)} عدد\n"
+                    text += f"• حد اکثر: {self.cache_max_size} عدد\n"
+                    text += f"• مدت انقضا: {self.cache_expiry} ثانیه\n\n"
+
+                    # آخرین بروزرسانی
+                    text += f"🕐 **آخرین بروزرسانی:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+
+                    # کامندهای مفید
+                    text += f"💡 **کامندهای مفید:**\n"
+                    text += f"• `/listemoji` - لیست ایموجی‌ها\n"
+                    text += f"• `/listword` - لیست کلمات\n"
+                    text += f"• `/testemoji [ایموجی]` - تست ایموجی\n"
+                    text += f"• `/testword [متن]` - تست کلمه"
+
+                    await message.reply_text(text)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("spamstatus") & admin_filter)
+            async def spam_status_command(client, message):
+                try:
+                    if not self.continuous_spam_tasks:
+                        await message.reply_text("✅ **هیچ فحش نامحدودی در حال اجرا نیست**")
+                        return
+
+                    text = f"🔥 **فحش‌های نامحدود فعال:**\n\n"
+
+                    for i, (spam_key, task) in enumerate(self.continuous_spam_tasks.items(), 1):
+                        bot_id, user_id, chat_id = spam_key.split('_')
+
+                        try:
+                            chat_info = await client.get_chat(int(chat_id))
+                            chat_name = chat_info.title or f"چت {chat_id}"
+                        except:
+                            chat_name = f"چت {chat_id}"
+
+                        text += f"`{i}.` بات {bot_id} → دشمن `{user_id}`\n"
+                        text += f"    └ در: {chat_name}\n"
+                        text += f"    └ وضعیت: {'✅ فعال' if not task.done() else '❌ متوقف'}\n\n"
+
+                        if i >= 10:  # محدود به 10 مورد
+                            text += f"... و {len(self.continuous_spam_tasks) - 10} مورد دیگر\n"
+                            break
+
+                    text += f"\n📊 **تعداد کل:** {len(self.continuous_spam_tasks)} فحش نامحدود فعال"
+                    await message.reply_text(text)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("stopspam") & admin_filter)
+            async def stop_spam_command(client, message):
+                try:
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ استفاده: `/stopspam [bot_id]` یا `/stopspam all`\nمثال: `/stopspam 1` یا `/stopspam all`")
+                        return
+
+                    target = message.command[1].lower()
+                    stopped_count = 0
+
+                    if target == "all":
+                        # متوقف کردن همه فحش‌های نامحدود
+                        for spam_key, task in list(self.continuous_spam_tasks.items()):
+                            try:
+                                task.cancel()
+                                stopped_count += 1
+                            except:
+                                pass
+                        self.continuous_spam_tasks.clear()
+
+                        await message.reply_text(f"🛑 **همه فحش‌های نامحدود متوقف شدند**\n📊 تعداد متوقف شده: {stopped_count}")
+
+                    else:
+                        try:
+                            target_bot_id = int(target)
+
+                            # متوقف کردن فحش‌های مربوط به بات مشخص
+                            keys_to_remove = []
+                            for spam_key, task in self.continuous_spam_tasks.items():
+                                bot_id, user_id, chat_id = spam_key.split('_')
+                                if int(bot_id) == target_bot_id:
+                                    try:
+                                        task.cancel()
+                                        keys_to_remove.append(spam_key)
+                                        stopped_count += 1
+                                    except:
+                                        pass
+
+                            for key in keys_to_remove:
+                                del self.continuous_spam_tasks[key]
+
+                            if stopped_count > 0:
+                                await message.reply_text(f"🛑 **فحش‌های نامحدود بات {target_bot_id} متوقف شدند**\n📊 تعداد متوقف شده: {stopped_count}")
+                            else:
+                                await message.reply_text(f"ℹ️ هیچ فحش نامحدودی برای بات {target_bot_id} یافت نشد")
+
+                        except ValueError:
+                            await message.reply_text("❌ شماره بات نامعتبر")
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            # کامندهای تنظیم تاخیر فحش
+            @app.on_message(filters.command("setdelay") & admin_filter)
+            async def set_delay_command(client, message):
+                try:
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ استفاده: /setdelay [ثانیه]\nمثال: /setdelay 2.5")
+                        return
+
+                    delay_str = message.command[1]
+                    success, msg = self.set_spam_delay(bot_id, delay_str)
+
+                    if success:
+                        await message.reply_text(f"✅ {msg}")
+                        self.log_action(bot_id, "set_delay", message.from_user.id, f"تاخیر: {delay_str} ثانیه")
+                    else:
+                        await message.reply_text(f"❌ {msg}")
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("getdelay") & admin_filter)
+            async def get_delay_command(client, message):
+                try:
+                    current_delay = self.get_spam_delay(bot_id)
+                    await message.reply_text(f"⏱️ **تاخیر فعلی فحش بات {bot_id}:**\n\n🕒 {current_delay} ثانیه\n🌐 تاخیر عمومی: {self.min_global_delay} ثانیه\n\n💡 برای تغییر از `/setdelay [ثانیه]` استفاده کنید")
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("setglobaldelay") & admin_filter)
+            async def set_global_delay_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    if not self.is_launcher_admin(user_id):
+                        await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
+                        return
+
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ استفاده: /setglobaldelay [ثانیه]\nمثال: /setglobaldelay 1.0")
+                        return
+
                     try:
-                        # تنظیم پیکربندی برای هر بات با استفاده از فایل‌های موجود
-                        config = {
-                            'db_path': f'bots/bot{bot_id}/bot{bot_id}_data.db',
-                            'session_name': f'bots/bot{bot_id}/my_bot{bot_id}',
-                            'api_id': f'API_ID_BOT{bot_id}',
-                            'api_hash': f'API_HASH_BOT{bot_id}'
-                        }
-                        
-                        # بررسی وجود فایل session
-                        import os
-                        session_file = f'bots/bot{bot_id}/my_bot{bot_id}.session'
-                        if os.path.exists(session_file):
-                            print(f"📁 فایل session بات {bot_id} پیدا شد: {session_file}")
-                            app = await self.create_bot(bot_id, config)
-                            if app:
-                                apps.append(app)
-                                print(f"✅ بات {bot_id} با session موجود آماده شد")
+                        delay_seconds = float(message.command[1])
+                        if delay_seconds < 0:
+                            await message.reply_text("❌ تاخیر نمی‌تواند منفی باشد")
+                            return
+
+                        self.min_global_delay = delay_seconds
+                        await message.reply_text(f"✅ تاخیر عمومی تنظیم شد: {delay_seconds} ثانیه\n\n📝 این تاخیر بین پیام‌های همه بات‌ها در هر چت اعمال می‌شود\n💡 حالا می‌توانید هر عددی از 0 به بالا تنظیم کنید")
+
+                    except ValueError:
+                        await message.reply_text("❌ لطفاً عدد معتبر وارد کنید")
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("ratelimit") & admin_filter)
+            async def rate_limit_status_command(client, message):
+                try:
+                    active_chats = len(self.last_message_time)
+                    active_locks = len(self.chat_locks)
+                    emergency_active = self.emergency_stop_event.is_set()
+
+                    text = f"📊 **وضعیت Rate Limiting:**\n\n"
+                    text += f"🌐 تاخیر عمومی: {self.min_global_delay} ثانیه\n"
+                    text += f"💬 چت‌های فعال: {active_chats}\n"
+                    text += f"🔒 Lock های فعال: {active_locks}\n"
+                    text += f"🔥 تسک‌های فحش فعال: {len(self.continuous_spam_tasks)}\n"
+                    text += f"🚨 توقف اضطراری: {'فعال' if emergency_active else 'غیرفعال'}\n\n"
+                    text += f"📝 سیستم rate limiting جلوگیری از ارسال همزمان پیام‌ها توسط بات‌های مختلف را می‌کند"
+
+                    await message.reply_text(text)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("clearstop") & admin_filter)
+            async def clear_emergency_stop_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    if not self.is_launcher_admin(user_id):
+                        await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
+                        return
+
+                    if self.emergency_stop_event.is_set():
+                        self.clear_emergency_stop()
+                        await message.reply_text("✅ حالت توقف اضطراری پاک شد\n\n💡 بات‌ها می‌توانند مجدداً شروع به کار کنند")
+                    else:
+                        await message.reply_text("ℹ️ هیچ توقف اضطراری فعالی وجود ندارد")
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            @app.on_message(filters.command("stopstatus") & admin_filter)
+            async def stop_status_command(client, message):
+                try:
+                    emergency_active = self.emergency_stop_event.is_set()
+                    last_detection = self.last_emoji_detection_time
+
+                    text = f"🛑 **وضعیت سیستم توقف:**\n\n"
+                    text += f"🚨 توقف اضطراری: {'🔴 فعال' if emergency_active else '🟢 غیرفعال'}\n"
+                    text += f"🔥 تسک‌های فحش فعال: {len(self.continuous_spam_tasks)}\n"
+
+                    if last_detection > 0:
+                        import datetime
+                        detection_time = datetime.datetime.fromtimestamp(last_detection)
+                        text += f"⏰ آخرین تشخیص: {detection_time.strftime('%H:%M:%S')}\n"
+
+                    text += f"\n📝 ایموجی‌های ممنوعه فعال: {len(self.forbidden_emojis)}"
+
+                    await message.reply_text(text)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            # راهنما
+            @app.on_message(filters.command("help") & admin_filter)
+            async def help_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    is_launcher = self.is_launcher_admin(user_id)
+                    accessible_bots = self.get_accessible_bots(user_id)
+
+                    help_text = f"""🤖 **راهنمای جامع سیستم ۹ بات هوشمند - بات {bot_id}**
+
+👤 **دسترسی شما:**
+{'👑 ادمین اصلی لانچر - کنترل همه بات‌ها' if is_launcher else f'🔧 ادمین بات شخصی - کنترل بات‌های: {accessible_bots}'}
+
+🔥 **سیستم فحش نامحدود:**
+• فحش خودکار و مداوم به دشمنان تا دریافت ایموجی توقف
+• توقف هوشمند با ایموجی‌های ممنوعه (قابل تنظیم ۱۰۰٪ از تلگرام)
+• مانیتورینگ real-time تعداد فحش‌های ارسالی"""
+
+                    # اضافه کردن توضیح اکو برای بات 3
+                    if bot_id == 3:
+                        help_text += f"""
+
+🔊 **قابلیت اکو (ویژه بات {bot_id}):**
+• `/echo` - اکو کردن پیام (فقط برای دشمنان)
+  └ با ریپلای: پیام ریپلای شده را اکو می‌کند
+  └ بدون ریپلای: خود پیام کامند را اکو می‌کند
+  └ تمام انواع رسانه پشتیبانی می‌شود"""
+
+                    text = help_text + f"""
+
+🔥 **مدیریت فحش‌ها:**
+• `/addfosh [متن/رسانه]` - اضافه کردن فحش جدید
+• `/delfosh [متن]` - حذف فحش مشخص
+• `/listfosh` - نمایش تمام فحش‌های بات {bot_id}
+• `/clearfosh` - حذف همه فحش‌ها
+• `/startfosh` - شروع فحش نامحدود (ریپلای روی دشمن)
+• `/stopfosh` - توقف فوری فحش نامحدود
+
+👹 **مدیریت دشمنان:**
+• `/setenemy` - اضافه کردن دشمن (ریپلای)
+• `/delenemy` - حذف دشمن (ریپلای)
+• `/listenemy` - نمایش لیست دشمنان
+• `/clearenemy` - حذف همه دشمنان
+
+😊 **مدیریت دوستان:**
+• `/setfriend` - اضافه کردن دوست (ریپلای)
+• `/delfriend` - حذف دوست (ریپلای)
+• `/listfriend` - نمایش لیست دوستان
+• `/clearfriend` - حذف همه دوستان
+
+💬 **کلمات دوستانه:**
+• `/addword [متن/رسانه]` - اضافه کردن کلمه دوستانه
+• `/delword [متن]` - حذف کلمه دوستانه
+• `/listword` - نمایش لیست کلمات
+• `/clearword` - حذف همه کلمات
+
+🔧 **تنظیمات:**
+• `/autoreply` - فعال/غیرفعال پاسخگویی خودکار
+• `/stats` - نمایش آمار کامل بات {bot_id}
+• `/broadcast [پیام]` - ارسال همگانی
+• `/pause` - توقف موقت همه بات‌ها
+• `/resume` - ادامه کار همه بات‌ها
+
+🛑 **ایموجی‌های توقف:**
+⭐ هیچ ایموجی پیش‌فرضی - کاملاً قابل تنظیم از تلگرام ⭐
+
+هنگام دیدن این ایموجی‌ها، تمام بات‌ها متوقف می‌شوند.
+
+📊 **وضعیت سیستم:**
+• ۹ بات همزمان فعال
+• فحش نامحدود تا دریافت ایموجی توقف
+• مدیریت خودکار flood wait
+• آمارگیری لحظه‌ای
+
+💡 **نکات مهم:**
+• فحش نامحدود خودکار با تشخیص دشمن شروع می‌شود
+• سیستم توقف هوشمند برای جلوگیری از مشکل
+• همه کامندها فقط برای ادمین‌ها
+• پشتیبانی کامل از انواع رسانه
+
+💡 **نکات مهم:**
+• فحش نامحدود خودکار با تشخیص دشمن شروع می‌شود
+• سیستم توقف هوشمند برای جلوگیری از مشکل
+• همه کامندها فقط برای ادمین‌ها
+• پشتیبانی کامل از انواع رسانه
+
+🔗 **دستورات اضافی:**
+• `/help` - راهنمای اصلی
+• `/help2` - راهنمای پیشرفته و ویژگی‌های خاص
+• `/stats` - آمار کامل سیستم"""
+
+                    # اضافه کردن کامندهای ویژه ادمین اصلی لانچر
+                    if is_launcher:
+                        text += f"""
+
+👑 **کامندهای ویژه ادمین اصلی لانچر:**
+• `/launcherstatus` - نمایش وضعیت کامل همه بات‌ها
+• `/restartbot [شماره]` - راه‌اندازی مجدد بات مشخص
+• `/manageall autoreply [on|off]` - کنترل پاسخگویی همه بات‌ها
+• `/testadmin` - بررسی دسترسی و نوع ادمین
+
+🎯 **دسترسی شما:** کنترل کامل همه ۹ بات
+⚠️ **توجه:** این کامندها فقط برای شما قابل استفاده هستند"""
+
+                    text += """
+
+💡 **نکات مهم:**
+• هر ادمین فقط بات خودش را کنترل می‌کند
+• ادمین اصلی لانچر همه بات‌ها را کنترل می‌کند
+• فحش نامحدود خودکار با تشخیص دشمن شروع می‌شود
+• سیستم توقف هوشمند برای جلوگیری از مشکل"""
+
+                    await message.reply_text(text)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            # راهنمای پیشرفته (بخش دوم)
+            @app.on_message(filters.command("help2") & admin_filter)
+            async def help2_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    is_launcher = self.is_launcher_admin(user_id)
+                    accessible_bots = self.get_accessible_bots(user_id)
+
+                    help2_text = f"""🔧 **راهنمای پیشرفته - بات {bot_id}**
+
+👤 **دسترسی شما:**
+{'👑 ادمین اصلی لانچر - کنترل همه بات‌ها' if is_launcher else f'🔧 ادمین بات شخصی - کنترل بات‌های: {accessible_bots}'}
+
+🔥 **مدیریت سیستم فحش‌ها:**
+• `/addfosh [متن/رسانه]` - اضافه کردن فحش جدید (متن یا ریپلای رسانه)
+  └ پشتیبانی: متن، عکس، ویدیو، گیف، استیکر، صوت
+• `/delfosh [متن]` - حذف فحش مشخص از دیتابیس
+• `/listfosh` - نمایش کامل فحش‌ها با صفحه‌بندی خودکار
+• `/clearfosh` - حذف کلی تمام فحش‌ها (غیرقابل بازگشت)
+
+📢 **سیستم ارسال همگانی:**
+• `/broadcast [پیام]` - ارسال همگانی متن به تمام گروه‌ها
+• پشتیبانی از ارسال رسانه با ریپلای در broadcast
+
+🤖 **تنظیمات سیستم:**
+• `/autoreply` - فعال کردن پاسخگویی خودکار
+• `/offself` - غیرفعال کردن پاسخگویی
+• `/start` - راه‌اندازی مجدد ربات
+
+⏸️ **کنترل هوشمند اسپم:**
+• `/pausestatus` - نمایش وضعیت توقف اسپم در چت‌ها
+• `/resumespam [chat_id]` - ازسرگیری دستی اسپم در چت مشخص
+
+🛑 **توقف خودکار اسپم:**
+• ایموجی‌های توقف: کاملاً قابل تنظیم از طریق کامندهای تلگرام
+• کامندهای ممنوعه (فقط دشمن): /catch /grab /guess /arise /take /secure
+
+🚫 **مدیریت ایموجی‌های ممنوعه:**
+• `/addemoji [ایموجی]` - اضافه کردن ایموجی جدید به لیست ممنوعه
+• `/delemoji [ایموجی]` - حذف ایموجی از لیست ممنوعه
+• `/listemoji` - نمایش تمام ایموجی‌های ممنوعه
+
+🔥 **مدیریت فحش نامحدود:**
+• `/spamstatus` - نمایش وضعیت فحش‌های نامحدود فعال
+• `/stopspam [bot_id|all]` - متوقف کردن فحش‌های نامحدود
+  └ مثال: `/stopspam 1` یا `/stopspam all`
+
+⏱️ **تنظیمات تاخیر فحش:**
+• `/setdelay [ثانیه]` - تنظیم تاخیر بین فحش‌ها
+  └ مثال: `/setdelay 2.5` (2.5 ثانیه تاخیر)
+  └ مثال: `/setdelay 0.1` (0.1 ثانیه تاخیر)
+• `/getdelay` - نمایش تاخیر فعلی فحش
+
+⚡ **ویژگی‌های جدید:**
+• فحش نامحدود به دشمنان تا ایموجی ممنوعه فرستاده شود
+• سیستم کامندهای ممنوعه مخصوص دشمنان
+• مدیریت قابل تنظیم ایموجی‌های ممنوعه
+• کامندهای توقف: `/catch` `/grab` `/guess` `/take` `/arise`
+└ اسپم تا پیام بعدی دشمن متوقف می‌شود"""
+
+                    # اضافه کردن کامندهای ویژه ادمین اصلی لانچر برای help2
+                    if is_launcher:
+                        help2_text += f"""
+
+👑 **کامندهای ویژه ادمین اصلی لانچر:**
+• `/launcherstatus` - نمایش وضعیت کامل همه بات‌ها
+• `/restartbot [شماره]` - راه‌اندازی مجدد بات مشخص
+• `/manageall autoreply [on|off]` - کنترل پاسخگویی همه بات‌ها
+• `/testadmin` - بررسی دسترسی و نوع ادمین
+
+🗣️ **گفتگوی خودکار ربات‌ها (ویژگی جدید):**
+• `/startchat` - شروع گفتگوی خودکار بین ۹ ربات
+• `/stopchat` - توقف گفتگوی خودکار
+• `/chatstatus` - وضعیت گفتگوی خودکار و آمار
+• `/setoffline [شماره]` - آفلاین کردن ربات‌ها
+  └ مثال: `/setoffline 1` یا `/setoffline 1-5`
+
+🎯 **دسترسی شما:** کنترل کامل همه ۹ بات
+⚠️ **توجه:** این کامندها فقط برای شما قابل استفاده هستند"""
+
+                    help2_text += """
+
+💡 **نکات پیشرفته:**
+• هر ادمین فقط بات خودش را کنترل می‌کند
+• ادمین اصلی لانچر همه بات‌ها را کنترل می‌کند
+• فحش نامحدود خودکار با تشخیص دشمن شروع می‌شود
+• سیستم توقف هوشمند برای جلوگیری از مشکل
+
+🔗 **دستورات راهنما:**
+• `/help` - راهنمای اصلی
+• `/help2` - این راهنمای پیشرفته
+• `/stats` - آمار کامل سیستم"""
+
+                    await message.reply_text(help2_text)
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {str(e)}")
+
+            # دستورات مدیریتی ویژه ادمین اصلی لانچر
+            @app.on_message(filters.command("launcherstatus") & admin_filter)
+            async def launcher_status_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    if not self.is_launcher_admin(user_id):
+                        await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
+                        return
+
+                    status = self.get_status()
+                    status_text = f"""
+👑 **وضعیت لانچر واحد - ادمین اصلی:**
+
+🤖 تعداد کل بات‌ها: {status['total_bots']}
+✅ بات‌های فعال: {status['running_bots']}
+❌ بات‌های خطا: {status['error_bots']}
+
+📋 **جزئیات بات‌ها:**
+"""
+
+                    for bot_info in status['bots']:
+                        emoji = "✅" if bot_info['status'] == 'running' else "❌"
+                        bot_admin = self.bot_configs.get(bot_info['id'], {}).get('admin_id', 'Unknown')
+                        status_text += f"{emoji} بات {bot_info['id']}: {bot_info['status']} (Admin: {bot_admin})\n"
+
+                    await message.reply_text(status_text.strip())
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {e}")
+
+            @app.on_message(filters.command("restartbot") & admin_filter)
+            async def restart_bot_command(client, message):
+                try:
+                    user_id = message.from_user.id
+
+                    if len(message.command) < 2:
+                        await message.reply_text("⚠️ استفاده: /restartbot [شماره_بات]\nمثال: /restartbot 2")
+                        return
+
+                    target_bot_id = int(message.command[1])
+                    if target_bot_id not in self.bot_configs:
+                        await message.reply_text(f"❌ بات {target_bot_id} یافت نشد")
+                        return
+
+                    # بررسی دسترسی
+                    if not self.can_control_bot(user_id, target_bot_id):
+                        await message.reply_text(f"🚫 شما مجاز به راه‌اندازی مجدد بات {target_bot_id} نیستید")
+                        return
+
+                    await message.reply_text(f"🔄 راه‌اندازی مجدد بات {target_bot_id}...")
+
+                    success = await self.restart_bot(target_bot_id)
+                    if success:
+                        await message.reply_text(f"✅ بات {target_bot_id} مجدداً راه‌اندازی شد")
+                    else:
+                        await message.reply_text(f"❌ خطا در راه‌اندازی مجدد بات {target_bot_id}")
+
+                except ValueError:
+                    await message.reply_text("❌ شماره بات نامعتبر")
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {e}")
+
+            # کامند جدید برای مدیریت کردن همه بات‌ها (فقط ادمین اصلی)
+            @app.on_message(filters.command("manageall") & admin_filter)
+            async def manage_all_bots_command(client, message):
+                try:
+                    user_id = message.from_user.id
+                    if not self.is_launcher_admin(user_id):
+                        await message.reply_text("🚫 این کامند فقط برای ادمین اصلی لانچر است")
+                        return
+
+                    if len(message.command) < 3:
+                        await message.reply_text("⚠️ استفاده: /manageall [کامند] [پارامتر]\nمثال: /manageall autoreply on")
+                        return
+
+                    command = message.command[1].lower()
+                    parameter = message.command[2].lower()
+
+                    if command == "autoreply":
+                        enabled = parameter == "on"
+                        for bot_id in self.bot_configs.keys():
+                            self.bot_configs[bot_id]['auto_reply_enabled'] = enabled
+
+                        status = "فعال" if enabled else "غیرفعال" 
+                        await message.reply_text(f"✅ پاسخگویی خودکار همه بات‌ها {status} شد")
+
+                    elif command == "webpanel":
+                        if parameter == "restart":
+                            await self.stop_web_panel()
+                            await asyncio.sleep(2)
+                            web_success = await self.start_web_panel()
+                            if web_success:
+                                await message.reply_text("✅ پنل وب مجدداً راه‌اندازی شد")
+                            else:
+                                await message.reply_text("❌ خطا در راه‌اندازی مجدد پنل وب")
+                        elif parameter == "status":
+                            if self.web_process and self.web_process.poll() is None:
+                                await message.reply_text("✅ پنل وب فعال - http://localhost:5000")
+                            else:
+                                await message.reply_text("❌ پنل وب غیرفعال")
                         else:
-                            print(f"⚠️ فایل session بات {bot_id} پیدا نشد: {session_file}")
-                            
-                    except Exception as e:
-                        print(f"❌ خطا در بات {bot_id}: {str(e)}")
-                
-                if not apps:
-                    print("❌ هیچ باتی راه‌اندازی نشد!")
+                            await message.reply_text("❌ پارامتر نامعتبر. کامندهای موجود: autoreply, webpanel")
+
+                    else:
+                        await message.reply_text("❌ کامند نامعتبر. کامندهای موجود: autoreply, webpanel")
+
+                except Exception as e:
+                    await message.reply_text(f"❌ خطا: {e}")
+
+            # **بررسی ایموجی ممنوعه برای ادمین‌ها (اولویت بالا - بدون استثنا)**
+            @app.on_message(
+                ~filters.me & 
+                ~filters.channel & 
+                admin_filter &
+                ~filters.service &
+                filters.group
+            )
+            async def admin_emoji_security_handler(client, message):
+                """تشخیص ایموجی ممنوعه برای ادمین‌ها - هیچ استثنایی نیست"""
+                chat_id = message.chat.id
+
+                # **بررسی ایموجی/کامند ممنوعه حتی برای ادمین‌ها - هیچ استثنایی نیست**
+                if await self.should_pause_spam(message, bot_id):
+                    # دریافت اطلاعات ادمین
+                    user_id = message.from_user.id if message.from_user else 0
+                    sender_name = message.from_user.first_name if message.from_user else "نامشخص"
+                    sender_username = message.from_user.username if message.from_user else "نامشخص"
+                    sender_detail = f"{sender_name} (@{sender_username})" if sender_username else f"{sender_name}"
+
+                    logger.warning(f"🚨 SECURITY ALERT - بات {bot_id} - ایموجی ممنوعه توسط ADMIN تشخیص داده شد در چت {chat_id}")
+                    logger.warning(f"   └ توسط: ADMIN - {sender_detail} (ID: {user_id})")
+                    logger.warning(f"   └ ⚠️ حتی ادمین‌ها هم می‌توانند سیستم را متوقف کنند - هیچ استثنایی نیست")
+
+                    # نمایش محتوای پیام با بررسی امنیت
+                    message_content = message.text or message.caption or "[بدون متن]"
+                    if len(message_content) > 100:
+                        message_content = message_content[:100] + "..."
+                    logger.warning(f"   └ محتوای پیام ADMIN: {message_content}")
+
+                    # **توقف کلی همه بات‌ها در این چت - حتی اگر ادمین باشد**
+                    self.global_paused[chat_id] = user_id
+                    logger.warning(f"🛑 همه بات‌ها در چت {chat_id} توسط ADMIN متوقف شدند - امنیت مطلق")
+
+                    # لاگ عملیات در دیتابیس با اولویت بالا
+                    chat_title = message.chat.title if message.chat.title else f"چت {chat_id}"
+                    self.log_action(bot_id, "admin_security_pause", user_id, f"توقف امنیتی توسط ADMIN {sender_detail} در {chat_title}")
+
+                    # **هیچ استثنایی برای ادمین‌ها - سیستم متوقف می‌شود**
                     return
-                    
-                print(f"🎯 {len(apps)} بات با موفقیت راه‌اندازی شد")
-                print("📡 در حال اتصال به تلگرام...")
-                
-                # اجرای همه بات‌ها
-                from pyrogram import idle
-                
-                for app in apps:
-                    await app.start()
-                print("🟢 همه بات‌ها آنلاین شدند!")
-                await idle()
-            
-            # اجرای async function
-            asyncio.run(start_all_bots())
-            
+
+            # **بررسی ایموجی ممنوعه برای ادمین‌ها در چت‌های خصوصی نیز**
+            @app.on_message(
+                ~filters.me & 
+                admin_filter &
+                ~filters.service &
+                filters.private
+            )
+            async def admin_private_emoji_security_handler(client, message):
+                """تشخیص ایموجی ممنوعه برای ادمین‌ها در چت‌های خصوصی - هیچ استثنایی نیست"""
+                chat_id = message.chat.id
+
+                # **بررسی ایموجی/کامند ممنوعه حتی برای ادمین‌ها در خصوصی**
+                if await self.should_pause_spam(message, bot_id):
+                    # دریافت اطلاعات ادمین
+                    user_id = message.from_user.id if message.from_user else 0
+                    sender_name = message.from_user.first_name if message.from_user else "نامشخص"
+                    sender_username = message.from_user.username if message.from_user else "نامشخص"
+                    sender_detail = f"{sender_name} (@{sender_username})" if sender_username else f"{sender_name}"
+
+                    logger.warning(f"🚨 SECURITY ALERT PRIVATE - بات {bot_id} - ایموجی ممنوعه توسط ADMIN در چت خصوصی تشخیص داده شد")
+                    logger.warning(f"   └ توسط: ADMIN - {sender_detail} (ID: {user_id})")
+                    logger.warning(f"   └ ⚠️ حتی در چت‌های خصوصی ادمین‌ها استثنا ندارند")
+
+                    # نمایش محتوای پیام
+                    message_content = message.text or message.caption or "[بدون متن]"
+                    if len(message_content) > 100:
+                        message_content = message_content[:100] + "..."
+                    logger.warning(f"   └ محتوای پیام ADMIN (خصوصی): {message_content}")
+
+                    # لاگ عملیات امنیتی
+                    self.log_action(bot_id, "admin_private_security_pause", user_id, f"توقف امنیتی ADMIN در چت خصوصی: {sender_detail}")
+
+                    # **هیچ استثنایی - حتی در خصوصی**
+                    return
+
+            # پاسخگویی خودکار
+            @app.on_message(
+                ~filters.me & 
+                ~filters.channel & 
+                ~admin_filter &
+                ~filters.service &
+                filters.group
+            )
+            async def auto_reply_handler(client, message):
+                """هندلر پاسخگویی خودکار"""
+                # بررسی وضعیت اکو - اگر اکو فعال است، پاسخگویی خودکار نکن
+                try:
+                    import sys
+                    sys.path.append('./bots')
+                    from echo_control import is_echo_active
+                    if is_echo_active():
+                        return
+                except:
+                    pass
+
+                if not config['auto_reply_enabled']:
+                    return
+
+                chat_id = message.chat.id
+
+                # بررسی ایموجی/کامند ممنوعه برای همه کاربران
+                if await self.should_pause_spam(message, bot_id):
+                    # دریافت اطلاعات فرستنده
+                    user_id = message.from_user.id if message.from_user else 0
+                    sender_name = message.from_user.first_name if message.from_user else "نامشخص"
+                    sender_username = message.from_user.username if message.from_user else "نامشخص"
+
+                    # تشخیص نوع فرستنده
+                    if message.from_user:
+                        if message.from_user.is_bot:
+                            sender_type = "ربات تلگرام"
+                            sender_detail = f"@{sender_username}" if sender_username else f"ربات {user_id}"
+                        else:
+                            sender_type = "کاربر"
+                            sender_detail = f"{sender_name} (@{sender_username})" if sender_username else f"{sender_name}"
+                    else:
+                        sender_type = "فرستنده نامشخص"
+                        sender_detail = "بدون اطلاعات"
+
+                    logger.info(f"🛑 بات {bot_id} - ایموجی/کامند ممنوعه تشخیص داده شد در چت {chat_id}")
+                    logger.info(f"   └ توسط: {sender_type} - {sender_detail} (ID: {user_id})")
+
+                    # نمایش محتوای پیام با بررسی امنیت
+                    message_content = message.text or message.caption or "[بدون متن]"
+                    if len(message_content) > 100:
+                        message_content = message_content[:100] + "..."
+                    logger.info(f"   └ محتوای پیام: {message_content}")
+
+                    # **توقف کلی همه بات‌ها در این چت تا پیام بعدی دشمن**
+                    self.global_paused[chat_id] = user_id
+                    logger.info(f"⏸️ همه بات‌ها در چت {chat_id} متوقف شدند تا پیام بعدی دشمن")
+
+                    # لاگ عملیات در دیتابیس
+                    chat_title = message.chat.title if message.chat.title else f"چت {chat_id}"
+                    self.log_action(bot_id, "global_pause_forbidden", user_id, f"توقف کلی توسط {sender_type} ({sender_detail}) در {chat_title}")
+
+                    # ❌ هیچ واکنشی نشون نده و همه بات‌ها رو متوقف کن
+                    return
+
+                # بررسی اینکه آیا این چت متوقف شده یا نه
+                if chat_id in self.global_paused:
+                    # اگر پیام از دشمن باشد، سیستم رو فعال کن
+                    if message.from_user:
+                        user_id = message.from_user.id
+                        enemy_list = self.get_enemy_list(bot_id)
+                        enemy_ids = {row[0] for row in enemy_list}
+
+                        if user_id in enemy_ids:
+                            # دشمن پیام فرستاده - ازسرگیری فعالیت
+                            paused_by = self.global_paused[chat_id]
+                            del self.global_paused[chat_id]
+                            logger.info(f"▶️ سیستم در چت {chat_id} ازسرگیری شد - دشمن {user_id} پیام فرستاد")
+                            logger.info(f"   └ قبلاً توسط کاربر {paused_by} متوقف شده بود")
+                            self.log_action(bot_id, "global_resume_by_enemy", user_id, f"ازسرگیری توسط دشمن {user_id}")
+                            # ادامه به منطق پاسخگویی
+                        else:
+                            # کاربر عادی پیام فرستاده - همچنان متوقف
+                            logger.debug(f"⏸️ چت {chat_id} همچنان متوقف - کاربر عادی {user_id} پیام فرستاد")
+                            return
+                    else:
+                        # پیام بدون فرستنده - همچنان متوقف
+                        return
+
+                # ادامه منطق فقط برای پیام‌هایی که from_user دارند
+                if not message.from_user:
+                    return
+
+                user_id = message.from_user.id
+
+                # بررسی دشمن بودن
+                enemy_list = self.get_enemy_list(bot_id)
+                enemy_ids = {row[0] for row in enemy_list}
+
+                if user_id in enemy_ids:
+                    # شروع فحش نامحدود به دشمن - همیشه شروع می‌شود حتی بعد از توقف با ایموجی
+                    fosh_list = self.get_fosh_list(bot_id)
+                    if fosh_list:
+                        # ایجاد کلید یونیک برای این دشمن در این بات
+                        spam_key = f"{bot_id}_{user_id}_{chat_id}"
+
+                        # اگر قبلاً تسک فعال برای این دشمن وجود دارد، آن را متوقف کن
+                        if spam_key in self.continuous_spam_tasks:
+                            try:
+                                self.continuous_spam_tasks[spam_key].cancel()
+                                logger.info(f"🔄 تسک قبلی فحش برای دشمن {user_id} در بات {bot_id} متوقف شد")
+                            except:
+                                pass
+
+                        # پاک کردن حالت توقف اضطراری برای این چت اگر فعال است
+                        if chat_id in self.chat_emergency_stops and self.chat_emergency_stops[chat_id].is_set():
+                            logger.info(f"⚡ پاک کردن توقف اضطراری چت {chat_id} برای شروع مجدد فحش به دشمن {user_id}")
+                            self.chat_emergency_stops[chat_id].clear()
+
+                        # شروع تسک جدید فحش نامحدود
+                        spam_task = asyncio.create_task(
+                            self.continuous_spam_attack(client, message, user_id, fosh_list, bot_id, chat_id)
+                        )
+                        self.continuous_spam_tasks[spam_key] = spam_task
+                        logger.info(f"🔥 شروع مجدد فحش نامحدود به دشمن {user_id} توسط بات {bot_id}")
+                    return
+
+                # در حالت گفتگوی خودکار، احتمال پاسخ به پیام‌های عادی
+                if self.auto_chat_enabled and chat_id in self.active_conversations:
+                    import random
+                    # 20% احتمال پاسخ به پیام‌های عادی کاربران
+                    if random.random() < 0.2 and not user_id in enemy_ids:
+                        # انتخاب پاسخ مناسب از دیتابیس گفتگو
+                        response_messages = self.get_conversation_messages('response')
+                        if response_messages:
+                            selected_response = choice(response_messages)
+
+                            # با تاخیر کوتاه پاسخ بده تا طبیعی به نظر برسد
+                            await asyncio.sleep(random.uniform(2, 8))
+                            await self.send_auto_conversation_message(chat_id, bot_id, selected_response)
+
+                            # به‌روزرسانی آمار گفتگو
+                            conv = self.active_conversations[chat_id]
+                            conv['message_count'] += 1
+                            conv['last_bot'] = bot_id
+                            conv['last_message_time'] = time.time()
+                            self.last_bot_activity[bot_id] = time.time()
+
+                            logger.info(f"💬 ربات {bot_id} به پیام کاربر {user_id} پاسخ داد: {selected_response[:30]}...")
+                            return
+
+                # بررسی دوست بودن
+                friend_list = self.get_friend_list(bot_id)
+                friend_ids = {row[0] for row in friend_list}
+
+                if user_id in friend_ids:
+                    word_list = self.get_friend_words(bot_id)
+                    if word_list:
+                        selected = choice(word_list)
+                        await self.send_coordinated_reply(message, selected, bot_id)
+
+            # ذخیره بات
+            self.bots[bot_id] = {
+                'client': app,
+                'config': config,
+                'status': 'initialized'
+            }
+
+            return app
+
         except Exception as e:
-            print(f"❌ خطای کلی: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"❌ خطا در ایجاد بات {bot_id}: {e}")
+            return None
+
+    async def send_coordinated_reply(self, message, selected_content, bot_id):
+        """ارسال پاسخ با کنترل rate limiting مشترک"""
+        chat_id = message.chat.id
+
+        # ایجاد lock برای چت در صورت عدم وجود
+        if chat_id not in self.chat_locks:
+            self.chat_locks[chat_id] = asyncio.Lock()
+
+        async with self.chat_locks[chat_id]:
+            try:
+                # بررسی آخرین زمان ارسال پیام در این چت
+                current_time = time.time()
+
+                if chat_id in self.last_message_time:
+                    time_since_last = current_time - self.last_message_time[chat_id]
+                    if time_since_last < self.min_global_delay:
+                        # انتظار تا رسیدن به حداقل تاخیر
+                        wait_time = self.min_global_delay - time_since_last
+                        await asyncio.sleep(wait_time)
+
+                # ارسال پاسخ
+                await self.send_reply(message, selected_content)
+
+                # ثبت زمان ارسال
+                self.last_message_time[chat_id] = time.time()
+
+                logger.debug(f"📤 بات {bot_id} پاسخ دوستانه در چت {chat_id} ارسال کرد")
+
+            except Exception as e:
+                logger.error(f"❌ خطا در ارسال پاسخ هماهنگ بات {bot_id}: {e}")
+                raise
+
+    async def send_reply(self, message, selected_content):
+        """ارسال پاسخ"""
+        try:
+            content_text, media_type, file_id = selected_content
+
+            if media_type and file_id:
+                reply_methods = {
+                    "photo": message.reply_photo,
+                    "video": message.reply_video,
+                    "animation": message.reply_animation,
+                    "sticker": message.reply_sticker,
+                    "audio": message.reply_audio,
+                    "voice": message.reply_voice,
+                    "video_note": message.reply_video_note,
+                    "document": message.reply_document
+                }
+
+                method = reply_methods.get(media_type)
+                if method:
+                    await method(file_id)
+            elif content_text:
+                await message.reply_text(content_text)
+        except Exception as e:
+            logger.error(f"خطا در ارسال پاسخ: {e}")
+
+    async def start_all_bots(self):
+        """شروع همه بات‌ها"""
+        self.running = True
+
+        # بارگذاری ایموجی‌های ممنوعه قبل از شروع
+        self.forbidden_emojis = self.load_forbidden_emojis_from_db()
+
+        # شروع ربات گزارش‌دهی
+        await self.start_report_bot()
+
+        # ایجاد همه بات‌ها
+        tasks = []
+        for bot_id, config in self.bot_configs.items():
+            bot = await self.create_bot(bot_id, config)
+            if bot:
+                tasks.append(self.start_single_bot(bot_id))
+
+        # شروع همه بات‌ها به صورت موازی
+        if tasks:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # بررسی کدام بات‌ها متصل شدند
+        connected_bots = []
+        for bot_id in self.bot_configs.keys():
+            if bot_id in self.bots and self.bots[bot_id]['status'] == 'running':
+                connected_bots.append(bot_id)
+
+        # تنها پیام نهایی نمایش داده می‌شود
+        if connected_bots:
+            print(f"🎉 بات‌های متصل شده: {', '.join(map(str, sorted(connected_bots)))} - آماده کار هستند")
+        else:
+            print("❌ هیچ باتی متصل نشد")
+
+        # نگه داشتن سیستم زنده
+        try:
+            while self.running:
+                await asyncio.sleep(10)
+                # بررسی بدون لاگ
+                if self.report_bot and self.report_bot.client and not self.report_bot.client.is_connected:
+                    try:
+                        await self.report_bot.client.start()
+                    except:
+                        pass
+        except KeyboardInterrupt:
+            logger.info("🔴 متوقف شدن با Ctrl+C")
+        finally:
+            await self.stop_all_bots()
+
+    async def start_single_bot(self, bot_id):
+        """شروع یک بات"""
+        try:
+            if bot_id not in self.bots:
+                return
+
+            bot_info = self.bots[bot_id]
+            client = bot_info['client']
+
+            await client.start()
+            bot_info['status'] = 'running'
+            bot_info['start_time'] = datetime.now()
+
+            # بارگذاری ایموجی‌های ممنوعه از دیتابیس برای همه بات‌ها
+            try:
+                loaded_emojis = self.load_forbidden_emojis_from_db()
+                self.forbidden_emojis.update(loaded_emojis)
+            except Exception as e:
+                logger.error(f"خطا در بارگذاری ایموجی‌ها برای بات {bot_id}: {e}")
+
+            # مانیتورینگ بدون لاگ
+            while self.running and bot_info['status'] == 'running':
+                try:
+                    if not client.is_connected:
+                        await client.start()
+                    await asyncio.sleep(10)
+                except:
+                    await asyncio.sleep(5)
+
+        except Exception as e:
+            logger.error(f"❌ خطا در شروع بات {bot_id}: {e}")
+            if bot_id in self.bots:
+                self.bots[bot_id]['status'] = 'error'
+
+                # تلاش برای راه‌اندازی مجدد خودکار
+                await asyncio.sleep(30)
+                if self.running:
+                    await self.restart_bot(bot_id)
+
+    async def stop_single_bot(self, bot_id):
+        """متوقف کردن یک بات"""
+        try:
+            if bot_id in self.bots:
+                bot_info = self.bots[bot_id]
+                if bot_info['status'] == 'running':
+                    await bot_info['client'].stop()
+                    bot_info['status'] = 'stopped'
+        except Exception as e:
+            logger.error(f"❌ خطا در توقف بات {bot_id}: {e}")
+
+    async def start_report_bot(self):
+        """شروع ربات گزارش‌دهی"""
+        try:
+            self.report_bot = ReportBot()
+            if not hasattr(self.report_bot, 'is_valid') or not self.report_bot.is_valid:
+                self.report_bot = None
+                return
+            if not await self.report_bot.start_bot():
+                self.report_bot = None
+        except Exception as e:
+            logger.error(f"❌ خطا در شروع ربات گزارش‌دهی: {e}")
+            self.report_bot = None
+
+    async def stop_all_bots(self):
+        """متوقف کردن همه بات‌ها"""
+        self.running = False
+
+        if self.report_bot:
+            await self.report_bot.stop_bot()
+
+        if self.continuous_spam_tasks:
+            for spam_key, task in list(self.continuous_spam_tasks.items()):
+                try:
+                    task.cancel()
+                except:
+                    pass
+            self.continuous_spam_tasks.clear()
+
+        tasks = []
+        for bot_id in list(self.bots.keys()):
+            tasks.append(self.stop_single_bot(bot_id))
+
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def restart_bot(self, bot_id):
+        """راه‌اندازی مجدد یک بات"""
+        try:
+            logger.info(f"🔄 راه‌اندازی مجدد بات {bot_id}...")
+
+            # متوقف کردن بات فعلی
+            await self.stop_single_bot(bot_id)
+            await asyncio.sleep(2)
+
+            # ایجاد مجدد بات
+            if bot_id in self.bot_configs:
+                config = self.bot_configs[bot_id]
+                bot = await self.create_bot(bot_id, config)
+                if bot:
+                    # شروع مجدد بات
+                    asyncio.create_task(self.start_single_bot(bot_id))
+                    logger.info(f"✅ بات {bot_id} مجدداً راه‌اندازی شد")
+                    return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"❌ خطا در راه‌اندازی مجدد بات {bot_id}: {e}")
+            return False
+
+    def get_status(self):
+        """دریافت وضعیت همه بات‌ها"""
+        status = {
+            'total_bots': len(self.bot_configs),
+            'running_bots': len([b for b in self.bots.values() if b['status'] == 'running']),
+            'error_bots': len([b for b in self.bots.values() if b['status'] == 'error']),
+            'bots': []
+        }
+
+        for bot_id, bot_info in self.bots.items():
+            status['bots'].append({
+                'id': bot_id,
+                'status': bot_info['status'],
+                'config': bot_info['config']['session_name']
+            })
+
+        return status
+
+    async def continuous_spam_attack(self, client, message, user_id, fosh_list, bot_id, chat_id):
+        """فحش نامحدود به دشمن تا ایموجی ممنوعه فرستاده شود"""
+        try:
+            spam_key = f"{bot_id}_{user_id}_{chat_id}"
+            fosh_count = 0
+
+            logger.info(f"🔥 شروع فحش نامحدود بات {bot_id} به دشمن {user_id} در چت {chat_id}")
+
+            while True:
+                # بررسی فوری توقف اضطراری برای این چت در ابتدای هر loop
+                if chat_id in self.chat_emergency_stops and self.chat_emergency_stops[chat_id].is_set():
+                    logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری چت {chat_id}")
+                    break
+
+                # بررسی اینکه آیا چت متوقف شده یا نه
+                if chat_id in self.global_paused:
+                    logger.info(f"⏸️ فحش نامحدود بات {bot_id} متوقف شد - چت {chat_id} در حالت توقف")
+                    break
+
+                # بررسی اینکه آیا تسک کنسل شده یا نه
+                if spam_key not in self.continuous_spam_tasks:
+                    logger.info(f"⏹️ فحش نامحدود بات {bot_id} متوقف شد - تسک حذف شده")
+                    break
+
+                try:
+                    # انتخاب فحش تصادفی
+                    selected = choice(fosh_list)
+                    await self.send_coordinated_message(client, message, selected, bot_id)
+                    fosh_count += 1
+
+                    # لاگ هر 10 فحش
+                    if fosh_count % 10 == 0:
+                        logger.info(f"🔥 بات {bot_id} - ارسال {fosh_count} فحش به دشمن {user_id}")
+
+                    # دریافت تاخیر قابل تنظیم برای این بات
+                    spam_delay = self.get_spam_delay(bot_id)
+
+                    # بررسی فوری توقف اضطراری برای این چت قبل از انتظار
+                    if chat_id in self.chat_emergency_stops and self.chat_emergency_stops[chat_id].is_set():
+                        logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری چت {chat_id} (حین انتظار)")
+                        break
+
+                    # تقسیم تاخیر به قطعات کوچک‌تر برای چک کردن سریع‌تر توقف
+                    sleep_intervals = max(20, int(spam_delay * 50))  # حداقل 20 قطعه، 50 بررسی در ثانیه
+                    interval_time = spam_delay / sleep_intervals if sleep_intervals > 0 else 0.02
+
+                    should_break = False
+                    for _ in range(sleep_intervals):
+                        await asyncio.sleep(interval_time)
+
+                        # بررسی اولویت بالا: توقف اضطراری برای این چت
+                        if chat_id in self.chat_emergency_stops and self.chat_emergency_stops[chat_id].is_set():
+                            logger.info(f"🚨 فحش نامحدود بات {bot_id} فوراً متوقف شد - توقف اضطراری چت {chat_id} (حین انتظار)")
+                            should_break = True
+                            break
+
+                        # چک کردن توقف در هر قطعه
+                        if chat_id in self.global_paused:
+                            logger.info(f"⏸️ فحش نامحدود بات {bot_id} متوقف شد - چت {chat_id} در حالت توقف (حین انتظار)")
+                            should_break = True
+                            break
+
+                        if spam_key not in self.continuous_spam_tasks:
+                            logger.info(f"⏹️ فحش نامحدود بات {bot_id} متوقف شد - تسک حذف شده (حین انتظار)")
+                            should_break = True
+                            break
+
+                    # اگر در loop داخلی break شد، از loop اصلی هم break کن
+                    if should_break:
+                        break
+
+                except FloodWait as e:
+                    # اگر تلگرام محدودیت زمانی اعمال کرد
+                    wait_time = float(e.value) if hasattr(e, 'value') else 30.0
+                    logger.warning(f"⏳ فلود ویت {wait_time} ثانیه برای بات {bot_id}")
+                    await asyncio.sleep(wait_time)
+                    continue
+
+                except Exception as send_error:
+                    logger.error(f"❌ خطا در ارسال فحش بات {bot_id}: {send_error}")
+                    await asyncio.sleep(5)  # تاخیر بعد از خطا
+                    continue
+
+            # پاک کردن تسک از لیست
+            if spam_key in self.continuous_spam_tasks:
+                del self.continuous_spam_tasks[spam_key]
+
+            # لاگ نهایی
+            self.log_action(bot_id, "continuous_spam", user_id, f"{fosh_count} فحش نامحدود در {message.chat.title}")
+            logger.info(f"✅ بات {bot_id} - فحش نامحدود تمام شد. کل ارسالی: {fosh_count} فحش به دشمن {user_id}")
+
+        except asyncio.CancelledError:
+            # تسک کنسل شده
+            if spam_key in self.continuous_spam_tasks:
+                del self.continuous_spam_tasks[spam_key]
+            logger.info(f"🚫 فحش نامحدود بات {bot_id} به دشمن {user_id} کنسل شد")
+
+        except Exception as e:
+            # پاک کردن تسک در صورت خطا
+            if spam_key in self.continuous_spam_tasks:
+                del self.continuous_spam_tasks[spam_key]
+            logger.error(f"❌ خطا در فحش نامحدود بات {bot_id}: {e}")
+
+    async def staged_attack(self, client, message, user_id, fosh_list, bot_id):
+        """حمله مرحله‌ای - 5 مرحله با فاصله زمانی (متد قدیمی - حفظ شده برای سازگاری)"""
+        try:
+            chat_id = message.chat.id
+
+            # بررسی اینکه آیا چت متوقف شده یا نه
+            if chat_id in self.global_paused:
+                logger.info(f"⏸️ حمله مرحله‌ای بات {bot_id} متوقف شد - چت {chat_id} در حالت توقف")
+                return
+
+            # مرحله 1: فوری
+            selected = choice(fosh_list)
+            await self.send_fosh_reply(client, message, selected)
+            logger.info(f"🔥 بات {bot_id} - مرحله 1: فحش به دشمن {user_id}")
+
+            # مرحله 2: بعد از 1 ثانیه
+            await asyncio.sleep(1)
+            if chat_id not in self.global_paused:
+                selected = choice(fosh_list)
+                await self.send_fosh_reply(client, message, selected)
+                logger.info(f"🔥 بات {bot_id} - مرحله 2: فحش به دشمن {user_id}")
+
+            # مرحله 3: بعد از 1 ثانیه دیگر  
+            await asyncio.sleep(1)
+            if chat_id not in self.global_paused:
+                selected = choice(fosh_list)
+                await self.send_fosh_reply(client, message, selected)
+                logger.info(f"🔥 بات {bot_id} - مرحله 3: فحش به دشمن {user_id}")
+
+            # مرحله 4: بعد از 1 ثانیه دیگر
+            await asyncio.sleep(1)
+            if chat_id not in self.global_paused:
+                selected = choice(fosh_list)
+                await self.send_fosh_reply(client, message, selected)
+                logger.info(f"🔥 بات {bot_id} - مرحله 4: فحش به دشمن {user_id}")
+
+            # مرحله 5: بعد از 1 ثانیه دیگر
+            await asyncio.sleep(1)
+            if chat_id not in self.global_paused:
+                selected = choice(fosh_list)
+                await self.send_fosh_reply(client, message, selected)
+                logger.info(f"🔥 بات {bot_id} - مرحله 5: فحش به دشمن {user_id}")
+
+            # لاگ کامل حمله
+            self.log_action(bot_id, "staged_attack", user_id, f"حمله مرحله‌ای 5 فحش در {message.chat.title}")
+            logger.info(f"✅ بات {bot_id} - حمله مرحله‌ای کامل شد به دشمن {user_id}")
+
+        except Exception as e:
+            logger.error(f"خطا در حمله مرحله‌ای بات {bot_id}: {e}")
+
+    async def send_coordinated_message(self, client, message, selected_content, bot_id):
+        """ارسال پیام با کنترل rate limiting مشترک"""
+        chat_id = message.chat.id
+
+        # ایجاد lock برای چت در صورت عدم وجود
+        if chat_id not in self.chat_locks:
+            self.chat_locks[chat_id] = asyncio.Lock()
+
+        async with self.chat_locks[chat_id]:
+            try:
+                # بررسی آخرین زمان ارسال پیام در این چت
+                current_time = time.time()
+
+                if chat_id in self.last_message_time:
+                    time_since_last = current_time - self.last_message_time[chat_id]
+                    if time_since_last < self.min_global_delay:
+                        # انتظار تا رسیدن به حداقل تاخیر
+                        wait_time = self.min_global_delay - time_since_last
+                        await asyncio.sleep(wait_time)
+
+                # ارسال پیام
+                await self.send_fosh_reply(client, message, selected_content)
+
+                # ثبت زمان ارسال
+                self.last_message_time[chat_id] = time.time()
+
+                logger.debug(f"📤 بات {bot_id} پیام در چت {chat_id} ارسال کرد")
+
+            except Exception as e:
+                logger.error(f"❌ خطا در ارسال پیام هماهنگ بات {bot_id}: {e}")
+                raise
+
+    async def send_fosh_reply(self, client, message, selected_content):
+        """ارسال فحش"""
+        try:
+            content_text, media_type, file_id = selected_content
+
+            if media_type and file_id:
+                reply_methods = {
+                    "photo": client.send_photo,
+                    "video": client.send_video,
+                    "animation": client.send_animation,
+                    "sticker": client.send_sticker,
+                    "audio": client.send_audio,
+                    "voice": client.send_voice,
+                    "video_note": client.send_video_note,
+                    "document": client.send_document
+                }
+
+                method = reply_methods.get(media_type)
+                if method:
+                    await method(message.chat.id, file_id, reply_to_message_id=message.id)
+            elif content_text:
+                await client.send_message(message.chat.id, content_text, reply_to_message_id= message.id)
+        except Exception as e:
+            logger.error(f"خطا در ارسال فحش: {e}")
+
+# متغیر کلی لانچر
+launcher = UnifiedBotLauncher()
+
+async def main():
+    """تابع اصلی"""
+    try:
+        print("="*60)
+        print("🤖 لانچر واحد بات‌های تلگرام")
+        print("="*60)
+        print("🎯 شروع همه ۹ بات در یک فرآیند...")
+        print("📍 برای متوقف کردن: Ctrl+C")
+        print("="*60)
+
+        # شروع همه بات‌ها
+        await launcher.start_all_bots()
+
+    except KeyboardInterrupt:
+        logger.info("🔴 متوقف شدن با Ctrl+C")
+    except Exception as e:
+        logger.error(f"❌ خطای غیرمنتظره: {e}")
+    finally:
+        await launcher.stop_all_bots()
 
 if __name__ == "__main__":
-    print("=" * 50)
-    print("🎯 سیستم تلگرام پیشرفته - نسخه یکپارچه")
-    print("=" * 50)
-    
-    launcher = UnifiedBotLauncher()
-    launcher.run_unified_bots()
+    asyncio.run(main())
