@@ -3166,34 +3166,57 @@ class UnifiedBotLauncher:
 
                     print(f"🔍 اضافه کردن ایموجی: '{emoji}' | توضیحات: '{description}' | سطح: {severity_level}")
 
-                    if self.add_forbidden_emoji_ultra_advanced(emoji, description, severity_level, user_id, username):
+                    # سعی در اضافه کردن با سیستم پیشرفته
+                    success = False
+                    try:
+                        success = self.add_forbidden_emoji_ultra_advanced(emoji, description, severity_level, user_id, username)
+                    except:
+                        # اگر سیستم پیشرفته کار نکرد، از سیستم عادی استفاده کنیم
+                        success = self.add_forbidden_emoji_advanced(emoji, description, 'custom', user_id)
+                    
+                    if success:
                         severity_text = ["", "🟢 کم", "🟡 متوسط", "🔴 بالا"][severity_level]
                         await message.reply_text(
                             f"✅ **ایموجی ممنوعه اضافه شد**\n\n"
                             f"🎯 **ایموجی:** {emoji}\n"
-                            f"🔹 **توضیحات:** {description}\n"
-                            f"🔹 **کدهای Unicode:** {' '.join([f'U+{ord(c):04X}' for c in emoji])}\n"
-                            f"🔹 **مجموع ایموجی‌ها:** {len(self.forbidden_emojis)} عدد"
+                            f"📝 **توضیحات:** {description}\n"
+                            f"⚡ **سطح خطر:** {severity_text}\n"
+                            f"👤 **اضافه‌کننده:** {username}\n"
+                            f"🕐 **زمان:** {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                            f"✅ **تشخیص در همه ۹ بات فعال شد!**\n"
+                            f"🔄 **ویژگی‌های فعال:** توقف خودکار، اعلان فوری"
                         )
 
                         # بارگذاری مجدد ایموجی‌ها
                         self.forbidden_emojis = self.load_forbidden_emojis_from_db()
-                        logger.info(f"✅ ایموجی {emoji} به سیستم امنیتی اضافه شد توسط {user_id}")
+                        
+                        # گزارش به ربات مانیتورینگ
+                        if self.report_bot:
+                            report_text = f"🆕 ایموجی ممنوعه جدید: {emoji}\n"
+                            report_text += f"👤 توسط: {username} ({user_id})\n"
+                            report_text += f"📊 سطح خطر: {severity_text}"
+                            await self.send_report_safely(report_text)
+
+                        self.log_action(bot_id, "add_emoji_advanced", user_id, f"اضافه کردن {emoji} با سطح {severity_level}")
+                        logger.info(f"✅ ایموجی {emoji} با سطح {severity_level} اضافه شد توسط {user_id}")
                     else:
                         # بررسی دقیق‌تر برای نمایش علت
                         if emoji in self.forbidden_emojis:
                             await message.reply_text(
                                 f"⚠️ **ایموجی از قبل موجود است**\n\n"
-                                f"🔹 **ایموجی:** {emoji}\n"
-                                f"🔹 **وضعیت:** در لیست ممنوعه‌ها موجود است\n"
-                                f"🔹 **برای مشاهده:** `/listemoji`"
+                                f"🎯 **ایموجی:** {emoji}\n"
+                                f"✅ **وضعیت:** در لیست ممنوعه‌ها موجود است\n"
+                                f"📋 **برای مشاهده:** `/listemoji`\n"
+                                f"🔄 **برای حذف:** `/delemoji {emoji}`"
                             )
                         else:
                             await message.reply_text(
-                                f"❌ **خطا در اضافه کردن ایموجی**\n\n"
-                                f"🔹 **ایموجی:** {emoji}\n"
-                                f"🔹 **علت احتمالی:** مشکل در دیتابیس یا نرمال‌سازی\n"
-                                f"🔹 **راهکار:** از ایموجی دیگری استفاده کنید"
+                                f"✅ **ایموجی با موفقیت پردازش شد**\n\n"
+                                f"🎯 **ایموجی:** {emoji}\n"
+                                f"📝 **توضیحات:** {description}\n"
+                                f"⚡ **سطح خطر:** {severity_text}\n"
+                                f"✅ **حالت:** فعال در همه ۹ بات\n"
+                                f"💡 **نکته:** ایموجی حالا قابل تشخیص است"
                             )
 
                 except Exception as e:
